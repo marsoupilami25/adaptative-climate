@@ -1,0 +1,42 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Adaptative Climate",
+        "description": "Create an adaptative climate entity from an existing climate entity.",
+        "data": {
+          "name": "Name",
+          "target_entity": "Source climate entity",
+          "min_temp": "Minimum temperature",
+          "max_temp": "Maximum temperature"
+        }
+      }
+    },
+    "error": {
+      "min_max_invalid": "The minimum temperature must be lower than the maximum temperature.",
+      "self_reference": "An Adaptative Climate entity cannot be used as the source."
+    },
+    "abort": {
+      "already_configured": "This climate entity is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Adaptative Climate options",
+        "data": {
+          "min_temp": "Minimum temperature",
+          "max_temp": "Maximum temperature"
+        }
+      }
+    },
+    "error": {
+      "min_max_invalid": "The minimum temperature must be lower than the maximum temperature."
+    }
+  },
+  "exceptions": {
+    "unsupported_hvac_mode": {
+      "message": "Unsupported HVAC mode: {hvac_mode}."
+    }
+  }
+}

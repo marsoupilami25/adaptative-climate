@@ -1,0 +1,42 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Adaptative Climate",
+        "description": "Crée une entité climate adaptative à partir d'une entité climate existante.",
+        "data": {
+          "name": "Nom",
+          "target_entity": "Entité climate source",
+          "min_temp": "Température minimale",
+          "max_temp": "Température maximale"
+        }
+      }
+    },
+    "error": {
+      "min_max_invalid": "La température minimale doit être inférieure à la température maximale.",
+      "self_reference": "Une entité Adaptative Climate ne peut pas servir de source."
+    },
+    "abort": {
+      "already_configured": "Cette entité climate est déjà configurée."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options Adaptative Climate",
+        "data": {
+          "min_temp": "Température minimale",
+          "max_temp": "Température maximale"
+        }
+      }
+    },
+    "error": {
+      "min_max_invalid": "La température minimale doit être inférieure à la température maximale."
+    }
+  },
+  "exceptions": {
+    "unsupported_hvac_mode": {
+      "message": "Mode HVAC non pris en charge : {hvac_mode}."
+    }
+  }
+}
