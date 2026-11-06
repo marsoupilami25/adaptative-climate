@@ -1,0 +1,3 @@
+# Version pinned to a Home Assistant release (0.13.375 = HA 2026.10.4).
+# Bump it with each HA release: https://pypi.org/project/pytest-homeassistant-custom-component/
+pytest-homeassistant-custom-component==0.13.375
