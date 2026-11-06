@@ -26,7 +26,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant, State, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -34,37 +34,28 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
-    CONF_TARGET_ENTITY,
     DEFAULT_MAX_TEMP,
     DEFAULT_MIN_TEMP,
     DOMAIN,
+    entry_settings,
 )
 from .coordinator import AdaptativeClimateConfigEntry, AdaptativeClimateCoordinator
 
-ALLOWED_HVAC_MODES: tuple[HVACMode, ...] = (
-    HVACMode.OFF,
-    HVACMode.HEAT_COOL,
-    HVACMode.DRY,
-    HVACMode.FAN_ONLY,
-)
-
-# Features this entity implements. Other features of the source entity
+# Features this entity implements. Other features of the sources
 # (presets, fan, swing...) are dropped: exposing them without implementing
 # them makes Home Assistant fail when the entity is added.
-IMPLEMENTED_FEATURES = (
+SOURCE_FEATURES = (
     ClimateEntityFeature.TARGET_TEMPERATURE
     | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
-    | ClimateEntityFeature.TURN_ON
-    | ClimateEntityFeature.TURN_OFF
 )
 
 # set_temperature fields forwarded to the source entity. Home Assistant also
 # passes entity_id/area_id/... in kwargs; they must never be forwarded.
+# hvac_mode is handled separately, since it can change the source.
 FORWARDED_TEMPERATURE_FIELDS: tuple[str, ...] = (
     ATTR_TEMPERATURE,
     ATTR_TARGET_TEMP_LOW,
     ATTR_TARGET_TEMP_HIGH,
-    ATTR_HVAC_MODE,
 )
 
 
@@ -81,7 +72,12 @@ class AdaptativeClimateEntity(
     CoordinatorEntity[AdaptativeClimateCoordinator],
     ClimateEntity,
 ):
-    """Climate entity wrapping another climate entity."""
+    """Climate entity driving one source climate entity per mode.
+
+    The current mode is read from the sources: the entity is in a mode when
+    the source of that mode is in the HVAC mode of the same name. Otherwise
+    it is off.
+    """
 
     _attr_has_entity_name = True
 
@@ -89,114 +85,150 @@ class AdaptativeClimateEntity(
         """Initialize the entity."""
         super().__init__(coordinator)
         self._entry = coordinator.config_entry
-        self._target_entity_id = self._entry.data[CONF_TARGET_ENTITY]
+        self._mode_sources = coordinator.mode_sources
         self._attr_unique_id = self._entry.entry_id
         self._attr_name = self._entry.title
+        # Mode restored by turn_on. Kept in memory only.
+        self._last_on_mode: HVACMode | None = None
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Remember the last mode the entity was on, then update state."""
+        mode = self._current_mode()
+        if mode is not HVACMode.OFF:
+            self._last_on_mode = mode
+        super()._handle_coordinator_update()
+
+    # Source helpers
+
+    def _state(self, entity_id: str | None) -> State | None:
+        """Return the state of a source entity, if it is usable."""
+        if entity_id is None or not self.coordinator.data:
+            return None
+        state = self.coordinator.data.get(entity_id)
+        if state is None or state.state in {STATE_UNAVAILABLE, STATE_UNKNOWN}:
+            return None
+        return state
+
+    def _current_mode(self) -> HVACMode:
+        """Return the first mode whose source runs in that mode, else OFF."""
+        for mode, entity_id in self._mode_sources.items():
+            state = self._state(entity_id)
+            if state is not None and state.state == mode:
+                return mode
+        return HVACMode.OFF
+
+    @property
+    def _active_source(self) -> str | None:
+        """Return the source of the current mode (None when off)."""
+        return self._mode_sources.get(self._current_mode())
+
+    @property
+    def _display_source(self) -> str | None:
+        """Return the source used for readings: the active one, else the first usable one."""
+        active = self._active_source
+        if active is not None:
+            return active
+        for entity_id in self.coordinator.source_entity_ids:
+            if self._state(entity_id) is not None:
+                return entity_id
+        return None
+
+    def _attr_from(self, entity_id: str | None, attr: str) -> Any:
+        """Read an attribute from a source entity."""
+        state = self._state(entity_id)
+        return None if state is None else state.attributes.get(attr)
+
+    def _attr_from_display(self, attr: str) -> Any:
+        """Read an attribute from the display source."""
+        return self._attr_from(self._display_source, attr)
+
+    # Entity properties
 
     @property
     def available(self) -> bool:
-        """Return if the wrapped climate entity is available."""
-        state = self._target_state
-        return state is not None and state.state not in {STATE_UNAVAILABLE, STATE_UNKNOWN}
-
-    @property
-    def _target_state(self) -> State | None:
-        """Return the current state for the wrapped climate entity."""
-        return self.coordinator.data
+        """Return True when at least one source is usable."""
+        return self._display_source is not None
 
     @property
     def supported_features(self) -> ClimateEntityFeature:
-        """Return the source features this entity implements."""
-        state = self._target_state
-        if state is None:
-            return ClimateEntityFeature.TARGET_TEMPERATURE
+        """Return the features of the sources this entity implements.
 
-        raw_features = state.attributes.get(ATTR_SUPPORTED_FEATURES, 0)
-        return ClimateEntityFeature(raw_features) & IMPLEMENTED_FEATURES
+        Combined over every source so the features do not change with the mode.
+        """
+        features = ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
+        for entity_id in self.coordinator.source_entity_ids:
+            raw = self._attr_from(entity_id, ATTR_SUPPORTED_FEATURES) or 0
+            features |= ClimateEntityFeature(raw) & SOURCE_FEATURES
+        return features
 
     @property
     def temperature_unit(self) -> str:
         """Return the unit of measurement.
 
         Climate state attributes are always in the system unit, so the
-        values read from the source entity are in that unit too.
+        values read from the sources are in that unit too.
         """
         return self.hass.config.units.temperature_unit
 
     @property
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
-        return self._attr_from_target(ATTR_CURRENT_TEMPERATURE)
+        return self._attr_from_display(ATTR_CURRENT_TEMPERATURE)
 
     @property
     def target_temperature(self) -> float | None:
         """Return the target temperature."""
-        return self._attr_from_target(ATTR_TEMPERATURE)
+        return self._attr_from(self._active_source, ATTR_TEMPERATURE)
 
     @property
     def target_temperature_high(self) -> float | None:
         """Return the high target temperature."""
-        return self._attr_from_target(ATTR_TARGET_TEMP_HIGH)
+        return self._attr_from(self._active_source, ATTR_TARGET_TEMP_HIGH)
 
     @property
     def target_temperature_low(self) -> float | None:
         """Return the low target temperature."""
-        return self._attr_from_target(ATTR_TARGET_TEMP_LOW)
+        return self._attr_from(self._active_source, ATTR_TARGET_TEMP_LOW)
 
     @property
     def target_temperature_step(self) -> float | None:
-        """Return the temperature step of the wrapped climate entity."""
-        return self._attr_from_target(ATTR_TARGET_TEMP_STEP)
+        """Return the temperature step of the display source."""
+        return self._attr_from_display(ATTR_TARGET_TEMP_STEP)
 
     @property
     def min_temp(self) -> float:
         """Return the minimum temperature, never below the source's minimum."""
-        configured = self._entry.options.get(
-            CONF_MIN_TEMP,
-            self._entry.data.get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP),
-        )
-        source = self._attr_from_target(ATTR_MIN_TEMP)
+        configured = entry_settings(self._entry).get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP)
+        source = self._attr_from_display(ATTR_MIN_TEMP)
         return configured if source is None else max(configured, source)
 
     @property
     def max_temp(self) -> float:
         """Return the maximum temperature, never above the source's maximum."""
-        configured = self._entry.options.get(
-            CONF_MAX_TEMP,
-            self._entry.data.get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP),
-        )
-        source = self._attr_from_target(ATTR_MAX_TEMP)
+        configured = entry_settings(self._entry).get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP)
+        source = self._attr_from_display(ATTR_MAX_TEMP)
         return configured if source is None else min(configured, source)
 
     @property
-    def hvac_mode(self) -> HVACMode | None:
-        """Return current HVAC mode."""
-        state = self._target_state
-        if state is None or state.state in {STATE_UNAVAILABLE, STATE_UNKNOWN}:
-            return None
-
-        try:
-            hvac_mode = HVACMode(state.state)
-        except ValueError:
-            return None
-
-        if hvac_mode not in ALLOWED_HVAC_MODES:
-            return None
-
-        return hvac_mode
+    def hvac_mode(self) -> HVACMode:
+        """Return the current mode."""
+        return self._current_mode()
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
-        """Return available HVAC modes."""
-        return list(ALLOWED_HVAC_MODES)
+        """Return OFF plus every mode that has a source configured."""
+        return [HVACMode.OFF, *self._mode_sources]
 
     @property
     def hvac_action(self) -> HVACAction | None:
-        """Return current HVAC action."""
-        action = self._attr_from_target(ATTR_HVAC_ACTION)
+        """Return the current action of the active source."""
+        if self._current_mode() is HVACMode.OFF:
+            return HVACAction.OFF
+
+        action = self._attr_from(self._active_source, ATTR_HVAC_ACTION)
         if action is None:
             return None
-
         try:
             return HVACAction(action)
         except ValueError:
@@ -206,26 +238,46 @@ class AdaptativeClimateEntity(
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return extra attributes."""
         return {
-            "target_entity_id": self._target_entity_id,
+            "active_entity_id": self._active_source,
+            "mode_entity_ids": {
+                str(mode): entity_id for mode, entity_id in self._mode_sources.items()
+            },
         }
 
+    # Commands
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        """Set a new target temperature on the wrapped climate entity."""
+        """Set a new target temperature on the source of the current mode."""
+        hvac_mode = kwargs.get(ATTR_HVAC_MODE)
+        if hvac_mode is not None:
+            if hvac_mode not in self.hvac_modes:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="unsupported_hvac_mode",
+                    translation_placeholders={"hvac_mode": str(hvac_mode)},
+                )
+            await self.async_set_hvac_mode(HVACMode(hvac_mode))
+            if hvac_mode == HVACMode.OFF:
+                return
+            source = self._mode_sources[HVACMode(hvac_mode)]
+        else:
+            source = self._active_source
+            if source is None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="no_active_mode",
+                )
+
         service_data = {
             key: value
             for key, value in kwargs.items()
             if key in FORWARDED_TEMPERATURE_FIELDS
         }
-        hvac_mode = service_data.get(ATTR_HVAC_MODE)
-        if hvac_mode is not None and hvac_mode not in self.hvac_modes:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="unsupported_hvac_mode",
-                translation_placeholders={"hvac_mode": str(hvac_mode)},
-            )
+        if not service_data:
+            return
 
         # Set last: the call must always go to the source entity.
-        service_data[ATTR_ENTITY_ID] = self._target_entity_id
+        service_data[ATTR_ENTITY_ID] = source
         await self.hass.services.async_call(
             CLIMATE_DOMAIN,
             "set_temperature",
@@ -234,42 +286,44 @@ class AdaptativeClimateEntity(
         )
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Set a new HVAC mode on the wrapped climate entity.
+        """Switch to a mode.
 
+        The source of the previous mode is turned off first when it is not
+        the source of the new mode, so two sources never run at once.
         Home Assistant has already checked that hvac_mode is in hvac_modes.
         """
+        previous = self._active_source
+        target = self._mode_sources.get(hvac_mode)
+
+        if previous is not None and previous != target:
+            await self._async_source_set_hvac_mode(previous, HVACMode.OFF)
+
+        if target is not None:
+            await self._async_source_set_hvac_mode(target, hvac_mode)
+            self._last_on_mode = hvac_mode
+
+    async def async_turn_on(self) -> None:
+        """Turn on in the last used mode, else the first configured mode."""
+        if self._current_mode() is not HVACMode.OFF:
+            return
+
+        mode = self._last_on_mode
+        if mode not in self._mode_sources:
+            mode = next(iter(self._mode_sources), None)
+        if mode is not None:
+            await self.async_set_hvac_mode(mode)
+
+    async def async_turn_off(self) -> None:
+        """Turn off the active source."""
+        await self.async_set_hvac_mode(HVACMode.OFF)
+
+    async def _async_source_set_hvac_mode(
+        self, entity_id: str, hvac_mode: HVACMode
+    ) -> None:
+        """Set the HVAC mode of a source entity."""
         await self.hass.services.async_call(
             CLIMATE_DOMAIN,
             "set_hvac_mode",
-            {
-                ATTR_ENTITY_ID: self._target_entity_id,
-                ATTR_HVAC_MODE: hvac_mode,
-            },
+            {ATTR_ENTITY_ID: entity_id, ATTR_HVAC_MODE: hvac_mode},
             blocking=True,
         )
-
-    async def async_turn_on(self) -> None:
-        """Turn on the wrapped climate entity."""
-        await self.hass.services.async_call(
-            CLIMATE_DOMAIN,
-            "turn_on",
-            {ATTR_ENTITY_ID: self._target_entity_id},
-            blocking=True,
-        )
-
-    async def async_turn_off(self) -> None:
-        """Turn off the wrapped climate entity."""
-        await self.hass.services.async_call(
-            CLIMATE_DOMAIN,
-            "turn_off",
-            {ATTR_ENTITY_ID: self._target_entity_id},
-            blocking=True,
-        )
-
-    def _attr_from_target(self, attr: str) -> Any:
-        """Read an attribute from the wrapped climate entity."""
-        state = self._target_state
-        if state is None:
-            return None
-
-        return state.attributes.get(attr)

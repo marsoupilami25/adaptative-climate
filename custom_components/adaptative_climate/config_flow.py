@@ -21,16 +21,24 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
-    CONF_TARGET_ENTITY,
     DEFAULT_MAX_TEMP,
     DEFAULT_MIN_TEMP,
     DEFAULT_NAME,
     DOMAIN,
+    MODE_SOURCE_KEYS,
+    entry_settings,
 )
 
 TEMPERATURE_SELECTOR = NumberSelector(
     NumberSelectorConfig(min=0, max=40, step=0.5, mode=NumberSelectorMode.BOX),
 )
+
+CLIMATE_SELECTOR = EntitySelector(EntitySelectorConfig(domain="climate"))
+
+# One optional source per mode. A mode without a source is not shown.
+SOURCES_SCHEMA: dict[vol.Marker, Any] = {
+    vol.Optional(key): CLIMATE_SELECTOR for key in MODE_SOURCE_KEYS.values()
+}
 
 TEMPERATURE_SCHEMA: dict[vol.Marker, Any] = {
     vol.Optional(CONF_MIN_TEMP, default=DEFAULT_MIN_TEMP): TEMPERATURE_SELECTOR,
@@ -40,14 +48,12 @@ TEMPERATURE_SCHEMA: dict[vol.Marker, Any] = {
 CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
-        vol.Required(CONF_TARGET_ENTITY): EntitySelector(
-            EntitySelectorConfig(domain="climate"),
-        ),
+        **SOURCES_SCHEMA,
         **TEMPERATURE_SCHEMA,
     }
 )
 
-OPTIONS_SCHEMA = vol.Schema(TEMPERATURE_SCHEMA)
+OPTIONS_SCHEMA = vol.Schema({**SOURCES_SCHEMA, **TEMPERATURE_SCHEMA})
 
 
 class AdaptativeClimateConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -73,9 +79,6 @@ class AdaptativeClimateConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             errors = _validate_input(self.hass, user_input)
             if not errors:
-                await self.async_set_unique_id(user_input[CONF_TARGET_ENTITY])
-                self._abort_if_unique_id_configured()
-
                 return self.async_create_entry(
                     title=user_input[CONF_NAME],
                     data=user_input,
@@ -95,7 +98,10 @@ class AdaptativeClimateOptionsFlow(config_entries.OptionsFlow):
         self,
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
-        """Manage integration options."""
+        """Manage integration options.
+
+        Every setting is saved here, so the options replace the initial data.
+        """
         errors: dict[str, str] = {}
         if user_input is not None:
             errors = _validate_input(self.hass, user_input)
@@ -103,12 +109,11 @@ class AdaptativeClimateOptionsFlow(config_entries.OptionsFlow):
                 return self.async_create_entry(title="", data=user_input)
 
         # Show what the user just typed after an error, otherwise the
-        # current settings (options first, then initial setup values).
-        current = {**self.config_entry.data, **self.config_entry.options}
+        # current settings.
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
-                OPTIONS_SCHEMA, user_input or current
+                OPTIONS_SCHEMA, user_input or dict(entry_settings(self.config_entry))
             ),
             errors=errors,
         )
@@ -117,13 +122,21 @@ class AdaptativeClimateOptionsFlow(config_entries.OptionsFlow):
 def _validate_input(hass: HomeAssistant, user_input: dict[str, Any]) -> dict[str, str]:
     """Return form errors for user input (empty when valid)."""
     errors: dict[str, str] = {}
+    registry = er.async_get(hass)
 
-    target = user_input.get(CONF_TARGET_ENTITY)
-    if target is not None:
-        # Wrapping one of our own entities would make calls loop forever.
-        registry_entry = er.async_get(hass).async_get(target)
+    configured = 0
+    for key in MODE_SOURCE_KEYS.values():
+        source = user_input.get(key)
+        if not source:
+            continue
+        configured += 1
+        # Using one of our own entities as a source would make calls loop forever.
+        registry_entry = registry.async_get(source)
         if registry_entry is not None and registry_entry.platform == DOMAIN:
-            errors[CONF_TARGET_ENTITY] = "self_reference"
+            errors[key] = "self_reference"
+
+    if configured == 0:
+        errors["base"] = "no_source"
 
     min_temp = user_input.get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP)
     max_temp = user_input.get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP)

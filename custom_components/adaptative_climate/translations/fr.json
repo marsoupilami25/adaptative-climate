@@ -3,10 +3,14 @@
     "step": {
       "user": {
         "title": "Adaptative Climate",
-        "description": "Crée une entité climate adaptative à partir d'une entité climate existante.",
+        "description": "Crée une entité climate adaptative. Choisis une entité climate source pour chaque mode ; un mode sans source n'est pas affiché. La même entité peut servir plusieurs modes.",
         "data": {
           "name": "Nom",
-          "target_entity": "Entité climate source",
+          "heat_entity": "Entité climate du mode Chauffage",
+          "cool_entity": "Entité climate du mode Climatisation",
+          "auto_entity": "Entité climate du mode Auto",
+          "dry_entity": "Entité climate du mode Déshumidification",
+          "fan_only_entity": "Entité climate du mode Ventilation",
           "min_temp": "Température minimale",
           "max_temp": "Température maximale"
         }
@@ -14,10 +18,8 @@
     },
     "error": {
       "min_max_invalid": "La température minimale doit être inférieure à la température maximale.",
-      "self_reference": "Une entité Adaptative Climate ne peut pas servir de source."
-    },
-    "abort": {
-      "already_configured": "Cette entité climate est déjà configurée."
+      "self_reference": "Une entité Adaptative Climate ne peut pas servir de source.",
+      "no_source": "Choisis une entité climate pour au moins un mode."
     }
   },
   "options": {
@@ -25,18 +27,28 @@
       "init": {
         "title": "Options Adaptative Climate",
         "data": {
+          "heat_entity": "Entité climate du mode Chauffage",
+          "cool_entity": "Entité climate du mode Climatisation",
+          "auto_entity": "Entité climate du mode Auto",
+          "dry_entity": "Entité climate du mode Déshumidification",
+          "fan_only_entity": "Entité climate du mode Ventilation",
           "min_temp": "Température minimale",
           "max_temp": "Température maximale"
         }
       }
     },
     "error": {
-      "min_max_invalid": "La température minimale doit être inférieure à la température maximale."
+      "min_max_invalid": "La température minimale doit être inférieure à la température maximale.",
+      "no_source": "Choisis une entité climate pour au moins un mode.",
+      "self_reference": "Une entité Adaptative Climate ne peut pas servir de source."
     }
   },
   "exceptions": {
     "unsupported_hvac_mode": {
       "message": "Mode HVAC non pris en charge : {hvac_mode}."
+    },
+    "no_active_mode": {
+      "message": "Allume l'entité avant de régler une température."
     }
   }
 }
