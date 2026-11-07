@@ -111,12 +111,20 @@ class AdaptativeClimateEntity(
         return state
 
     def _current_mode(self) -> HVACMode:
-        """Return the first mode whose source runs in that mode, else OFF."""
-        for mode, entity_id in self._mode_sources.items():
-            state = self._state(entity_id)
-            if state is not None and state.state == mode:
+        """Return the mode whose source runs in that mode, else OFF.
+
+        When several do, the source turned on last wins (it is about to turn
+        the others off), then the first mode in order.
+        """
+        running = [
+            (mode, entity_id)
+            for mode, entity_id in self._mode_sources.items()
+            if (state := self._state(entity_id)) is not None and state.state == mode
+        ]
+        for mode, entity_id in running:
+            if entity_id == self.coordinator.last_on_source:
                 return mode
-        return HVACMode.OFF
+        return running[0][0] if running else HVACMode.OFF
 
     @property
     def _active_source(self) -> str | None:
@@ -288,15 +296,12 @@ class AdaptativeClimateEntity(
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Switch to a mode.
 
-        The source of the previous mode is turned off first when it is not
-        the source of the new mode, so two sources never run at once.
+        Every other source that is not off is turned off first, so two
+        sources never run at once, even when several were turned on elsewhere.
         Home Assistant has already checked that hvac_mode is in hvac_modes.
         """
-        previous = self._active_source
         target = self._mode_sources.get(hvac_mode)
-
-        if previous is not None and previous != target:
-            await self._async_source_set_hvac_mode(previous, HVACMode.OFF)
+        await self.coordinator.async_turn_off_other_sources(target)
 
         if target is not None:
             await self._async_source_set_hvac_mode(target, hvac_mode)
@@ -314,7 +319,7 @@ class AdaptativeClimateEntity(
             await self.async_set_hvac_mode(mode)
 
     async def async_turn_off(self) -> None:
-        """Turn off the active source."""
+        """Turn off every source that is on."""
         await self.async_set_hvac_mode(HVACMode.OFF)
 
     async def _async_source_set_hvac_mode(

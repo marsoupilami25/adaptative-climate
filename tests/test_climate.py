@@ -118,6 +118,62 @@ async def test_switch_mode_turns_previous_source_off(
 
 
 @pytest.mark.usefixtures("init_integration")
+async def test_source_turned_on_elsewhere_takes_over(hass: HomeAssistant) -> None:
+    """Modes are exclusive: a source turned on elsewhere turns the others off."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_HVAC_MODE,
+        {ATTR_ENTITY_ID: AC, ATTR_HVAC_MODE: HVACMode.COOL},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    assert _mode(hass) == HVACMode.COOL
+    assert _mode(hass, HEATER) == HVACMode.OFF
+    assert _mode(hass, AC) == HVACMode.COOL
+    assert hass.states.get(ENTITY_ID).attributes["active_entity_id"] == AC
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_sources_turned_on_together_keep_the_last(
+    hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
+) -> None:
+    """When two sources turn on at once, the last one wins, not neither."""
+    heater._attr_hvac_mode = HVACMode.HEAT
+    heater.async_write_ha_state()
+    ac._attr_hvac_mode = HVACMode.COOL
+    ac.async_write_ha_state()
+    await hass.async_block_till_done()
+
+    assert _mode(hass) == HVACMode.COOL
+    assert _mode(hass, HEATER) == HVACMode.OFF
+    assert _mode(hass, AC) == HVACMode.COOL
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_shared_source_mode_change_elsewhere(
+    hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
+) -> None:
+    """A shared source changing mode elsewhere is followed and not turned off."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+    ac.calls.clear()
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_HVAC_MODE,
+        {ATTR_ENTITY_ID: AC, ATTR_HVAC_MODE: HVACMode.DRY},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    assert ac.calls == [("set_hvac_mode", {"hvac_mode": HVACMode.DRY})]
+    assert heater.calls == []
+    assert _mode(hass) == HVACMode.DRY
+
+
+@pytest.mark.usefixtures("init_integration")
 async def test_switch_mode_on_shared_source(
     hass: HomeAssistant, ac: FakeClimate
 ) -> None:
@@ -231,6 +287,61 @@ async def test_turn_on_restores_last_mode(hass: HomeAssistant) -> None:
 
     await _call(hass, SERVICE_TURN_ON)
     assert _mode(hass) == HVACMode.COOL
+
+
+async def _setup_with_both_sources_on(
+    hass: HomeAssistant,
+    heater: FakeClimate,
+    ac: FakeClimate,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Turn both sources on, then load the integration.
+
+    Sources already running at startup are left alone, so both stay on.
+    """
+    for source, mode in ((heater, HVACMode.HEAT), (ac, HVACMode.COOL)):
+        source._attr_hvac_mode = mode
+        source.async_write_ha_state()
+    await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert _mode(hass, HEATER) == HVACMode.HEAT
+    assert _mode(hass, AC) == HVACMode.COOL
+
+
+@pytest.mark.usefixtures("sources")
+async def test_turn_off_stops_every_running_source(
+    hass: HomeAssistant,
+    heater: FakeClimate,
+    ac: FakeClimate,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Turn off stops all running sources, not only the active one."""
+    await _setup_with_both_sources_on(hass, heater, ac, mock_config_entry)
+
+    await _call(hass, SERVICE_TURN_OFF)
+
+    assert _mode(hass) == HVACMode.OFF
+    assert _mode(hass, HEATER) == HVACMode.OFF
+    assert _mode(hass, AC) == HVACMode.OFF
+
+
+@pytest.mark.usefixtures("sources")
+async def test_switch_mode_stops_every_other_source(
+    hass: HomeAssistant,
+    heater: FakeClimate,
+    ac: FakeClimate,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Switching mode stops all other running sources, not only the active one."""
+    await _setup_with_both_sources_on(hass, heater, ac, mock_config_entry)
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.DRY)
+
+    assert _mode(hass) == HVACMode.DRY
+    assert _mode(hass, HEATER) == HVACMode.OFF
+    assert _mode(hass, AC) == HVACMode.DRY
 
 
 @pytest.mark.usefixtures("init_integration")
