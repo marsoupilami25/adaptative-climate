@@ -7,7 +7,7 @@ entités `climate` virtuelles et un tableau de bord par cas de test.
 dev/
   config/
     configuration.yaml            config HA de dev
-    packages/sources_virtuelles.yaml   sources virtuelles et leurs réglages
+    packages/sources_<cas>.yaml   sources virtuelles d'un cas et leurs réglages
     dashboards/                   un tableau de bord par cas de test
   link_config.sh                  relie ces fichiers à un dossier de config HA
 ```
@@ -44,20 +44,27 @@ Les sources sont des `climate` de l'intégration
 [Template](https://www.home-assistant.io/integrations/template/) de Home
 Assistant : rien à installer.
 
-Chaque source a sa propre consigne (`input_number.consigne_<mode>`) : on voit
-ainsi quelle source reçoit les commandes. Toutes lisent la même température de
-pièce (`input_number.temperature_courante`). L'action (`heating`, `idle`...) est
+Chaque tableau de bord a son propre jeu de sources, dans
+`packages/sources_<cas>.yaml` (`mono`, `multi`, `unique`, `manuel`) : tester un
+cas ne touche jamais les sources d'un autre. Toutes les entités d'un cas portent
+le suffixe `_<cas>` (`climate.heat_virtuel_mono`, `input_select.mode_heat_mono`...)
+et les climates sont nommés *HEAT Virtuel (mono)*, etc. Le tableau ci-dessus
+liste les sources possibles ; chaque cas ne déclare que celles qu'il utilise.
+
+Chaque source a sa propre consigne (`input_number.consigne_<mode>_<cas>`) : on voit
+ainsi quelle source reçoit les commandes. Les sources d'un cas lisent la même température de
+pièce (`input_number.temperature_courante_<cas>`). L'action (`heating`, `idle`...) est
 calculée à partir du mode et de l'écart entre pièce et consigne.
 
-Un interrupteur `input_boolean.dispo_<mode>` rend chaque source indisponible.
+Un interrupteur `input_boolean.dispo_<mode>_<cas>` rend chaque source indisponible.
 Il revient à *on* à chaque redémarrage.
 
-Les interrupteurs `input_boolean.fan_actif_<mode>`, `swing_actif_<mode>` et
-`swing_horizontal_actif_<mode>` retirent le fan ou un swing d'une source, sans
+Les interrupteurs `input_boolean.fan_actif_<mode>_<cas>`, `swing_actif_<mode>_<cas>` et
+`swing_horizontal_actif_<mode>_<cas>` retirent le fan ou un swing d'une source, sans
 redémarrer : la source ne propose alors plus aucune option, comme un appareil
 qui n'en a pas (un radiateur par exemple). Ils reviennent aussi à *on* à chaque redémarrage.
 
-Le script `script.reset_sources_test` remet tout à zéro : sources disponibles
+Le script `script.reset_sources_test_<cas>` remet tout à zéro, pour son cas seulement : sources disponibles
 et éteintes, fan et swings actifs (*auto* et *off*), pièce à 20 °C,
 consignes par défaut.
 
@@ -69,10 +76,13 @@ l'entité testée, ses sources avec tous leurs réglages, un résumé de l'état
 
 | Cas | Entités | Sources | Tableau de bord |
 |:--|:--|:--|:--|
-| Un mode | `climate.adaptative_heat`, `_cool`, `_dry`, `_fan_only`, `_auto` | la source mono-mode du même mode | *Tests mono-mode* (une vue par mode) |
-| Tous les modes, une source par mode | `climate.adaptative_multi` | les 5 sources mono-mode | *Tests multi-sources* |
-| Tous les modes, une seule source | `climate.adaptative_all` | ALL Virtuel | *Tests source unique* |
+| Un mode | `climate.adaptative_heat`, `_cool`, `_dry`, `_fan_only`, `_auto` | la source mono-mode du même mode (`_mono`) | *Tests mono-mode* (une vue par mode) |
+| Tous les modes, une source par mode | `climate.adaptative_multi` | les 5 sources mono-mode (`_multi`) | *Tests multi-sources* |
+| Tous les modes, une seule source | `climate.adaptative_all` | ALL Virtuel (`_unique`) | *Tests source unique* |
+| Manuel | `climate.adaptative_manuel`, créé depuis l'interface | au choix parmi les 6 sources (`_manuel`) | *Tests manuels* (vues *Sources* et *Adaptative*) |
 
-Les cas 1 et 2 partagent les sources mono-mode : allumer HEAT Virtuel depuis
-Adaptative MULTI allume aussi Adaptative HEAT. Partir de **Tout remettre à
-zéro** avant chaque cas.
+Pour le cas manuel, ajouter un Adaptative Climate depuis *Paramètres > Appareils
+et services > Entrées*, le nommer **Adaptative Manuel** et choisir ses sources.
+La vue *Sources* donne accès à toutes les sources virtuelles et à leurs réglages.
+
+Partir de **Tout remettre à zéro** avant chaque cas.

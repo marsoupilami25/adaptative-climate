@@ -1,0 +1,234 @@
+# Virtual sources for the "Tests source unique" dashboard only: every entity id ends with _unique,
+# so tests on another dashboard never move these sources.
+#
+# Virtual source climate entities for manual tests, built with the
+# Home Assistant template integration (climate platform).
+#
+# Each source has its own target temperature, mode, fan, swing, horizontal
+# swing and "available" switch, so the dashboard shows which source receives
+# each command. Fan and swings can be turned on or off on every source
+# (input_boolean.fan_actif_<mode>, swing_actif_<mode>,
+# swing_horizontal_actif_<mode>): when off, the source lists no option, like a
+# device without them.
+# All sources read the same room temperature (input_number.temperature_courante_unique).
+# hvac_action is computed from the mode and the room vs target temperature.
+
+template:
+  - climate:
+      - name: ALL Virtuel (unique)
+        default_entity_id: climate.all_virtuel_unique
+        hvac_modes: '{{ ["off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"] }}'
+        min_temperature: 0
+        max_temperature: 50
+        availability: "{{ is_state('input_boolean.dispo_all_unique', 'on') }}"
+        current_temperature: "{{ states('input_number.temperature_courante_unique') }}"
+        target_temperature: "{{ states('input_number.consigne_all_unique') }}"
+        target_temperature_low: "{{ states('input_number.consigne_all_basse_unique') }}"
+        target_temperature_high: "{{ states('input_number.consigne_all_haute_unique') }}"
+        hvac_mode: "{{ states('input_select.mode_all_unique') }}"
+        hvac_action: >
+          {% set m = states('input_select.mode_all_unique') %}
+          {% set t = states('input_number.temperature_courante_unique') | float(0) %}
+          {% set c = states('input_number.consigne_all_unique') | float(0) %}
+          {% set lo = states('input_number.consigne_all_basse_unique') | float(0) %}
+          {% set hi = states('input_number.consigne_all_haute_unique') | float(0) %}
+          {% if m == 'off' %}off
+          {% elif m == 'dry' %}drying
+          {% elif m == 'fan_only' %}fan
+          {% elif m == 'heat_cool' %}{{ 'heating' if t < lo else 'cooling' if t > hi else 'idle' }}
+          {% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}
+          {% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}
+          {% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}
+          {% endif %}
+        fan_modes: >
+          {{ state_attr('input_select.fan_all_unique', 'options')
+             if is_state('input_boolean.fan_actif_all_unique', 'on') else [] }}
+        fan_mode: >
+          {{ states('input_select.fan_all_unique')
+             if is_state('input_boolean.fan_actif_all_unique', 'on') else none }}
+        swing_modes: >
+          {{ state_attr('input_select.swing_all_unique', 'options')
+             if is_state('input_boolean.swing_actif_all_unique', 'on') else [] }}
+        swing_mode: >
+          {{ states('input_select.swing_all_unique')
+             if is_state('input_boolean.swing_actif_all_unique', 'on') else none }}
+        swing_horizontal_modes: >
+          {{ state_attr('input_select.swing_horizontal_all_unique', 'options')
+             if is_state('input_boolean.swing_horizontal_actif_all_unique', 'on') else [] }}
+        swing_horizontal_mode: >
+          {{ states('input_select.swing_horizontal_all_unique')
+             if is_state('input_boolean.swing_horizontal_actif_all_unique', 'on') else none }}
+        # In heat_cool, HA sends target_temp_low/high instead of temperature.
+        set_temperature:
+          - if: "{{ temperature is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_all_unique
+                data:
+                  value: "{{ temperature }}"
+          - if: "{{ target_temp_low is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_all_basse_unique
+                data:
+                  value: "{{ target_temp_low }}"
+          - if: "{{ target_temp_high is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_all_haute_unique
+                data:
+                  value: "{{ target_temp_high }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_all_unique
+          data:
+            option: "{{ hvac_mode }}"
+        set_fan_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.fan_all_unique
+          data:
+            option: "{{ fan_mode }}"
+        set_swing_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_all_unique
+          data:
+            option: "{{ swing_mode }}"
+        set_swing_horizontal_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_horizontal_all_unique
+          data:
+            option: "{{ swing_horizontal_mode }}"
+
+input_select:
+  mode_all_unique:
+    name: Mode ALL
+    options: ["off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"]
+  fan_all_unique:
+    name: Fan ALL
+    options: ["auto", "low", "medium", "high"]
+  swing_all_unique:
+    name: Swing ALL
+    options: ["off", "on", "vertical", "horizontal", "both"]
+  swing_horizontal_all_unique:
+    name: Swing horizontal ALL
+    options: ["off", "on", "left", "center", "right", "wide"]
+
+input_number:
+  temperature_courante_unique:
+    name: Température de la pièce
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  consigne_all_unique:
+    name: Consigne ALL
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_all_basse_unique:
+    name: Consigne ALL basse
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_all_haute_unique:
+    name: Consigne ALL haute
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+
+input_boolean:
+  dispo_all_unique:
+    name: ALL disponible
+    initial: true
+    icon: mdi:power-plug
+  fan_actif_all_unique:
+    name: Fan ALL actif
+    initial: true
+    icon: mdi:fan
+  swing_actif_all_unique:
+    name: Swing ALL actif
+    initial: true
+    icon: mdi:arrow-oscillating
+  swing_horizontal_actif_all_unique:
+    name: Swing horizontal ALL actif
+    initial: true
+    icon: mdi:arrow-left-right
+
+script:
+  reset_sources_test_unique:
+    alias: Réinitialiser les sources (unique)
+    icon: mdi:restore
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.dispo_all_unique
+            - input_boolean.fan_actif_all_unique
+            - input_boolean.swing_actif_all_unique
+            - input_boolean.swing_horizontal_actif_all_unique
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.mode_all_unique
+        data:
+          option: "off"
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.fan_all_unique
+        data:
+          option: auto
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.swing_all_unique
+        data:
+          option: "off"
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.swing_horizontal_all_unique
+        data:
+          option: "off"
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.temperature_courante_unique
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_all_unique
+        data:
+          value: 22
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_all_basse_unique
+        data:
+          value: 19
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_all_haute_unique
+        data:
+          value: 25

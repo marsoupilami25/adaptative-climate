@@ -71,22 +71,22 @@ views:
     - type: heading
       heading: Source ALL Virtuel
     - type: thermostat
-      entity: climate.all_virtuel
+      entity: climate.all_virtuel_unique
       grid_options:
         columns: full
     - type: entities
       entities:
-      - input_select.mode_all
-      - input_number.consigne_all
-      - input_number.consigne_all_basse
-      - input_number.consigne_all_haute
-      - input_select.fan_all
-      - input_select.swing_all
-      - input_select.swing_horizontal_all
-      - input_boolean.dispo_all
-      - input_boolean.fan_actif_all
-      - input_boolean.swing_actif_all
-      - input_boolean.swing_horizontal_actif_all
+      - input_select.mode_all_unique
+      - input_number.consigne_all_unique
+      - input_number.consigne_all_basse_unique
+      - input_number.consigne_all_haute_unique
+      - input_select.fan_all_unique
+      - input_select.swing_all_unique
+      - input_select.swing_horizontal_all_unique
+      - input_boolean.dispo_all_unique
+      - input_boolean.fan_actif_all_unique
+      - input_boolean.swing_actif_all_unique
+      - input_boolean.swing_horizontal_actif_all_unique
       grid_options:
         columns: full
   - type: grid
@@ -103,17 +103,17 @@ views:
         {% set active = state_attr('climate.adaptative_all', 'active_entity_id') %}
         | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
         |:--|:--|--:|:--|:--|:--|:--|:-:|
-        {% for label, e in [('ALL', 'climate.all_virtuel')] %}
+        {% for label, e in [('ALL', 'climate.all_virtuel_unique')] %}
         | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
-        Pièce : **{{ states('input_number.temperature_courante') }} °C**
+        Pièce : **{{ states('input_number.temperature_courante_unique') }} °C**
       grid_options:
         columns: full
     - type: entities
       entities:
-      - input_number.temperature_courante
-      - entity: script.reset_sources_test
+      - input_number.temperature_courante_unique
+      - entity: script.reset_sources_test_unique
         name: Tout remettre à zéro
       grid_options:
         columns: full

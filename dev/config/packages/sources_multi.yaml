@@ -1,0 +1,614 @@
+# Virtual sources for the "Tests multi-sources" dashboard only: every entity id ends with _multi,
+# so tests on another dashboard never move these sources.
+#
+# Virtual source climate entities for manual tests, built with the
+# Home Assistant template integration (climate platform).
+#
+# Each source has its own target temperature, mode, fan, swing, horizontal
+# swing and "available" switch, so the dashboard shows which source receives
+# each command. Fan and swings can be turned on or off on every source
+# (input_boolean.fan_actif_<mode>, swing_actif_<mode>,
+# swing_horizontal_actif_<mode>): when off, the source lists no option, like a
+# device without them.
+# All sources read the same room temperature (input_number.temperature_courante_multi).
+# hvac_action is computed from the mode and the room vs target temperature.
+
+template:
+  - climate:
+      - name: HEAT Virtuel (multi)
+        default_entity_id: climate.heat_virtuel_multi
+        hvac_modes: '{{ ["off", "heat"] }}'
+        min_temperature: 0
+        max_temperature: 50
+        availability: "{{ is_state('input_boolean.dispo_heat_multi', 'on') }}"
+        current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
+        target_temperature: "{{ states('input_number.consigne_heat_multi') }}"
+        hvac_mode: "{{ states('input_select.mode_heat_multi') }}"
+        hvac_action: >
+          {% set t = states('input_number.temperature_courante_multi') | float(0) %}
+          {% set c = states('input_number.consigne_heat_multi') | float(0) %}
+          {% if is_state('input_select.mode_heat_multi', 'off') %}off
+          {% elif t < c %}heating{% else %}idle{% endif %}
+        fan_modes: >
+          {{ state_attr('input_select.fan_heat_multi', 'options')
+             if is_state('input_boolean.fan_actif_heat_multi', 'on') else [] }}
+        fan_mode: >
+          {{ states('input_select.fan_heat_multi')
+             if is_state('input_boolean.fan_actif_heat_multi', 'on') else none }}
+        swing_modes: >
+          {{ state_attr('input_select.swing_heat_multi', 'options')
+             if is_state('input_boolean.swing_actif_heat_multi', 'on') else [] }}
+        swing_mode: >
+          {{ states('input_select.swing_heat_multi')
+             if is_state('input_boolean.swing_actif_heat_multi', 'on') else none }}
+        swing_horizontal_modes: >
+          {{ state_attr('input_select.swing_horizontal_heat_multi', 'options')
+             if is_state('input_boolean.swing_horizontal_actif_heat_multi', 'on') else [] }}
+        swing_horizontal_mode: >
+          {{ states('input_select.swing_horizontal_heat_multi')
+             if is_state('input_boolean.swing_horizontal_actif_heat_multi', 'on') else none }}
+        set_temperature:
+          action: input_number.set_value
+          target:
+            entity_id: input_number.consigne_heat_multi
+          data:
+            value: "{{ temperature }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_heat_multi
+          data:
+            option: "{{ hvac_mode }}"
+        set_fan_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.fan_heat_multi
+          data:
+            option: "{{ fan_mode }}"
+        set_swing_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_heat_multi
+          data:
+            option: "{{ swing_mode }}"
+        set_swing_horizontal_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_horizontal_heat_multi
+          data:
+            option: "{{ swing_horizontal_mode }}"
+
+      - name: COOL Virtuel (multi)
+        default_entity_id: climate.cool_virtuel_multi
+        hvac_modes: '{{ ["off", "cool"] }}'
+        min_temperature: 0
+        max_temperature: 50
+        availability: "{{ is_state('input_boolean.dispo_cool_multi', 'on') }}"
+        current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
+        target_temperature: "{{ states('input_number.consigne_cool_multi') }}"
+        hvac_mode: "{{ states('input_select.mode_cool_multi') }}"
+        hvac_action: >
+          {% set t = states('input_number.temperature_courante_multi') | float(0) %}
+          {% set c = states('input_number.consigne_cool_multi') | float(0) %}
+          {% if is_state('input_select.mode_cool_multi', 'off') %}off
+          {% elif t > c %}cooling{% else %}idle{% endif %}
+        fan_modes: >
+          {{ state_attr('input_select.fan_cool_multi', 'options')
+             if is_state('input_boolean.fan_actif_cool_multi', 'on') else [] }}
+        fan_mode: >
+          {{ states('input_select.fan_cool_multi')
+             if is_state('input_boolean.fan_actif_cool_multi', 'on') else none }}
+        swing_modes: >
+          {{ state_attr('input_select.swing_cool_multi', 'options')
+             if is_state('input_boolean.swing_actif_cool_multi', 'on') else [] }}
+        swing_mode: >
+          {{ states('input_select.swing_cool_multi')
+             if is_state('input_boolean.swing_actif_cool_multi', 'on') else none }}
+        swing_horizontal_modes: >
+          {{ state_attr('input_select.swing_horizontal_cool_multi', 'options')
+             if is_state('input_boolean.swing_horizontal_actif_cool_multi', 'on') else [] }}
+        swing_horizontal_mode: >
+          {{ states('input_select.swing_horizontal_cool_multi')
+             if is_state('input_boolean.swing_horizontal_actif_cool_multi', 'on') else none }}
+        set_temperature:
+          action: input_number.set_value
+          target:
+            entity_id: input_number.consigne_cool_multi
+          data:
+            value: "{{ temperature }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_cool_multi
+          data:
+            option: "{{ hvac_mode }}"
+        set_fan_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.fan_cool_multi
+          data:
+            option: "{{ fan_mode }}"
+        set_swing_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_cool_multi
+          data:
+            option: "{{ swing_mode }}"
+        set_swing_horizontal_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_horizontal_cool_multi
+          data:
+            option: "{{ swing_horizontal_mode }}"
+
+      - name: DRY Virtuel (multi)
+        default_entity_id: climate.dry_virtuel_multi
+        hvac_modes: '{{ ["off", "dry"] }}'
+        min_temperature: 0
+        max_temperature: 50
+        availability: "{{ is_state('input_boolean.dispo_dry_multi', 'on') }}"
+        current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
+        target_temperature: "{{ states('input_number.consigne_dry_multi') }}"
+        hvac_mode: "{{ states('input_select.mode_dry_multi') }}"
+        hvac_action: >
+          {% if is_state('input_select.mode_dry_multi', 'off') %}off{% else %}drying{% endif %}
+        fan_modes: >
+          {{ state_attr('input_select.fan_dry_multi', 'options')
+             if is_state('input_boolean.fan_actif_dry_multi', 'on') else [] }}
+        fan_mode: >
+          {{ states('input_select.fan_dry_multi')
+             if is_state('input_boolean.fan_actif_dry_multi', 'on') else none }}
+        swing_modes: >
+          {{ state_attr('input_select.swing_dry_multi', 'options')
+             if is_state('input_boolean.swing_actif_dry_multi', 'on') else [] }}
+        swing_mode: >
+          {{ states('input_select.swing_dry_multi')
+             if is_state('input_boolean.swing_actif_dry_multi', 'on') else none }}
+        swing_horizontal_modes: >
+          {{ state_attr('input_select.swing_horizontal_dry_multi', 'options')
+             if is_state('input_boolean.swing_horizontal_actif_dry_multi', 'on') else [] }}
+        swing_horizontal_mode: >
+          {{ states('input_select.swing_horizontal_dry_multi')
+             if is_state('input_boolean.swing_horizontal_actif_dry_multi', 'on') else none }}
+        set_temperature:
+          action: input_number.set_value
+          target:
+            entity_id: input_number.consigne_dry_multi
+          data:
+            value: "{{ temperature }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_dry_multi
+          data:
+            option: "{{ hvac_mode }}"
+        set_fan_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.fan_dry_multi
+          data:
+            option: "{{ fan_mode }}"
+        set_swing_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_dry_multi
+          data:
+            option: "{{ swing_mode }}"
+        set_swing_horizontal_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_horizontal_dry_multi
+          data:
+            option: "{{ swing_horizontal_mode }}"
+
+      - name: FAN_ONLY Virtuel (multi)
+        default_entity_id: climate.fan_only_virtuel_multi
+        hvac_modes: '{{ ["off", "fan_only"] }}'
+        min_temperature: 0
+        max_temperature: 50
+        availability: "{{ is_state('input_boolean.dispo_fan_only_multi', 'on') }}"
+        current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
+        target_temperature: "{{ states('input_number.consigne_fan_only_multi') }}"
+        hvac_mode: "{{ states('input_select.mode_fan_only_multi') }}"
+        hvac_action: >
+          {% if is_state('input_select.mode_fan_only_multi', 'off') %}off{% else %}fan{% endif %}
+        fan_modes: >
+          {{ state_attr('input_select.fan_fan_only_multi', 'options')
+             if is_state('input_boolean.fan_actif_fan_only_multi', 'on') else [] }}
+        fan_mode: >
+          {{ states('input_select.fan_fan_only_multi')
+             if is_state('input_boolean.fan_actif_fan_only_multi', 'on') else none }}
+        swing_modes: >
+          {{ state_attr('input_select.swing_fan_only_multi', 'options')
+             if is_state('input_boolean.swing_actif_fan_only_multi', 'on') else [] }}
+        swing_mode: >
+          {{ states('input_select.swing_fan_only_multi')
+             if is_state('input_boolean.swing_actif_fan_only_multi', 'on') else none }}
+        swing_horizontal_modes: >
+          {{ state_attr('input_select.swing_horizontal_fan_only_multi', 'options')
+             if is_state('input_boolean.swing_horizontal_actif_fan_only_multi', 'on') else [] }}
+        swing_horizontal_mode: >
+          {{ states('input_select.swing_horizontal_fan_only_multi')
+             if is_state('input_boolean.swing_horizontal_actif_fan_only_multi', 'on') else none }}
+        set_temperature:
+          action: input_number.set_value
+          target:
+            entity_id: input_number.consigne_fan_only_multi
+          data:
+            value: "{{ temperature }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_fan_only_multi
+          data:
+            option: "{{ hvac_mode }}"
+        set_fan_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.fan_fan_only_multi
+          data:
+            option: "{{ fan_mode }}"
+        set_swing_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_fan_only_multi
+          data:
+            option: "{{ swing_mode }}"
+        set_swing_horizontal_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_horizontal_fan_only_multi
+          data:
+            option: "{{ swing_horizontal_mode }}"
+
+      - name: AUTO Virtuel (multi)
+        default_entity_id: climate.auto_virtuel_multi
+        hvac_modes: '{{ ["off", "auto"] }}'
+        min_temperature: 0
+        max_temperature: 50
+        availability: "{{ is_state('input_boolean.dispo_auto_multi', 'on') }}"
+        current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
+        target_temperature: "{{ states('input_number.consigne_auto_multi') }}"
+        hvac_mode: "{{ states('input_select.mode_auto_multi') }}"
+        hvac_action: >
+          {% set t = states('input_number.temperature_courante_multi') | float(0) %}
+          {% set c = states('input_number.consigne_auto_multi') | float(0) %}
+          {% if is_state('input_select.mode_auto_multi', 'off') %}off
+          {% elif t < c %}heating{% elif t > c %}cooling{% else %}idle{% endif %}
+        fan_modes: >
+          {{ state_attr('input_select.fan_auto_multi', 'options')
+             if is_state('input_boolean.fan_actif_auto_multi', 'on') else [] }}
+        fan_mode: >
+          {{ states('input_select.fan_auto_multi')
+             if is_state('input_boolean.fan_actif_auto_multi', 'on') else none }}
+        swing_modes: >
+          {{ state_attr('input_select.swing_auto_multi', 'options')
+             if is_state('input_boolean.swing_actif_auto_multi', 'on') else [] }}
+        swing_mode: >
+          {{ states('input_select.swing_auto_multi')
+             if is_state('input_boolean.swing_actif_auto_multi', 'on') else none }}
+        swing_horizontal_modes: >
+          {{ state_attr('input_select.swing_horizontal_auto_multi', 'options')
+             if is_state('input_boolean.swing_horizontal_actif_auto_multi', 'on') else [] }}
+        swing_horizontal_mode: >
+          {{ states('input_select.swing_horizontal_auto_multi')
+             if is_state('input_boolean.swing_horizontal_actif_auto_multi', 'on') else none }}
+        set_temperature:
+          action: input_number.set_value
+          target:
+            entity_id: input_number.consigne_auto_multi
+          data:
+            value: "{{ temperature }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_auto_multi
+          data:
+            option: "{{ hvac_mode }}"
+        set_fan_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.fan_auto_multi
+          data:
+            option: "{{ fan_mode }}"
+        set_swing_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_auto_multi
+          data:
+            option: "{{ swing_mode }}"
+        set_swing_horizontal_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.swing_horizontal_auto_multi
+          data:
+            option: "{{ swing_horizontal_mode }}"
+
+input_select:
+  mode_heat_multi:
+    name: Mode HEAT
+    options: ["off", "heat"]
+  mode_cool_multi:
+    name: Mode COOL
+    options: ["off", "cool"]
+  mode_dry_multi:
+    name: Mode DRY
+    options: ["off", "dry"]
+  mode_fan_only_multi:
+    name: Mode FAN_ONLY
+    options: ["off", "fan_only"]
+  mode_auto_multi:
+    name: Mode AUTO
+    options: ["off", "auto"]
+  fan_heat_multi:
+    name: Fan HEAT
+    options: ["auto", "low", "medium", "high"]
+  fan_cool_multi:
+    name: Fan COOL
+    options: ["auto", "low", "medium", "high"]
+  fan_dry_multi:
+    name: Fan DRY
+    options: ["auto", "low", "medium", "high"]
+  fan_fan_only_multi:
+    name: Fan FAN_ONLY
+    options: ["auto", "low", "medium", "high"]
+  fan_auto_multi:
+    name: Fan AUTO
+    options: ["auto", "low", "medium", "high"]
+  swing_heat_multi:
+    name: Swing HEAT
+    options: ["off", "on", "vertical", "horizontal", "both"]
+  swing_cool_multi:
+    name: Swing COOL
+    options: ["off", "on", "vertical", "horizontal", "both"]
+  swing_dry_multi:
+    name: Swing DRY
+    options: ["off", "on", "vertical", "horizontal", "both"]
+  swing_fan_only_multi:
+    name: Swing FAN_ONLY
+    options: ["off", "on", "vertical", "horizontal", "both"]
+  swing_auto_multi:
+    name: Swing AUTO
+    options: ["off", "on", "vertical", "horizontal", "both"]
+  swing_horizontal_heat_multi:
+    name: Swing horizontal HEAT
+    options: ["off", "on", "left", "center", "right", "wide"]
+  swing_horizontal_cool_multi:
+    name: Swing horizontal COOL
+    options: ["off", "on", "left", "center", "right", "wide"]
+  swing_horizontal_dry_multi:
+    name: Swing horizontal DRY
+    options: ["off", "on", "left", "center", "right", "wide"]
+  swing_horizontal_fan_only_multi:
+    name: Swing horizontal FAN_ONLY
+    options: ["off", "on", "left", "center", "right", "wide"]
+  swing_horizontal_auto_multi:
+    name: Swing horizontal AUTO
+    options: ["off", "on", "left", "center", "right", "wide"]
+
+input_number:
+  temperature_courante_multi:
+    name: Température de la pièce
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  consigne_heat_multi:
+    name: Consigne HEAT
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_cool_multi:
+    name: Consigne COOL
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_dry_multi:
+    name: Consigne DRY
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_fan_only_multi:
+    name: Consigne FAN_ONLY
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_auto_multi:
+    name: Consigne AUTO
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+
+input_boolean:
+  dispo_heat_multi:
+    name: HEAT disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_cool_multi:
+    name: COOL disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_dry_multi:
+    name: DRY disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_fan_only_multi:
+    name: FAN_ONLY disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_auto_multi:
+    name: AUTO disponible
+    initial: true
+    icon: mdi:power-plug
+  fan_actif_heat_multi:
+    name: Fan HEAT actif
+    initial: true
+    icon: mdi:fan
+  fan_actif_cool_multi:
+    name: Fan COOL actif
+    initial: true
+    icon: mdi:fan
+  fan_actif_dry_multi:
+    name: Fan DRY actif
+    initial: true
+    icon: mdi:fan
+  fan_actif_fan_only_multi:
+    name: Fan FAN_ONLY actif
+    initial: true
+    icon: mdi:fan
+  fan_actif_auto_multi:
+    name: Fan AUTO actif
+    initial: true
+    icon: mdi:fan
+  swing_actif_heat_multi:
+    name: Swing HEAT actif
+    initial: true
+    icon: mdi:arrow-oscillating
+  swing_actif_cool_multi:
+    name: Swing COOL actif
+    initial: true
+    icon: mdi:arrow-oscillating
+  swing_actif_dry_multi:
+    name: Swing DRY actif
+    initial: true
+    icon: mdi:arrow-oscillating
+  swing_actif_fan_only_multi:
+    name: Swing FAN_ONLY actif
+    initial: true
+    icon: mdi:arrow-oscillating
+  swing_actif_auto_multi:
+    name: Swing AUTO actif
+    initial: true
+    icon: mdi:arrow-oscillating
+  swing_horizontal_actif_heat_multi:
+    name: Swing horizontal HEAT actif
+    initial: true
+    icon: mdi:arrow-left-right
+  swing_horizontal_actif_cool_multi:
+    name: Swing horizontal COOL actif
+    initial: true
+    icon: mdi:arrow-left-right
+  swing_horizontal_actif_dry_multi:
+    name: Swing horizontal DRY actif
+    initial: true
+    icon: mdi:arrow-left-right
+  swing_horizontal_actif_fan_only_multi:
+    name: Swing horizontal FAN_ONLY actif
+    initial: true
+    icon: mdi:arrow-left-right
+  swing_horizontal_actif_auto_multi:
+    name: Swing horizontal AUTO actif
+    initial: true
+    icon: mdi:arrow-left-right
+
+script:
+  reset_sources_test_multi:
+    alias: Réinitialiser les sources (multi)
+    icon: mdi:restore
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.dispo_heat_multi
+            - input_boolean.dispo_cool_multi
+            - input_boolean.dispo_dry_multi
+            - input_boolean.dispo_fan_only_multi
+            - input_boolean.dispo_auto_multi
+            - input_boolean.fan_actif_heat_multi
+            - input_boolean.fan_actif_cool_multi
+            - input_boolean.fan_actif_dry_multi
+            - input_boolean.fan_actif_fan_only_multi
+            - input_boolean.fan_actif_auto_multi
+            - input_boolean.swing_actif_heat_multi
+            - input_boolean.swing_actif_cool_multi
+            - input_boolean.swing_actif_dry_multi
+            - input_boolean.swing_actif_fan_only_multi
+            - input_boolean.swing_actif_auto_multi
+            - input_boolean.swing_horizontal_actif_heat_multi
+            - input_boolean.swing_horizontal_actif_cool_multi
+            - input_boolean.swing_horizontal_actif_dry_multi
+            - input_boolean.swing_horizontal_actif_fan_only_multi
+            - input_boolean.swing_horizontal_actif_auto_multi
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.mode_heat_multi
+            - input_select.mode_cool_multi
+            - input_select.mode_dry_multi
+            - input_select.mode_fan_only_multi
+            - input_select.mode_auto_multi
+        data:
+          option: "off"
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.fan_heat_multi
+            - input_select.fan_cool_multi
+            - input_select.fan_dry_multi
+            - input_select.fan_fan_only_multi
+            - input_select.fan_auto_multi
+        data:
+          option: auto
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.swing_heat_multi
+            - input_select.swing_cool_multi
+            - input_select.swing_dry_multi
+            - input_select.swing_fan_only_multi
+            - input_select.swing_auto_multi
+        data:
+          option: "off"
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.swing_horizontal_heat_multi
+            - input_select.swing_horizontal_cool_multi
+            - input_select.swing_horizontal_dry_multi
+            - input_select.swing_horizontal_fan_only_multi
+            - input_select.swing_horizontal_auto_multi
+        data:
+          option: "off"
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.temperature_courante_multi
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_heat_multi
+        data:
+          value: 21
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_cool_multi
+        data:
+          value: 24
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_dry_multi
+            - input_number.consigne_fan_only_multi
+            - input_number.consigne_auto_multi
+        data:
+          value: 22

@@ -31,37 +31,43 @@ lovelace:
       title: Tests source unique
       icon: mdi:checkbox-blank-outline
       show_in_sidebar: true
+    tests-manuel:
+      mode: yaml
+      filename: dashboards/manuel.yaml
+      title: Tests manuels
+      icon: mdi:hand-back-right-outline
+      show_in_sidebar: true
 
 # Entities under test, imported as config entries at startup.
-# Cases 1 and 2 share the single-mode sources: acting on one moves the other.
+# Each case has its own virtual sources (packages/sources_<case>.yaml).
 adaptative_climate:
   # Case 1: one entity per mode, with the matching single-mode source.
   - name: Adaptative HEAT
-    heat_entity: climate.heat_virtuel
+    heat_entity: climate.heat_virtuel_mono
   - name: Adaptative COOL
-    cool_entity: climate.cool_virtuel
+    cool_entity: climate.cool_virtuel_mono
   - name: Adaptative DRY
-    dry_entity: climate.dry_virtuel
+    dry_entity: climate.dry_virtuel_mono
   - name: Adaptative FAN_ONLY
-    fan_only_entity: climate.fan_only_virtuel
+    fan_only_entity: climate.fan_only_virtuel_mono
   - name: Adaptative AUTO
-    auto_entity: climate.auto_virtuel
+    auto_entity: climate.auto_virtuel_mono
 
   # Case 2: every mode, one single-mode source per mode.
   - name: Adaptative MULTI
-    heat_entity: climate.heat_virtuel
-    cool_entity: climate.cool_virtuel
-    dry_entity: climate.dry_virtuel
-    fan_only_entity: climate.fan_only_virtuel
-    auto_entity: climate.auto_virtuel
+    heat_entity: climate.heat_virtuel_multi
+    cool_entity: climate.cool_virtuel_multi
+    dry_entity: climate.dry_virtuel_multi
+    fan_only_entity: climate.fan_only_virtuel_multi
+    auto_entity: climate.auto_virtuel_multi
 
   # Case 3: every mode on the multi-mode source.
   - name: Adaptative ALL
-    heat_entity: climate.all_virtuel
-    cool_entity: climate.all_virtuel
-    dry_entity: climate.all_virtuel
-    fan_only_entity: climate.all_virtuel
-    auto_entity: climate.all_virtuel
+    heat_entity: climate.all_virtuel_unique
+    cool_entity: climate.all_virtuel_unique
+    dry_entity: climate.all_virtuel_unique
+    fan_only_entity: climate.all_virtuel_unique
+    auto_entity: climate.all_virtuel_unique
 
 logger:
   default: warning

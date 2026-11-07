@@ -1,0 +1,296 @@
+# Manual case: every virtual source, plus one Adaptative Climate created by hand from the UI.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests manuels
+views:
+- title: Sources
+  path: sources
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Pièce
+    - type: entities
+      entities:
+      - input_number.temperature_courante_manuel
+      - entity: script.reset_sources_test_manuel
+        name: Tout remettre à zéro
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: HEAT Virtuel
+    - type: thermostat
+      entity: climate.heat_virtuel_manuel
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+      grid_options:
+        columns: full
+    - type: entities
+      state_color: true
+      entities:
+      - input_select.mode_heat_manuel
+      - input_number.consigne_heat_manuel
+      - input_select.fan_heat_manuel
+      - input_select.swing_heat_manuel
+      - input_select.swing_horizontal_heat_manuel
+      - input_boolean.dispo_heat_manuel
+      - input_boolean.fan_actif_heat_manuel
+      - input_boolean.swing_actif_heat_manuel
+      - input_boolean.swing_horizontal_actif_heat_manuel
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: COOL Virtuel
+    - type: thermostat
+      entity: climate.cool_virtuel_manuel
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+      grid_options:
+        columns: full
+    - type: entities
+      state_color: true
+      entities:
+      - input_select.mode_cool_manuel
+      - input_number.consigne_cool_manuel
+      - input_select.fan_cool_manuel
+      - input_select.swing_cool_manuel
+      - input_select.swing_horizontal_cool_manuel
+      - input_boolean.dispo_cool_manuel
+      - input_boolean.fan_actif_cool_manuel
+      - input_boolean.swing_actif_cool_manuel
+      - input_boolean.swing_horizontal_actif_cool_manuel
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: DRY Virtuel
+    - type: thermostat
+      entity: climate.dry_virtuel_manuel
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+      grid_options:
+        columns: full
+    - type: entities
+      state_color: true
+      entities:
+      - input_select.mode_dry_manuel
+      - input_number.consigne_dry_manuel
+      - input_select.fan_dry_manuel
+      - input_select.swing_dry_manuel
+      - input_select.swing_horizontal_dry_manuel
+      - input_boolean.dispo_dry_manuel
+      - input_boolean.fan_actif_dry_manuel
+      - input_boolean.swing_actif_dry_manuel
+      - input_boolean.swing_horizontal_actif_dry_manuel
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: FAN_ONLY Virtuel
+    - type: thermostat
+      entity: climate.fan_only_virtuel_manuel
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+      grid_options:
+        columns: full
+    - type: entities
+      state_color: true
+      entities:
+      - input_select.mode_fan_only_manuel
+      - input_number.consigne_fan_only_manuel
+      - input_select.fan_fan_only_manuel
+      - input_select.swing_fan_only_manuel
+      - input_select.swing_horizontal_fan_only_manuel
+      - input_boolean.dispo_fan_only_manuel
+      - input_boolean.fan_actif_fan_only_manuel
+      - input_boolean.swing_actif_fan_only_manuel
+      - input_boolean.swing_horizontal_actif_fan_only_manuel
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: AUTO Virtuel
+    - type: thermostat
+      entity: climate.auto_virtuel_manuel
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+      grid_options:
+        columns: full
+    - type: entities
+      state_color: true
+      entities:
+      - input_select.mode_auto_manuel
+      - input_number.consigne_auto_manuel
+      - input_select.fan_auto_manuel
+      - input_select.swing_auto_manuel
+      - input_select.swing_horizontal_auto_manuel
+      - input_boolean.dispo_auto_manuel
+      - input_boolean.fan_actif_auto_manuel
+      - input_boolean.swing_actif_auto_manuel
+      - input_boolean.swing_horizontal_actif_auto_manuel
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: ALL Virtuel
+    - type: thermostat
+      entity: climate.all_virtuel_manuel
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+      grid_options:
+        columns: full
+    - type: entities
+      state_color: true
+      entities:
+      - input_select.mode_all_manuel
+      - input_number.consigne_all_manuel
+      - input_number.consigne_all_basse_manuel
+      - input_number.consigne_all_haute_manuel
+      - input_select.fan_all_manuel
+      - input_select.swing_all_manuel
+      - input_select.swing_horizontal_all_manuel
+      - input_boolean.dispo_all_manuel
+      - input_boolean.fan_actif_all_manuel
+      - input_boolean.swing_actif_all_manuel
+      - input_boolean.swing_horizontal_actif_all_manuel
+      grid_options:
+        columns: full
+- title: Adaptative
+  path: adaptative
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Adaptative Manuel
+    - type: markdown
+      content: |
+        {% if states.climate.adaptative_manuel is none %}
+        > ⚠️ **`climate.adaptative_manuel` introuvable.** Le créer depuis l'interface :
+        > [Ajouter un Adaptative Climate](/_my_redirect/config_flow_start?domain=adaptative_climate),
+        > nommé **Adaptative Manuel**, avec les sources de son choix.
+
+        {% else %}
+        Modifier les sources : [Adaptative Climate](/config/integrations/integration/adaptative_climate).
+        {% endif %}
+      grid_options:
+        columns: full
+    - type: thermostat
+      entity: climate.adaptative_manuel
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+      grid_options:
+        columns: full
+    - type: entities
+      entities:
+      - entity: climate.adaptative_manuel
+        type: attribute
+        attribute: hvac_action
+        name: Action
+      - entity: climate.adaptative_manuel
+        type: attribute
+        attribute: active_entity_id
+        name: Source active
+      - entity: climate.adaptative_manuel
+        type: attribute
+        attribute: temperature
+        name: Consigne
+        suffix: °C
+      - entity: climate.adaptative_manuel
+        type: attribute
+        attribute: fan_mode
+        name: Fan
+      - entity: climate.adaptative_manuel
+        type: attribute
+        attribute: swing_mode
+        name: Swing
+      - entity: climate.adaptative_manuel
+        type: attribute
+        attribute: swing_horizontal_mode
+        name: Swing horizontal
+      - entity: climate.adaptative_manuel
+        type: attribute
+        attribute: min_temp
+        name: Min
+        suffix: °C
+      - entity: climate.adaptative_manuel
+        type: attribute
+        attribute: max_temp
+        name: Max
+        suffix: °C
+      grid_options:
+        columns: full
+    - type: tile
+      entity: climate.adaptative_manuel
+      name: Marche / arrêt
+      icon_tap_action:
+        action: toggle
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: État des sources
+    - type: markdown
+      content: |
+        {% set active = state_attr('climate.adaptative_manuel', 'active_entity_id') %}
+        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|:--|:--|:--|:--|:-:|
+        {% for label, e in [('HEAT', 'climate.heat_virtuel_manuel'), ('COOL', 'climate.cool_virtuel_manuel'), ('DRY', 'climate.dry_virtuel_manuel'), ('FAN_ONLY', 'climate.fan_only_virtuel_manuel'), ('AUTO', 'climate.auto_virtuel_manuel'), ('ALL', 'climate.all_virtuel_manuel')] %}
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        {% endfor %}
+
+        Pièce : **{{ states('input_number.temperature_courante_manuel') }} °C**
+      grid_options:
+        columns: full
+    - type: entities
+      entities:
+      - input_number.temperature_courante_manuel
+      - entity: script.reset_sources_test_manuel
+        name: Tout remettre à zéro
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: Tous les Adaptative Climate
+    - type: markdown
+      content: |
+        | Entité | Mode | Consigne | Source active |
+        |:--|:--|--:|:--|
+        {% for e in integration_entities('adaptative_climate') | sort %}
+        | {{ state_attr(e, 'friendly_name') or e }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'active_entity_id') }} |
+        {% endfor %}
+      grid_options:
+        columns: full
