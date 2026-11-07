@@ -53,6 +53,9 @@
     },
     "no_active_mode": {
       "message": "Turn the entity on before changing this setting."
+    },
+    "source_unavailable": {
+      "message": "The source of mode {hvac_mode} ({entity_id}) is unavailable."
     }
   }
 }

@@ -307,6 +307,12 @@ class AdaptativeClimateEntity(
             "mode_entity_ids": {
                 str(mode): entity_id for mode, entity_id in self._mode_sources.items()
             },
+            # Modes still listed, but whose source cannot be used right now.
+            "unavailable_modes": [
+                str(mode)
+                for mode, entity_id in self._mode_sources.items()
+                if self._state(entity_id) is None
+            ],
         }
 
     # Commands
@@ -376,8 +382,19 @@ class AdaptativeClimateEntity(
         Every other source that is not off is turned off first, so two
         sources never run at once, even when several were turned on elsewhere.
         Home Assistant has already checked that hvac_mode is in hvac_modes.
+        A mode whose source is unavailable is refused before anything is
+        turned off: Home Assistant would skip the call to that source silently.
         """
         target = self._mode_sources.get(hvac_mode)
+        if target is not None and self._state(target) is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="source_unavailable",
+                translation_placeholders={
+                    "hvac_mode": str(hvac_mode),
+                    "entity_id": target,
+                },
+            )
         await self.coordinator.async_turn_off_other_sources(target)
 
         if target is not None:

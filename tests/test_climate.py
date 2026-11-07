@@ -85,6 +85,7 @@ async def test_initial_state(hass: HomeAssistant) -> None:
     ]
     assert state.attributes[ATTR_HVAC_ACTION] == HVACAction.OFF
     assert state.attributes["active_entity_id"] is None
+    assert state.attributes["unavailable_modes"] == []
     # Readings come from the first usable source when off.
     assert state.attributes["current_temperature"] == 19.5
     # Configured limits, narrowed by the source limits (heater: 5-30).
@@ -492,6 +493,41 @@ async def test_unavailable_when_no_source_usable(hass: HomeAssistant) -> None:
     hass.states.async_set(AC, STATE_UNAVAILABLE)
     await hass.async_block_till_done()
     assert _mode(hass) == STATE_UNAVAILABLE
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_unavailable_source_mode_still_listed(hass: HomeAssistant) -> None:
+    """A mode whose source is unavailable stays listed and is reported."""
+    hass.states.async_set(AC, STATE_UNAVAILABLE)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(ENTITY_ID)
+    assert HVACMode.COOL in state.attributes["hvac_modes"]
+    assert state.attributes["unavailable_modes"] == [HVACMode.COOL, HVACMode.DRY]
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_switch_to_unavailable_source_refused(
+    hass: HomeAssistant, heater: FakeClimate
+) -> None:
+    """Choosing a mode whose source is unavailable is refused, and the
+    running source is left on."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    hass.states.async_set(AC, STATE_UNAVAILABLE)
+    await hass.async_block_till_done()
+    heater.calls.clear()
+
+    with pytest.raises(ServiceValidationError) as err:
+        await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+    assert err.value.translation_key == "source_unavailable"
+    assert err.value.translation_placeholders == {
+        "hvac_mode": HVACMode.COOL,
+        "entity_id": AC,
+    }
+
+    assert heater.calls == []
+    assert _mode(hass) == HVACMode.HEAT
+    assert _mode(hass, HEATER) == HVACMode.HEAT
 
 
 @pytest.mark.usefixtures("init_integration")
