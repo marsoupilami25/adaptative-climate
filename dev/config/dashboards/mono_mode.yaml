@@ -114,12 +114,13 @@ views:
       1. **Marche / arrêt** : allumer Adaptative HEAT. HEAT Virtuel passe en *heat* ; éteindre, il repasse à *off*.
       2. **Modes proposés** : seuls *off* et *heat* sont proposés.
       3. **Consigne** : changer la consigne d'Adaptative HEAT. *Consigne HEAT* suit.
-      4. **Changement externe** : régler HEAT Virtuel sur *heat* depuis sa carte. Adaptative HEAT suit.
+      4. **Changement externe** : Adaptative HEAT éteint, mettre *Consigne HEAT* à une autre valeur (Adaptative HEAT ne bouge pas), puis régler HEAT Virtuel sur *heat* depuis sa carte. Adaptative HEAT suit et *Consigne HEAT* revient à la consigne d'Adaptative HEAT.
       5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
       6. **Source indisponible** : couper *HEAT disponible*. Adaptative HEAT devient indisponible.
       7. **Fan et swing** : allumer Adaptative HEAT, puis changer son fan, son swing et son swing horizontal. *Fan HEAT*, *Swing HEAT* et *Swing horizontal HEAT* suivent.
       8. **Fan/swing absents** : couper *Fan HEAT actif*. Le fan disparaît d'Adaptative HEAT, le swing reste ; le rallumer, il revient. Idem avec *Swing HEAT actif* et *Swing horizontal HEAT actif*. Éteint, Adaptative HEAT n'affiche ni fan ni swing.
       9. **Bornes** : HEAT Virtuel va de 5 à 30 °C, mais Adaptative HEAT a `max_temp: 25` : Min/Max affichent 5–25 °C. Une consigne de 28 °C est refusée.
+      10. **Consigne au-delà de la borne sur la source** : allumer Adaptative HEAT, attendre 12 s, puis mettre *Consigne HEAT* à 28. La source a la main : *Consigne HEAT* reste à 28 et Adaptative HEAT affiche 28.
     view_layout:
       position: sidebar
 - title: COOL
@@ -233,7 +234,7 @@ views:
       1. **Marche / arrêt** : allumer Adaptative COOL. COOL Virtuel passe en *cool* ; éteindre, il repasse à *off*.
       2. **Modes proposés** : seuls *off* et *cool* sont proposés.
       3. **Consigne** : changer la consigne d'Adaptative COOL. *Consigne COOL* suit.
-      4. **Changement externe** : régler COOL Virtuel sur *cool* depuis sa carte. Adaptative COOL suit.
+      4. **Changement externe** : Adaptative COOL éteint, mettre *Consigne COOL* à une autre valeur (Adaptative COOL ne bouge pas), puis régler COOL Virtuel sur *cool* depuis sa carte. Adaptative COOL suit et *Consigne COOL* revient à la consigne d'Adaptative COOL.
       5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
       6. **Source indisponible** : couper *COOL disponible*. Adaptative COOL devient indisponible.
       7. **Fan et swing** : allumer Adaptative COOL, puis changer son fan, son swing et son swing horizontal. *Fan COOL*, *Swing COOL* et *Swing horizontal COOL* suivent.
@@ -351,7 +352,7 @@ views:
       1. **Marche / arrêt** : allumer Adaptative DRY. DRY Virtuel passe en *dry* ; éteindre, il repasse à *off*.
       2. **Modes proposés** : seuls *off* et *dry* sont proposés.
       3. **Consigne** : changer la consigne d'Adaptative DRY. *Consigne DRY* suit.
-      4. **Changement externe** : régler DRY Virtuel sur *dry* depuis sa carte. Adaptative DRY suit.
+      4. **Changement externe** : Adaptative DRY éteint, mettre *Consigne DRY* à une autre valeur (Adaptative DRY ne bouge pas), puis régler DRY Virtuel sur *dry* depuis sa carte. Adaptative DRY suit et *Consigne DRY* revient à la consigne d'Adaptative DRY.
       5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
       6. **Source indisponible** : couper *DRY disponible*. Adaptative DRY devient indisponible.
       7. **Fan et swing** : allumer Adaptative DRY, puis changer son fan, son swing et son swing horizontal. *Fan DRY*, *Swing DRY* et *Swing horizontal DRY* suivent.
@@ -469,7 +470,7 @@ views:
       1. **Marche / arrêt** : allumer Adaptative FAN_ONLY. FAN_ONLY Virtuel passe en *fan_only* ; éteindre, il repasse à *off*.
       2. **Modes proposés** : seuls *off* et *fan_only* sont proposés.
       3. **Consigne** : changer la consigne d'Adaptative FAN_ONLY. *Consigne FAN_ONLY* suit.
-      4. **Changement externe** : régler FAN_ONLY Virtuel sur *fan_only* depuis sa carte. Adaptative FAN_ONLY suit.
+      4. **Changement externe** : Adaptative FAN_ONLY éteint, mettre *Consigne FAN_ONLY* à une autre valeur (Adaptative FAN_ONLY ne bouge pas), puis régler FAN_ONLY Virtuel sur *fan_only* depuis sa carte. Adaptative FAN_ONLY suit et *Consigne FAN_ONLY* revient à la consigne d'Adaptative FAN_ONLY.
       5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
       6. **Source indisponible** : couper *FAN_ONLY disponible*. Adaptative FAN_ONLY devient indisponible.
       7. **Fan et swing** : allumer Adaptative FAN_ONLY, puis changer son fan, son swing et son swing horizontal. *Fan FAN_ONLY*, *Swing FAN_ONLY* et *Swing horizontal FAN_ONLY* suivent.
@@ -587,7 +588,7 @@ views:
       1. **Marche / arrêt** : allumer Adaptative AUTO. AUTO Virtuel passe en *auto* ; éteindre, il repasse à *off*.
       2. **Modes proposés** : seuls *off* et *auto* sont proposés.
       3. **Consigne** : changer la consigne d'Adaptative AUTO. *Consigne AUTO* suit.
-      4. **Changement externe** : régler AUTO Virtuel sur *auto* depuis sa carte. Adaptative AUTO suit.
+      4. **Changement externe** : Adaptative AUTO éteint, mettre *Consigne AUTO* à une autre valeur (Adaptative AUTO ne bouge pas), puis régler AUTO Virtuel sur *auto* depuis sa carte. Adaptative AUTO suit et *Consigne AUTO* revient à la consigne d'Adaptative AUTO.
       5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
       6. **Source indisponible** : couper *AUTO disponible*. Adaptative AUTO devient indisponible.
       7. **Fan et swing** : allumer Adaptative AUTO, puis changer son fan, son swing et son swing horizontal. *Fan AUTO*, *Swing AUTO* et *Swing horizontal AUTO* suivent.

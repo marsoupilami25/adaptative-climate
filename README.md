@@ -88,6 +88,42 @@ Values are compared without case: `Low` on one source and `low` on another
 are the same value, and each source receives it as it spells it. Other names
 are not matched (`1` is not `low`).
 
+### Target temperature
+
+The target temperature belongs to the entity, not to the sources: switching
+mode keeps it, and a source turned on elsewhere (remote control, app) gets
+it too. It is sent once the source shows its new mode, so a device that
+first shows its own target for that mode gets the entity target instead.
+
+Each source gets the target rounded to its step and kept in its range (and
+in the `min_temp`/`max_temp` limits), but the entity keeps the value it was
+given: a target of 18 °C sent as 20 °C to a radiator whose minimum is 20 °C
+is 18 °C again back in cool mode. The entity shows the target of the
+active source (except right after entering a mode, see below).
+
+A target changed on the active source (remote control, app) becomes the
+target of the entity: the user took over from the source, which has the
+upper hand, even outside the limits of the entity (they apply again to the
+next mode).
+
+Except right after the source enters a mode: some devices report their own
+target for the new mode a few seconds after the mode itself. Until the
+source shows the target sent to it, or for 12 seconds at most, the targets
+it shows are ignored and the entity shows its own target. If the source
+showed another target during those 12 seconds, it gets the entity target
+again at their end; if it showed nothing, nothing is sent. Then the source
+is followed. A source already at the target when entering
+gets nothing, so nothing confirms it: its targets are ignored for the full
+12 seconds (a change made on the remote control then is overridden).
+
+While the entity is off, the targets of the sources are ignored. A target
+set while off, or in a mode whose source has none (fan only), is kept for
+the next mode. The target is kept across restarts; the first one comes from
+a source, else the middle of the range.
+
+Low/high targets (`target_temp_low`/`target_temp_high`) are only sent to the
+active source for now; they will be handled like the target with `heat_cool`.
+
 ### Temperature range
 
 The minimum and maximum temperatures follow the sources: those of the

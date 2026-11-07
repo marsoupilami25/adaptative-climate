@@ -136,5 +136,14 @@ views:
       13. **Changement sur la source** : en *dry*, mettre *Fan ALL* à *medium* depuis sa carte. Passer en *fan_only*, puis en *heat* : *medium*.
       14. **Swing synchronisé** : en *heat*, swing *on* et swing horizontal *left*. Passer en *fan_only*, puis en *cool* : *on* et *left* reviennent.
       15. **Après un redémarrage** : en *cool*, fan *high*, puis passer en *auto* : *medium*. Redémarrer Home Assistant, passer en *heat* : le fan revient à *high*.
+
+      ### Consigne
+
+      La consigne appartient à Adaptative ALL (les bornes et l'arrondi se testent dans *Tests multi-sources*).
+
+      16. **Changement de mode** : en *heat*, consigne 23. Passer en *cool*, puis en *dry* : *Consigne ALL* reste à 23.
+      17. **Source allumée ailleurs** : éteindre, mettre *Consigne ALL* à 26 : Adaptative ALL ne bouge pas. Mettre ALL Virtuel en *heat* depuis sa carte : *Consigne ALL* revient à 23.
+      18. **Changement sur la source** : en *cool*, attendre 12 s, puis mettre *Consigne ALL* à 19 depuis sa carte. Adaptative ALL affiche 19 ; passer en *dry* : toujours 19.
+      19. **Consigne changée juste après le mode** : en *heat*, passer en *cool* : la source est déjà à la consigne, rien ne confirme le mode. Dans les 12 s, mettre *Consigne ALL* à 27 depuis sa carte : Adaptative ALL affiche toujours sa consigne. Au bout des 12 s, *Consigne ALL* y revient, même sans changer de mode.
     view_layout:
       position: sidebar

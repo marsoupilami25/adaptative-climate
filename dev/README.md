@@ -45,6 +45,9 @@ même façon, pour tester la synchronisation sans tenir compte de la casse : HEA
 capitales (*Auto*, *Off*...) avec une vitesse *Turbo* en plus, DRY en majuscules
 (*AUTO*, *LOW*, *HIGH*) sans *medium*, les autres en minuscules.
 
+Dans le cas *multi*, COOL Virtuel a un pas de consigne de 1 °C (les autres n'en
+ont pas), pour tester l'arrondi de la consigne envoyée.
+
 Les sources sont des `climate` de l'intégration
 [Template](https://www.home-assistant.io/integrations/template/) de Home
 Assistant : rien à installer.

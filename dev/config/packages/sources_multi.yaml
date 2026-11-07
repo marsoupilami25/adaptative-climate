@@ -89,6 +89,8 @@ template:
         hvac_modes: '{{ ["off", "cool"] }}'
         min_temperature: 16
         max_temperature: 32
+        # 1 °C step (the others have none): the target sent to it is rounded.
+        target_temperature_step: 1
         availability: "{{ is_state('input_boolean.dispo_cool_multi', 'on') }}"
         current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
         target_temperature: "{{ states('input_number.consigne_cool_multi') }}"

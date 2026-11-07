@@ -110,7 +110,8 @@ async def test_follows_source_changed_elsewhere(hass: HomeAssistant) -> None:
     state = hass.states.get(ENTITY_ID)
     assert state.state == HVACMode.COOL
     assert state.attributes["active_entity_id"] == AC
-    assert state.attributes[ATTR_TEMPERATURE] == 24.0
+    # The AC gets the target of the entity (taken from the heater at start).
+    assert state.attributes[ATTR_TEMPERATURE] == 20.0
     assert state.attributes["current_temperature"] == 21.0
     assert state.attributes[ATTR_HVAC_ACTION] == HVACAction.COOLING
 
@@ -241,10 +242,12 @@ async def test_set_temperature_range(hass: HomeAssistant, ac: FakeClimate) -> No
 
 
 @pytest.mark.usefixtures("init_integration")
-async def test_set_temperature_when_off(hass: HomeAssistant) -> None:
-    """Setting a temperature while off is refused with a clear message."""
+async def test_set_temperature_range_when_off(hass: HomeAssistant) -> None:
+    """Low/high targets while off are refused with a clear message."""
     with pytest.raises(ServiceValidationError) as err:
-        await _call(hass, SERVICE_SET_TEMPERATURE, temperature=21.0)
+        await _call(
+            hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=25.0
+        )
     assert err.value.translation_key == "no_active_mode"
 
 
