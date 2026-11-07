@@ -70,6 +70,9 @@
     },
     "source_unavailable": {
       "message": "The source of mode {hvac_mode} ({entity_id}) is unavailable."
+    },
+    "source_mode_not_supported": {
+      "message": "The source of mode {hvac_mode} ({entity_id}) does not offer this mode."
     }
   },
   "selector": {
@@ -81,6 +84,12 @@
         "dry": "Dry",
         "fan_only": "Fan only"
       }
+    }
+  },
+  "issues": {
+    "mode_not_supported": {
+      "title": "{entity_id} does not offer the {hvac_mode} mode",
+      "description": "{name} uses {entity_id} for the {hvac_mode} mode, but this entity does not offer that mode, so the mode cannot be used. Choose another climate entity for this mode in the configuration of {name}, or remove it. This issue disappears once fixed."
     }
   }
 }

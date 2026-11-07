@@ -586,11 +586,13 @@ class AdaptativeClimateEntity(
             "mode_entity_ids": {
                 str(mode): entity_id for mode, entity_id in self._mode_sources.items()
             },
-            # Modes still listed, but whose source cannot be used right now.
+            # Modes still listed, but whose source cannot be used right now
+            # (unavailable, or it does not offer the mode).
             "unavailable_modes": [
                 str(mode)
                 for mode, entity_id in self._mode_sources.items()
                 if self._state(entity_id) is None
+                or mode in self.coordinator.unsupported_modes
             ],
         }
 
@@ -665,12 +667,22 @@ class AdaptativeClimateEntity(
         hvac_modes.
         A mode whose source is unavailable is refused before anything is
         turned off: Home Assistant would skip the call to that source silently.
+        So is a mode its source does not offer: the source would reject it.
         """
         target = self._mode_sources.get(hvac_mode)
         if target is not None and self._state(target) is None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="source_unavailable",
+                translation_placeholders={
+                    "hvac_mode": str(hvac_mode),
+                    "entity_id": target,
+                },
+            )
+        if target is not None and hvac_mode in self.coordinator.unsupported_modes:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="source_mode_not_supported",
                 translation_placeholders={
                     "hvac_mode": str(hvac_mode),
                     "entity_id": target,

@@ -56,6 +56,13 @@ Switching to a mode sets its source to the HVAC mode of the same name, after
 turning off the source of the previous mode when it is a different entity.
 The `heat_cool` mode is not supported yet.
 
+A source must offer the modes it serves. The configuration checks it, except
+for a source that is still starting or unavailable, so it is checked again
+whenever a source becomes usable. A mode its source does not offer stays
+listed, appears in the `unavailable_modes` attribute (like a mode whose source
+is unavailable) and raises a Repairs issue, removed once the source offers it.
+Switching to that mode is refused before anything is turned off.
+
 ### Fan and swing settings
 
 Fan, swing and horizontal swing come from the source of the current mode:

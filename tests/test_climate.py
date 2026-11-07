@@ -16,6 +16,7 @@ from homeassistant.components.climate import (
     ATTR_FAN_MODES,
     ATTR_HVAC_ACTION,
     ATTR_HVAC_MODE,
+    ATTR_HVAC_MODES,
     ATTR_SWING_HORIZONTAL_MODE,
     ATTR_SWING_HORIZONTAL_MODES,
     ATTR_SWING_MODE,
@@ -42,7 +43,9 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
+
+from custom_components.adaptative_climate.const import DOMAIN
 
 from .conftest import AC, ENTITY_ID, HEATER, FakeClimate
 
@@ -608,3 +611,89 @@ async def test_range_with_limits(
 
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
     assert _range(hass) == cool_range
+
+
+def _set_ac_modes(hass: HomeAssistant, modes: list[HVACMode], state: str = HVACMode.OFF) -> None:
+    """Show the AC as usable with the given HVAC modes."""
+    hass.states.async_set(AC, state, {ATTR_HVAC_MODES: modes})
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_source_without_mode_raises_issue(
+    hass: HomeAssistant, issue_registry: ir.IssueRegistry
+) -> None:
+    """A source that becomes usable without a mode it serves raises a Repairs
+    issue, removed once it offers the mode again."""
+    issue_id = "01JTESTENTRY000000000000000_dry_not_supported"
+    # Unavailable (still starting): not judged.
+    hass.states.async_set(AC, STATE_UNAVAILABLE)
+    await hass.async_block_till_done()
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
+
+    _set_ac_modes(hass, [HVACMode.OFF, HVACMode.COOL])
+    await hass.async_block_till_done()
+
+    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "mode_not_supported"
+    assert issue.translation_placeholders == {
+        "name": "Living room",
+        "hvac_mode": HVACMode.DRY,
+        "entity_id": AC,
+    }
+    state = hass.states.get(ENTITY_ID)
+    # Still listed, but reported as not usable.
+    assert HVACMode.DRY in state.attributes["hvac_modes"]
+    assert state.attributes["unavailable_modes"] == [HVACMode.DRY]
+
+    _set_ac_modes(hass, [HVACMode.OFF, HVACMode.COOL, HVACMode.DRY])
+    await hass.async_block_till_done()
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
+    assert hass.states.get(ENTITY_ID).attributes["unavailable_modes"] == []
+
+
+async def test_source_without_mode_at_startup(
+    hass: HomeAssistant,
+    sources: None,
+    mock_config_entry: MockConfigEntry,
+    ac: FakeClimate,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """A usable source missing a mode at startup raises the issue, which is
+    removed when the entry unloads."""
+    ac._attr_hvac_modes = [HVACMode.OFF, HVACMode.COOL]
+    ac.async_write_ha_state()
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    issue_id = "01JTESTENTRY000000000000000_dry_not_supported"
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is not None
+
+    assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_switch_to_mode_source_lacks_refused(
+    hass: HomeAssistant, heater: FakeClimate
+) -> None:
+    """Choosing a mode its source does not offer is refused, and the running
+    source is left on."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    _set_ac_modes(hass, [HVACMode.OFF, HVACMode.COOL])
+    await hass.async_block_till_done()
+    heater.calls.clear()
+
+    with pytest.raises(ServiceValidationError) as err:
+        await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.DRY)
+    assert err.value.translation_key == "source_mode_not_supported"
+    assert err.value.translation_placeholders == {
+        "hvac_mode": HVACMode.DRY,
+        "entity_id": AC,
+    }
+
+    assert heater.calls == []
+    assert _mode(hass) == HVACMode.HEAT
+    assert _mode(hass, HEATER) == HVACMode.HEAT

@@ -70,6 +70,9 @@
     },
     "source_unavailable": {
       "message": "La source du mode {hvac_mode} ({entity_id}) est indisponible."
+    },
+    "source_mode_not_supported": {
+      "message": "La source du mode {hvac_mode} ({entity_id}) ne propose pas ce mode."
     }
   },
   "selector": {
@@ -81,6 +84,12 @@
         "dry": "Déshumidification",
         "fan_only": "Ventilation"
       }
+    }
+  },
+  "issues": {
+    "mode_not_supported": {
+      "title": "{entity_id} ne propose pas le mode {hvac_mode}",
+      "description": "{name} utilise {entity_id} pour le mode {hvac_mode}, mais cette entité ne propose pas ce mode : il ne peut donc pas être utilisé. Choisis une autre entité climate pour ce mode dans la configuration de {name}, ou retire-le. Ce problème disparaît une fois corrigé."
     }
   }
 }
