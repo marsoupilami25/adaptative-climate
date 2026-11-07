@@ -1,0 +1,464 @@
+# Virtual source climate entities for manual tests (needs the HACS
+# integration climate_template: https://github.com/jcwillox/hass-template-climate).
+#
+# Each source has its own target temperature, mode and "available" switch,
+# so the dashboard shows which source receives each command.
+# All sources read the same room temperature (input_number.temperature_courante).
+# hvac_action is computed from the mode and the room vs target temperature.
+
+climate:
+  - platform: climate_template
+    name: HEAT Virtuel
+    modes: ["off", "heat"]
+    min_temp: 0
+    max_temp: 50
+    availability_template: "{{ is_state('input_boolean.dispo_heat', 'on') }}"
+    current_temperature_template: "{{ states('input_number.temperature_courante') }}"
+    target_temperature_template: "{{ states('input_number.consigne_heat') }}"
+    hvac_mode_template: "{{ states('input_select.mode_heat') }}"
+    hvac_action_template: >
+      {% set t = states('input_number.temperature_courante') | float(0) %}
+      {% set c = states('input_number.consigne_heat') | float(0) %}
+      {% if is_state('input_select.mode_heat', 'off') %}off
+      {% elif t < c %}heating{% else %}idle{% endif %}
+    set_temperature:
+      action: input_number.set_value
+      target:
+        entity_id: input_number.consigne_heat
+      data:
+        value: "{{ temperature }}"
+    set_hvac_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.mode_heat
+      data:
+        option: "{{ hvac_mode }}"
+
+  - platform: climate_template
+    name: COOL Virtuel
+    modes: ["off", "cool"]
+    fan_modes: &fan_modes ["auto", "low", "medium", "high"]
+    swing_modes: &swing_modes ["off", "on", "vertical", "horizontal", "both"]
+    min_temp: 0
+    max_temp: 50
+    availability_template: "{{ is_state('input_boolean.dispo_cool', 'on') }}"
+    current_temperature_template: "{{ states('input_number.temperature_courante') }}"
+    target_temperature_template: "{{ states('input_number.consigne_cool') }}"
+    hvac_mode_template: "{{ states('input_select.mode_cool') }}"
+    fan_mode_template: "{{ states('input_select.fan_cool') }}"
+    swing_mode_template: "{{ states('input_select.swing_cool') }}"
+    hvac_action_template: >
+      {% set t = states('input_number.temperature_courante') | float(0) %}
+      {% set c = states('input_number.consigne_cool') | float(0) %}
+      {% if is_state('input_select.mode_cool', 'off') %}off
+      {% elif t > c %}cooling{% else %}idle{% endif %}
+    set_temperature:
+      action: input_number.set_value
+      target:
+        entity_id: input_number.consigne_cool
+      data:
+        value: "{{ temperature }}"
+    set_hvac_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.mode_cool
+      data:
+        option: "{{ hvac_mode }}"
+    set_fan_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.fan_cool
+      data:
+        option: "{{ fan_mode }}"
+    set_swing_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.swing_cool
+      data:
+        option: "{{ swing_mode }}"
+
+  - platform: climate_template
+    name: DRY Virtuel
+    modes: ["off", "dry"]
+    fan_modes: *fan_modes
+    swing_modes: *swing_modes
+    min_temp: 0
+    max_temp: 50
+    availability_template: "{{ is_state('input_boolean.dispo_dry', 'on') }}"
+    current_temperature_template: "{{ states('input_number.temperature_courante') }}"
+    target_temperature_template: "{{ states('input_number.consigne_dry') }}"
+    hvac_mode_template: "{{ states('input_select.mode_dry') }}"
+    fan_mode_template: "{{ states('input_select.fan_dry') }}"
+    swing_mode_template: "{{ states('input_select.swing_dry') }}"
+    hvac_action_template: >
+      {% if is_state('input_select.mode_dry', 'off') %}off{% else %}drying{% endif %}
+    set_temperature:
+      action: input_number.set_value
+      target:
+        entity_id: input_number.consigne_dry
+      data:
+        value: "{{ temperature }}"
+    set_hvac_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.mode_dry
+      data:
+        option: "{{ hvac_mode }}"
+    set_fan_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.fan_dry
+      data:
+        option: "{{ fan_mode }}"
+    set_swing_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.swing_dry
+      data:
+        option: "{{ swing_mode }}"
+
+  - platform: climate_template
+    name: FAN_ONLY Virtuel
+    modes: ["off", "fan_only"]
+    fan_modes: *fan_modes
+    swing_modes: *swing_modes
+    min_temp: 0
+    max_temp: 50
+    availability_template: "{{ is_state('input_boolean.dispo_fan_only', 'on') }}"
+    current_temperature_template: "{{ states('input_number.temperature_courante') }}"
+    target_temperature_template: "{{ states('input_number.consigne_fan_only') }}"
+    hvac_mode_template: "{{ states('input_select.mode_fan_only') }}"
+    fan_mode_template: "{{ states('input_select.fan_fan_only') }}"
+    swing_mode_template: "{{ states('input_select.swing_fan_only') }}"
+    hvac_action_template: >
+      {% if is_state('input_select.mode_fan_only', 'off') %}off{% else %}fan{% endif %}
+    set_temperature:
+      action: input_number.set_value
+      target:
+        entity_id: input_number.consigne_fan_only
+      data:
+        value: "{{ temperature }}"
+    set_hvac_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.mode_fan_only
+      data:
+        option: "{{ hvac_mode }}"
+    set_fan_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.fan_fan_only
+      data:
+        option: "{{ fan_mode }}"
+    set_swing_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.swing_fan_only
+      data:
+        option: "{{ swing_mode }}"
+
+  - platform: climate_template
+    name: AUTO Virtuel
+    modes: ["off", "auto"]
+    min_temp: 0
+    max_temp: 50
+    availability_template: "{{ is_state('input_boolean.dispo_auto', 'on') }}"
+    current_temperature_template: "{{ states('input_number.temperature_courante') }}"
+    target_temperature_template: "{{ states('input_number.consigne_auto') }}"
+    hvac_mode_template: "{{ states('input_select.mode_auto') }}"
+    hvac_action_template: >
+      {% set t = states('input_number.temperature_courante') | float(0) %}
+      {% set c = states('input_number.consigne_auto') | float(0) %}
+      {% if is_state('input_select.mode_auto', 'off') %}off
+      {% elif t < c %}heating{% elif t > c %}cooling{% else %}idle{% endif %}
+    set_temperature:
+      action: input_number.set_value
+      target:
+        entity_id: input_number.consigne_auto
+      data:
+        value: "{{ temperature }}"
+    set_hvac_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.mode_auto
+      data:
+        option: "{{ hvac_mode }}"
+
+  # One source for every mode, to test a source shared by several modes.
+  - platform: climate_template
+    name: ALL Virtuel
+    modes: ["off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"]
+    fan_modes: *fan_modes
+    swing_modes: *swing_modes
+    min_temp: 0
+    max_temp: 50
+    availability_template: "{{ is_state('input_boolean.dispo_all', 'on') }}"
+    current_temperature_template: "{{ states('input_number.temperature_courante') }}"
+    target_temperature_template: "{{ states('input_number.consigne_all') }}"
+    target_temperature_low_template: "{{ states('input_number.consigne_all_basse') }}"
+    target_temperature_high_template: "{{ states('input_number.consigne_all_haute') }}"
+    hvac_mode_template: "{{ states('input_select.mode_all') }}"
+    fan_mode_template: "{{ states('input_select.fan_all') }}"
+    swing_mode_template: "{{ states('input_select.swing_all') }}"
+    hvac_action_template: >
+      {% set m = states('input_select.mode_all') %}
+      {% set t = states('input_number.temperature_courante') | float(0) %}
+      {% set c = states('input_number.consigne_all') | float(0) %}
+      {% set lo = states('input_number.consigne_all_basse') | float(0) %}
+      {% set hi = states('input_number.consigne_all_haute') | float(0) %}
+      {% if m == 'off' %}off
+      {% elif m == 'dry' %}drying
+      {% elif m == 'fan_only' %}fan
+      {% elif m == 'heat_cool' %}{{ 'heating' if t < lo else 'cooling' if t > hi else 'idle' }}
+      {% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}
+      {% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}
+      {% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}
+      {% endif %}
+    # In heat_cool, HA sends target_temp_low/high instead of temperature.
+    set_temperature:
+      - if: "{{ temperature is not none }}"
+        then:
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.consigne_all
+            data:
+              value: "{{ temperature }}"
+      - if: "{{ target_temp_low is not none }}"
+        then:
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.consigne_all_basse
+            data:
+              value: "{{ target_temp_low }}"
+      - if: "{{ target_temp_high is not none }}"
+        then:
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.consigne_all_haute
+            data:
+              value: "{{ target_temp_high }}"
+    set_hvac_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.mode_all
+      data:
+        option: "{{ hvac_mode }}"
+    set_fan_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.fan_all
+      data:
+        option: "{{ fan_mode }}"
+    set_swing_mode:
+      action: input_select.select_option
+      target:
+        entity_id: input_select.swing_all
+      data:
+        option: "{{ swing_mode }}"
+
+input_select:
+  mode_heat:
+    name: Mode HEAT
+    options: ["off", "heat"]
+  mode_cool:
+    name: Mode COOL
+    options: ["off", "cool"]
+  mode_dry:
+    name: Mode DRY
+    options: ["off", "dry"]
+  mode_fan_only:
+    name: Mode FAN_ONLY
+    options: ["off", "fan_only"]
+  mode_auto:
+    name: Mode AUTO
+    options: ["off", "auto"]
+  mode_all:
+    name: Mode ALL
+    options: ["off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"]
+
+  fan_cool:
+    name: Fan COOL
+    options: *fan_modes
+  fan_dry:
+    name: Fan DRY
+    options: *fan_modes
+  fan_fan_only:
+    name: Fan FAN_ONLY
+    options: *fan_modes
+  fan_all:
+    name: Fan ALL
+    options: *fan_modes
+
+  swing_cool:
+    name: Swing COOL
+    options: *swing_modes
+  swing_dry:
+    name: Swing DRY
+    options: *swing_modes
+  swing_fan_only:
+    name: Swing FAN_ONLY
+    options: *swing_modes
+  swing_all:
+    name: Swing ALL
+    options: *swing_modes
+
+input_number:
+  temperature_courante:
+    name: Température de la pièce
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+
+  consigne_heat:
+    name: Consigne HEAT
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_cool:
+    name: Consigne COOL
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_dry:
+    name: Consigne DRY
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_fan_only:
+    name: Consigne FAN_ONLY
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_auto:
+    name: Consigne AUTO
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_all:
+    name: Consigne ALL
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_all_basse:
+    name: Consigne ALL basse
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  consigne_all_haute:
+    name: Consigne ALL haute
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+
+input_boolean:
+  dispo_heat:
+    name: HEAT disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_cool:
+    name: COOL disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_dry:
+    name: DRY disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_fan_only:
+    name: FAN_ONLY disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_auto:
+    name: AUTO disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_all:
+    name: ALL disponible
+    initial: true
+    icon: mdi:power-plug
+
+script:
+  reset_sources_test:
+    alias: Réinitialiser les sources de test
+    icon: mdi:restore
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.dispo_heat
+            - input_boolean.dispo_cool
+            - input_boolean.dispo_dry
+            - input_boolean.dispo_fan_only
+            - input_boolean.dispo_auto
+            - input_boolean.dispo_all
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.mode_heat
+            - input_select.mode_cool
+            - input_select.mode_dry
+            - input_select.mode_fan_only
+            - input_select.mode_auto
+            - input_select.mode_all
+        data:
+          option: "off"
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.temperature_courante
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.consigne_heat
+        data:
+          value: 21
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.consigne_cool
+        data:
+          value: 24
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_dry
+            - input_number.consigne_fan_only
+            - input_number.consigne_auto
+            - input_number.consigne_all
+        data:
+          value: 22
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.consigne_all_basse
+        data:
+          value: 19
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.consigne_all_haute
+        data:
+          value: 25

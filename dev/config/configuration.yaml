@@ -1,0 +1,73 @@
+# Home Assistant configuration for manual testing of Adaptative Climate.
+# Linked into a dev config folder by dev/link_config.sh (see dev/README.md).
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+homeassistant:
+  # Virtual source entities and their helpers.
+  packages: !include_dir_named packages
+
+frontend:
+  themes: !include_dir_merge_named themes
+
+lovelace:
+  dashboards:
+    tests-mono:
+      mode: yaml
+      filename: dashboards/mono_mode.yaml
+      title: Tests mono-mode
+      icon: mdi:numeric-1-box-outline
+      show_in_sidebar: true
+    tests-multi:
+      mode: yaml
+      filename: dashboards/multi_sources.yaml
+      title: Tests multi-sources
+      icon: mdi:view-grid-outline
+      show_in_sidebar: true
+    tests-all:
+      mode: yaml
+      filename: dashboards/source_unique.yaml
+      title: Tests source unique
+      icon: mdi:checkbox-blank-outline
+      show_in_sidebar: true
+
+# Entities under test, imported as config entries at startup.
+# Cases 1 and 2 share the single-mode sources: acting on one moves the other.
+adaptative_climate:
+  # Case 1: one entity per mode, with the matching single-mode source.
+  - name: Adaptative HEAT
+    heat_entity: climate.heat_virtuel
+  - name: Adaptative COOL
+    cool_entity: climate.cool_virtuel
+  - name: Adaptative DRY
+    dry_entity: climate.dry_virtuel
+  - name: Adaptative FAN_ONLY
+    fan_only_entity: climate.fan_only_virtuel
+  - name: Adaptative AUTO
+    auto_entity: climate.auto_virtuel
+
+  # Case 2: every mode, one single-mode source per mode.
+  - name: Adaptative MULTI
+    heat_entity: climate.heat_virtuel
+    cool_entity: climate.cool_virtuel
+    dry_entity: climate.dry_virtuel
+    fan_only_entity: climate.fan_only_virtuel
+    auto_entity: climate.auto_virtuel
+
+  # Case 3: every mode on the multi-mode source.
+  - name: Adaptative ALL
+    heat_entity: climate.all_virtuel
+    cool_entity: climate.all_virtuel
+    dry_entity: climate.all_virtuel
+    fan_only_entity: climate.all_virtuel
+    auto_entity: climate.all_virtuel
+
+logger:
+  default: warning
+  logs:
+    custom_components.adaptative_climate: debug
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml

@@ -1,0 +1,116 @@
+# Case 3: one Adaptative Climate with every mode, all on the multi-mode source ALL Virtuel.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests source unique
+views:
+- title: Pilotage
+  path: pilotage
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Adaptative ALL
+    - type: thermostat
+      entity: climate.adaptative_all
+      features:
+      - type: climate-hvac-modes
+      grid_options:
+        columns: full
+    - type: entities
+      entities:
+      - entity: climate.adaptative_all
+        type: attribute
+        attribute: hvac_action
+        name: Action
+      - entity: climate.adaptative_all
+        type: attribute
+        attribute: active_entity_id
+        name: Source active
+      - entity: climate.adaptative_all
+        type: attribute
+        attribute: temperature
+        name: Consigne
+        suffix: °C
+      - entity: climate.adaptative_all
+        type: attribute
+        attribute: min_temp
+        name: Min
+        suffix: °C
+      - entity: climate.adaptative_all
+        type: attribute
+        attribute: max_temp
+        name: Max
+        suffix: °C
+      grid_options:
+        columns: full
+    - type: tile
+      entity: climate.adaptative_all
+      name: Marche / arrêt
+      icon_tap_action:
+        action: toggle
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: Source ALL Virtuel
+    - type: thermostat
+      entity: climate.all_virtuel
+      grid_options:
+        columns: full
+    - type: entities
+      entities:
+      - input_select.mode_all
+      - input_number.consigne_all
+      - input_number.consigne_all_basse
+      - input_number.consigne_all_haute
+      - input_select.fan_all
+      - input_select.swing_all
+      - input_boolean.dispo_all
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: heading
+      heading: État
+    - type: markdown
+      content: |
+        {% if states.climate.adaptative_all is none %}
+        > ⚠️ **`climate.adaptative_all` introuvable.** Vérifier la section `adaptative_climate:` de
+        > `dev/config/configuration.yaml` et les journaux, puis redémarrer.
+
+        {% endif %}
+        {% set active = state_attr('climate.adaptative_all', 'active_entity_id') %}
+        | Source | Mode | Consigne | Action | |
+        |:--|:--|--:|:--|:-:|
+        {% for label, e in [('ALL', 'climate.all_virtuel')] %}
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        {% endfor %}
+
+        Pièce : **{{ states('input_number.temperature_courante') }} °C**
+      grid_options:
+        columns: full
+    - type: entities
+      entities:
+      - input_number.temperature_courante
+      - entity: script.reset_sources_test
+        name: Tout remettre à zéro
+      grid_options:
+        columns: full
+  - type: grid
+    cards:
+    - type: markdown
+      content: |
+        ## Scénarios
+
+        Partir de **Tout remettre à zéro**.
+
+        1. **Changement de mode** : passer de *heat* à *cool* puis *dry*. ALL Virtuel change de mode sans passer par *off*.
+        2. **heat_cool** : ce mode n'est pas proposé, même si ALL Virtuel le gère.
+        3. **Changement externe** : mettre ALL Virtuel en *heat_cool* depuis sa carte. Adaptative ALL affiche *off*.
+        4. **Consigne** : changer la consigne. *Consigne ALL* suit.
+        5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
+        6. **Source indisponible** : couper *ALL disponible*. Adaptative ALL devient indisponible.
+      grid_options:
+        columns: full
