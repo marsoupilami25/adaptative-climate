@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -28,6 +29,8 @@ from .const import (
     MODE_SOURCE_KEYS,
     entry_settings,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 TEMPERATURE_SELECTOR = NumberSelector(
     NumberSelectorConfig(min=0, max=40, step=0.5, mode=NumberSelectorMode.BOX),
@@ -68,6 +71,44 @@ class AdaptativeClimateConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.OptionsFlow:
         """Create the options flow."""
         return AdaptativeClimateOptionsFlow()
+
+    @classmethod
+    @callback
+    def async_supports_options_flow(
+        cls, config_entry: config_entries.ConfigEntry
+    ) -> bool:
+        """Offer options only for UI entries: YAML would overwrite them."""
+        return config_entry.source != config_entries.SOURCE_IMPORT
+
+    async def async_step_import(
+        self, import_data: dict[str, Any]
+    ) -> config_entries.ConfigFlowResult:
+        """Create or update an entry from YAML.
+
+        The name identifies the entry. YAML already checked the sources and
+        temperatures; only the self reference needs the entity registry.
+        """
+        errors = _validate_input(self.hass, import_data)
+        if errors:
+            _LOGGER.error(
+                "Invalid YAML configuration for %s: %s",
+                import_data[CONF_NAME],
+                ", ".join(errors.values()),
+            )
+            return self.async_abort(reason="invalid_yaml")
+
+        name = import_data[CONF_NAME]
+        entry = await self.async_set_unique_id(name)
+        if entry is not None:
+            # Also clear options, which would replace the data (see entry_settings).
+            # The update listener reloads the entry when it is loaded.
+            if entry.data != import_data or entry.options or entry.title != name:
+                self.hass.config_entries.async_update_entry(
+                    entry, title=name, data=import_data, options={}
+                )
+            return self.async_abort(reason="already_configured")
+
+        return self.async_create_entry(title=name, data=import_data)
 
     async def async_step_user(
         self,

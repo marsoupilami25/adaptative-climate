@@ -20,6 +20,10 @@
       "min_max_invalid": "The minimum temperature must be lower than the maximum temperature.",
       "self_reference": "An Adaptative Climate entity cannot be used as a source.",
       "no_source": "Choose a climate entity for at least one mode."
+    },
+    "abort": {
+      "already_configured": "This entry is already configured.",
+      "invalid_yaml": "The YAML configuration of this entry is invalid. Check the logs."
     }
   },
   "options": {

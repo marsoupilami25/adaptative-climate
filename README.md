@@ -30,6 +30,24 @@ After restart, add the integration from:
 Settings > Devices & services > Add integration > Adaptative Climate
 ```
 
+Or declare the entities in `configuration.yaml`:
+
+```yaml
+adaptative_climate:
+  - name: Living room
+    heat_entity: climate.heater
+    cool_entity: climate.air_conditioner
+    dry_entity: climate.air_conditioner
+    min_temp: 7    # optional, default 7
+    max_temp: 35   # optional, default 35
+```
+
+Each YAML entry is imported as a config entry when Home Assistant starts.
+The name identifies the entry, so it must be unique. YAML wins over the UI:
+a changed entry is updated, an entry removed from YAML is deleted, and
+imported entries have no options in the UI. Entries created from the UI
+are not affected.
+
 The integration creates one `climate` entity. Each of its modes (heat, cool,
 auto, dry, fan only) uses a source `climate` entity, set in the configuration.
 The same source can serve several modes. A mode without a source is not shown.
