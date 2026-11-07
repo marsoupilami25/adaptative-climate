@@ -78,10 +78,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_multi', 'active_entity_id') %}
-        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|:--|:--|:--|:--|:-:|
+        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('HEAT', 'climate.heat_virtuel_multi'), ('COOL', 'climate.cool_virtuel_multi'), ('DRY', 'climate.dry_virtuel_multi'), ('FAN_ONLY', 'climate.fan_only_virtuel_multi'), ('AUTO', 'climate.auto_virtuel_multi')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante_multi') }} °C**
@@ -108,7 +108,7 @@ views:
         4. **Deux sources allumées** : allumer aussi COOL Virtuel à la main. Adaptative MULTI affiche le premier mode dans l'ordre heat, cool, auto, dry, fan_only.
         5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
         6. **Source indisponible** : couper *HEAT disponible*. *heat* n'est plus détecté ; l'entité reste disponible tant qu'une autre source l'est. Tout couper : l'entité devient indisponible.
-        7. **Bornes** : Min/Max suivent la source affichée, sans dépasser 7–35 °C.
+        7. **Bornes** : Min/Max suivent la source du mode actif. En *heat* : 5–30 °C, en *cool* : 16–32 °C, en *dry* : 18–30 °C, en *fan_only* : 10–35 °C, en *auto* : 10–30 °C. Éteint : la plage la plus large, 5–35 °C.
         8. **Fan et swing par source** : en *heat*, changer le fan. Seul *Fan HEAT* bouge. Passer en *cool* : le fan affiché est celui de COOL Virtuel.
         9. **Fan/swing absents** : couper *Fan HEAT actif*, *Swing HEAT actif* et *Swing horizontal HEAT actif*. En *heat*, ni fan ni swing ; en *cool*, ils reviennent. Éteint : ni fan ni swing.
       grid_options:

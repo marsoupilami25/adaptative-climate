@@ -99,10 +99,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_heat', 'active_entity_id') %}
-        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|:--|:--|:--|:--|:-:|
+        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('HEAT', 'climate.heat_virtuel_mono')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante_mono') }} °C**
@@ -131,6 +131,7 @@ views:
         6. **Source indisponible** : couper *HEAT disponible*. Adaptative HEAT devient indisponible.
         7. **Fan et swing** : allumer Adaptative HEAT, puis changer son fan, son swing et son swing horizontal. *Fan HEAT*, *Swing HEAT* et *Swing horizontal HEAT* suivent.
         8. **Fan/swing absents** : couper *Fan HEAT actif*. Le fan disparaît d'Adaptative HEAT, le swing reste ; le rallumer, il revient. Idem avec *Swing HEAT actif* et *Swing horizontal HEAT actif*. Éteint, Adaptative HEAT n'affiche ni fan ni swing.
+        9. **Bornes** : HEAT Virtuel va de 5 à 30 °C, mais Adaptative HEAT a `max_temp: 25` : Min/Max affichent 5–25 °C. Une consigne de 28 °C est refusée.
       grid_options:
         columns: full
 - title: COOL
@@ -230,10 +231,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_cool', 'active_entity_id') %}
-        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|:--|:--|:--|:--|:-:|
+        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('COOL', 'climate.cool_virtuel_mono')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante_mono') }} °C**
@@ -361,10 +362,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_dry', 'active_entity_id') %}
-        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|:--|:--|:--|:--|:-:|
+        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('DRY', 'climate.dry_virtuel_mono')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante_mono') }} °C**
@@ -492,10 +493,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_fan_only', 'active_entity_id') %}
-        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|:--|:--|:--|:--|:-:|
+        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('FAN_ONLY', 'climate.fan_only_virtuel_mono')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante_mono') }} °C**
@@ -623,10 +624,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_auto', 'active_entity_id') %}
-        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|:--|:--|:--|:--|:-:|
+        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('AUTO', 'climate.auto_virtuel_mono')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante_mono') }} °C**

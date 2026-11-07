@@ -27,8 +27,6 @@ from custom_components.adaptative_climate.const import (
     CONF_COOL_ENTITY,
     CONF_DRY_ENTITY,
     CONF_HEAT_ENTITY,
-    CONF_MAX_TEMP,
-    CONF_MIN_TEMP,
     DOMAIN,
 )
 
@@ -191,8 +189,6 @@ def mock_config_entry() -> MockConfigEntry:
             CONF_HEAT_ENTITY: HEATER,
             CONF_COOL_ENTITY: AC,
             CONF_DRY_ENTITY: AC,
-            CONF_MIN_TEMP: 7.0,
-            CONF_MAX_TEMP: 35.0,
         },
     )
 

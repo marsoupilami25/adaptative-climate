@@ -23,8 +23,6 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
-    DEFAULT_MAX_TEMP,
-    DEFAULT_MIN_TEMP,
     DEFAULT_NAME,
     DOMAIN,
     MODE_SOURCE_KEYS,
@@ -44,9 +42,10 @@ SOURCES_SCHEMA: dict[vol.Marker, Any] = {
     vol.Optional(key): CLIMATE_SELECTOR for key in MODE_SOURCE_KEYS.values()
 }
 
+# Optional limits, empty by default: the range then follows the sources.
 TEMPERATURE_SCHEMA: dict[vol.Marker, Any] = {
-    vol.Optional(CONF_MIN_TEMP, default=DEFAULT_MIN_TEMP): TEMPERATURE_SELECTOR,
-    vol.Optional(CONF_MAX_TEMP, default=DEFAULT_MAX_TEMP): TEMPERATURE_SELECTOR,
+    vol.Optional(CONF_MIN_TEMP): TEMPERATURE_SELECTOR,
+    vol.Optional(CONF_MAX_TEMP): TEMPERATURE_SELECTOR,
 }
 
 CONFIG_SCHEMA = vol.Schema(
@@ -187,9 +186,9 @@ def _validate_input(hass: HomeAssistant, user_input: dict[str, Any]) -> dict[str
     if configured == 0:
         errors["base"] = "no_source"
 
-    min_temp = user_input.get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP)
-    max_temp = user_input.get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP)
-    if min_temp >= max_temp:
+    min_temp = user_input.get(CONF_MIN_TEMP)
+    max_temp = user_input.get(CONF_MAX_TEMP)
+    if min_temp is not None and max_temp is not None and min_temp >= max_temp:
         errors["base"] = "min_max_invalid"
 
     return errors

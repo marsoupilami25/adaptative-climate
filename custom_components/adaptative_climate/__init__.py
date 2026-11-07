@@ -17,8 +17,6 @@ from homeassistant.helpers.typing import ConfigType
 from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
-    DEFAULT_MAX_TEMP,
-    DEFAULT_MIN_TEMP,
     DOMAIN,
     MODE_SOURCE_KEYS,
 )
@@ -31,7 +29,9 @@ def _check_entry(conf: dict[str, Any]) -> dict[str, Any]:
     """Check what the schema alone cannot: one source at least, min below max."""
     if not any(conf.get(key) for key in MODE_SOURCE_KEYS.values()):
         raise vol.Invalid("Set a climate entity for at least one mode")
-    if conf[CONF_MIN_TEMP] >= conf[CONF_MAX_TEMP]:
+    min_temp = conf.get(CONF_MIN_TEMP)
+    max_temp = conf.get(CONF_MAX_TEMP)
+    if min_temp is not None and max_temp is not None and min_temp >= max_temp:
         raise vol.Invalid(f"{CONF_MIN_TEMP} must be lower than {CONF_MAX_TEMP}")
     return conf
 
@@ -54,8 +54,8 @@ ENTRY_SCHEMA = vol.All(
                 vol.Optional(key): cv.entity_domain(CLIMATE_DOMAIN)
                 for key in MODE_SOURCE_KEYS.values()
             },
-            vol.Optional(CONF_MIN_TEMP, default=DEFAULT_MIN_TEMP): vol.Coerce(float),
-            vol.Optional(CONF_MAX_TEMP, default=DEFAULT_MAX_TEMP): vol.Coerce(float),
+            vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
+            vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
         }
     ),
     _check_entry,

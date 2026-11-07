@@ -41,8 +41,6 @@ async def test_user_flow(hass: HomeAssistant) -> None:
     assert result["data"] == {
         CONF_NAME: "Living room",
         CONF_HEAT_ENTITY: HEATER,
-        CONF_MIN_TEMP: 7.0,
-        CONF_MAX_TEMP: 35.0,
     }
 
 
@@ -79,6 +77,23 @@ async def test_user_flow_min_max_invalid(hass: HomeAssistant) -> None:
     )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "min_max_invalid"}
+
+
+async def test_user_flow_one_limit(hass: HomeAssistant) -> None:
+    """One limit alone is accepted."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {CONF_NAME: "Living room", CONF_HEAT_ENTITY: HEATER, CONF_MAX_TEMP: 23},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"] == {
+        CONF_NAME: "Living room",
+        CONF_HEAT_ENTITY: HEATER,
+        CONF_MAX_TEMP: 23,
+    }
 
 
 async def test_user_flow_self_reference(

@@ -88,9 +88,9 @@ async def test_initial_state(hass: HomeAssistant) -> None:
     assert state.attributes["unavailable_modes"] == []
     # Readings come from the first usable source when off.
     assert state.attributes["current_temperature"] == 19.5
-    # Configured limits, narrowed by the source limits (heater: 5-30).
-    assert state.attributes["min_temp"] == 7.0
-    assert state.attributes["max_temp"] == 30.0
+    # Off: the widest range of the sources (heater 5-30, AC 16-32).
+    assert state.attributes["min_temp"] == 5.0
+    assert state.attributes["max_temp"] == 32.0
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -538,3 +538,73 @@ async def test_unknown_hvac_action(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
     assert hass.states.get(ENTITY_ID).attributes.get(ATTR_HVAC_ACTION) is None
+
+
+def _range(hass: HomeAssistant) -> tuple[float, float]:
+    """Return the min and max temperatures of the entity."""
+    attributes = hass.states.get(ENTITY_ID).attributes
+    return attributes["min_temp"], attributes["max_temp"]
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_range_follows_active_source(hass: HomeAssistant) -> None:
+    """Without limits, the range is the one of the source of the current mode."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    assert _range(hass) == (5.0, 30.0)
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+    assert _range(hass) == (16.0, 32.0)
+
+    # Off: the widest range of the sources.
+    await _call(hass, SERVICE_TURN_OFF)
+    assert _range(hass) == (5.0, 32.0)
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_range_without_source_limits(hass: HomeAssistant) -> None:
+    """A source without min/max falls back to the Home Assistant defaults."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    hass.states.async_set(HEATER, HVACMode.HEAT, {})
+    await hass.async_block_till_done()
+
+    assert _range(hass) == (7.0, 35.0)
+
+
+@pytest.mark.parametrize(
+    ("limits", "heat_range", "cool_range"),
+    [
+        # Limits only narrow the range of the source.
+        pytest.param(
+            {"min_temp": 10.0, "max_temp": 28.0}, (10.0, 28.0), (16.0, 28.0), id="narrow"
+        ),
+        pytest.param({"max_temp": 23.0}, (5.0, 23.0), (16.0, 23.0), id="max_only"),
+        # A limit outside the source range is ignored: min stays below max.
+        pytest.param(
+            {"min_temp": 31.0}, (5.0, 30.0), (31.0, 32.0), id="min_above_source_max"
+        ),
+        pytest.param(
+            {"max_temp": 12.0}, (5.0, 12.0), (16.0, 32.0), id="max_below_source_min"
+        ),
+    ],
+)
+async def test_range_with_limits(
+    hass: HomeAssistant,
+    sources: None,
+    mock_config_entry: MockConfigEntry,
+    limits: dict[str, float],
+    heat_range: tuple[float, float],
+    cool_range: tuple[float, float],
+) -> None:
+    """Configured limits narrow the range of the active source."""
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry, data={**mock_config_entry.data, **limits}
+    )
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    assert _range(hass) == heat_range
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+    assert _range(hass) == cool_range

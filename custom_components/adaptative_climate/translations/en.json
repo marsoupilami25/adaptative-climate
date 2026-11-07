@@ -13,6 +13,10 @@
           "fan_only_entity": "Fan only mode climate entity",
           "min_temp": "Minimum temperature",
           "max_temp": "Maximum temperature"
+        },
+        "data_description": {
+          "min_temp": "Optional. Leave empty to follow the minimum of the climate entity in use. Can only raise it.",
+          "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it."
         }
       }
     },
@@ -39,6 +43,10 @@
           "fan_only_entity": "Fan only mode climate entity",
           "min_temp": "Minimum temperature",
           "max_temp": "Maximum temperature"
+        },
+        "data_description": {
+          "min_temp": "Optional. Leave empty to follow the minimum of the climate entity in use. Can only raise it.",
+          "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it."
         }
       }
     },

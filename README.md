@@ -38,8 +38,7 @@ adaptative_climate:
     heat_entity: climate.heater
     cool_entity: climate.air_conditioner
     dry_entity: climate.air_conditioner
-    min_temp: 7    # optional, default 7
-    max_temp: 35   # optional, default 35
+    max_temp: 23   # optional, see "Temperature range"
 ```
 
 Each YAML entry is imported as a config entry when Home Assistant starts.
@@ -60,6 +59,19 @@ Fan, swing and horizontal swing come from the source of the current mode:
 they are shown when that source has them, in any mode, and changes are sent
 to it. A heat pump used for heating keeps its fan; a radiator shows none.
 When the entity is off, none of them is shown.
+
+### Temperature range
+
+The minimum and maximum temperatures follow the sources: those of the
+source of the current mode, or the widest range of the sources when the
+entity is off. A radiator at 5-30 °C and an AC at 16-32 °C give 5-30 °C
+in heat mode and 16-32 °C in cool mode.
+
+`min_temp` and `max_temp` are optional limits, empty by default. They can
+only narrow the range of the source, never widen it: `max_temp: 23` keeps
+heating at 23 °C or below. A limit outside the range of the current source
+is ignored. When a source gives no range, the Home Assistant defaults
+(7-35 °C) apply.
 
 ## Development
 

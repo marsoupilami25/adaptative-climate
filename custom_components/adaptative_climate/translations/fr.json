@@ -13,6 +13,10 @@
           "fan_only_entity": "Entité climate du mode Ventilation",
           "min_temp": "Température minimale",
           "max_temp": "Température maximale"
+        },
+        "data_description": {
+          "min_temp": "Facultatif. Laisser vide pour suivre le minimum de l'appareil utilisé. Ne peut que le relever.",
+          "max_temp": "Facultatif. Laisser vide pour suivre le maximum de l'appareil utilisé. Ne peut que l'abaisser."
         }
       }
     },
@@ -39,6 +43,10 @@
           "fan_only_entity": "Entité climate du mode Ventilation",
           "min_temp": "Température minimale",
           "max_temp": "Température maximale"
+        },
+        "data_description": {
+          "min_temp": "Facultatif. Laisser vide pour suivre le minimum de l'appareil utilisé. Ne peut que le relever.",
+          "max_temp": "Facultatif. Laisser vide pour suivre le maximum de l'appareil utilisé. Ne peut que l'abaisser."
         }
       }
     },

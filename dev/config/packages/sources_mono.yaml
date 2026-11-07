@@ -13,13 +13,15 @@
 # All sources read the same room temperature (input_number.temperature_courante_mono).
 # hvac_action is computed from the mode and the room vs target temperature.
 
+# Each source has its own temperature range (heat 5-30, cool 16-32, dry 18-30,
+# fan_only 10-35, auto 10-30, all 8-32), so ranges differ between modes.
 template:
   - climate:
       - name: HEAT Virtuel (mono)
         default_entity_id: climate.heat_virtuel_mono
         hvac_modes: '{{ ["off", "heat"] }}'
-        min_temperature: 0
-        max_temperature: 50
+        min_temperature: 5
+        max_temperature: 30
         availability: "{{ is_state('input_boolean.dispo_heat_mono', 'on') }}"
         current_temperature: "{{ states('input_number.temperature_courante_mono') }}"
         target_temperature: "{{ states('input_number.consigne_heat_mono') }}"
@@ -81,8 +83,8 @@ template:
       - name: COOL Virtuel (mono)
         default_entity_id: climate.cool_virtuel_mono
         hvac_modes: '{{ ["off", "cool"] }}'
-        min_temperature: 0
-        max_temperature: 50
+        min_temperature: 16
+        max_temperature: 32
         availability: "{{ is_state('input_boolean.dispo_cool_mono', 'on') }}"
         current_temperature: "{{ states('input_number.temperature_courante_mono') }}"
         target_temperature: "{{ states('input_number.consigne_cool_mono') }}"
@@ -144,8 +146,8 @@ template:
       - name: DRY Virtuel (mono)
         default_entity_id: climate.dry_virtuel_mono
         hvac_modes: '{{ ["off", "dry"] }}'
-        min_temperature: 0
-        max_temperature: 50
+        min_temperature: 18
+        max_temperature: 30
         availability: "{{ is_state('input_boolean.dispo_dry_mono', 'on') }}"
         current_temperature: "{{ states('input_number.temperature_courante_mono') }}"
         target_temperature: "{{ states('input_number.consigne_dry_mono') }}"
@@ -204,8 +206,8 @@ template:
       - name: FAN_ONLY Virtuel (mono)
         default_entity_id: climate.fan_only_virtuel_mono
         hvac_modes: '{{ ["off", "fan_only"] }}'
-        min_temperature: 0
-        max_temperature: 50
+        min_temperature: 10
+        max_temperature: 35
         availability: "{{ is_state('input_boolean.dispo_fan_only_mono', 'on') }}"
         current_temperature: "{{ states('input_number.temperature_courante_mono') }}"
         target_temperature: "{{ states('input_number.consigne_fan_only_mono') }}"
@@ -264,8 +266,8 @@ template:
       - name: AUTO Virtuel (mono)
         default_entity_id: climate.auto_virtuel_mono
         hvac_modes: '{{ ["off", "auto"] }}'
-        min_temperature: 0
-        max_temperature: 50
+        min_temperature: 10
+        max_temperature: 30
         availability: "{{ is_state('input_boolean.dispo_auto_mono', 'on') }}"
         current_temperature: "{{ states('input_number.temperature_courante_mono') }}"
         target_temperature: "{{ states('input_number.consigne_auto_mono') }}"
@@ -397,40 +399,40 @@ input_number:
     icon: mdi:home-thermometer
   consigne_heat_mono:
     name: Consigne HEAT
-    min: 0
-    max: 50
+    min: 5
+    max: 30
     step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
   consigne_cool_mono:
     name: Consigne COOL
-    min: 0
-    max: 50
+    min: 16
+    max: 32
     step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
   consigne_dry_mono:
     name: Consigne DRY
-    min: 0
-    max: 50
+    min: 18
+    max: 30
     step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
   consigne_fan_only_mono:
     name: Consigne FAN_ONLY
-    min: 0
-    max: 50
+    min: 10
+    max: 35
     step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
   consigne_auto_mono:
     name: Consigne AUTO
-    min: 0
-    max: 50
+    min: 10
+    max: 30
     step: 0.5
     unit_of_measurement: "°C"
     mode: box

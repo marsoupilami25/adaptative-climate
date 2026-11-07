@@ -10,9 +10,8 @@ from homeassistant.components.climate import HVACMode
 DOMAIN: Final = "adaptative_climate"
 
 DEFAULT_NAME: Final = "Adaptative Climate"
-DEFAULT_MIN_TEMP: Final = 7.0
-DEFAULT_MAX_TEMP: Final = 35.0
 
+# Optional limits that narrow the temperature range of the sources.
 CONF_MIN_TEMP: Final = "min_temp"
 CONF_MAX_TEMP: Final = "max_temp"
 

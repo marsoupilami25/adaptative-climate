@@ -101,10 +101,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_all', 'active_entity_id') %}
-        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|:--|:--|:--|:--|:-:|
+        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('ALL', 'climate.all_virtuel_unique')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante_unique') }} °C**

@@ -44,6 +44,8 @@ adaptative_climate:
   # Case 1: one entity per mode, with the matching single-mode source.
   - name: Adaptative HEAT
     heat_entity: climate.heat_virtuel_mono
+    # Limit: the source goes up to 30, the entity stops at 25.
+    max_temp: 25
   - name: Adaptative COOL
     cool_entity: climate.cool_virtuel_mono
   - name: Adaptative DRY

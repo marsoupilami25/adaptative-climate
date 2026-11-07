@@ -25,23 +25,25 @@ from homeassistant.components.climate import (
     HVACAction,
     HVACMode,
 )
+from homeassistant.components.climate.const import DEFAULT_MAX_TEMP, DEFAULT_MIN_TEMP
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_SUPPORTED_FEATURES,
     ATTR_TEMPERATURE,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
+    UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant, State, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from homeassistant.util.unit_conversion import TemperatureConverter
+
 from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
-    DEFAULT_MAX_TEMP,
-    DEFAULT_MIN_TEMP,
     DOMAIN,
     entry_settings,
 )
@@ -239,19 +241,58 @@ class AdaptativeClimateEntity(
         """Return the temperature step of the display source."""
         return self._attr_from_display(ATTR_TARGET_TEMP_STEP)
 
+    def _source_range(self) -> tuple[float, float]:
+        """Return the temperature range of the sources.
+
+        On: the range of the active source. Off: the widest range of the
+        usable sources. Home Assistant defaults when no source gives one.
+        """
+        active = self._active_source
+        entity_ids = [active] if active else self.coordinator.source_entity_ids
+        mins = [
+            value
+            for entity_id in entity_ids
+            if (value := self._attr_from(entity_id, ATTR_MIN_TEMP)) is not None
+        ]
+        maxs = [
+            value
+            for entity_id in entity_ids
+            if (value := self._attr_from(entity_id, ATTR_MAX_TEMP)) is not None
+        ]
+        unit = self.hass.config.units.temperature_unit
+        low = min(mins) if mins else TemperatureConverter.convert(
+            DEFAULT_MIN_TEMP, UnitOfTemperature.CELSIUS, unit
+        )
+        high = max(maxs) if maxs else TemperatureConverter.convert(
+            DEFAULT_MAX_TEMP, UnitOfTemperature.CELSIUS, unit
+        )
+        return low, high
+
+    def _temperature_range(self) -> tuple[float, float]:
+        """Return the source range, narrowed by the configured limits.
+
+        A limit can only narrow the range. A limit outside the source range
+        is ignored, so the minimum always stays below the maximum.
+        """
+        low, high = self._source_range()
+        settings = entry_settings(self._entry)
+        limit_min = settings.get(CONF_MIN_TEMP)
+        limit_max = settings.get(CONF_MAX_TEMP)
+        if limit_min is not None and limit_min < high:
+            low = max(low, limit_min)
+        if limit_max is not None and limit_max > low:
+            high = min(high, limit_max)
+        return low, high
+
     @property
     def min_temp(self) -> float:
-        """Return the minimum temperature, never below the source's minimum."""
-        configured = entry_settings(self._entry).get(CONF_MIN_TEMP, DEFAULT_MIN_TEMP)
-        source = self._attr_from_display(ATTR_MIN_TEMP)
-        return configured if source is None else max(configured, source)
+        """Return the minimum temperature."""
+        return self._temperature_range()[0]
 
     @property
     def max_temp(self) -> float:
-        """Return the maximum temperature, never above the source's maximum."""
-        configured = entry_settings(self._entry).get(CONF_MAX_TEMP, DEFAULT_MAX_TEMP)
-        source = self._attr_from_display(ATTR_MAX_TEMP)
-        return configured if source is None else min(configured, source)
+        """Return the maximum temperature."""
+        return self._temperature_range()[1]
 
     @property
     def hvac_mode(self) -> HVACMode:

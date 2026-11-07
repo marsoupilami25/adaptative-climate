@@ -29,3 +29,4 @@ async def test_setup_and_unload(
     hass.states.async_set(HEATER, HVACMode.HEAT)
     await hass.async_block_till_done()
     assert hass.states.get(ENTITY_ID).state == STATE_UNAVAILABLE
+

@@ -265,10 +265,10 @@ views:
     - type: markdown
       content: |
         {% set active = state_attr('climate.adaptative_manuel', 'active_entity_id') %}
-        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|:--|:--|:--|:--|:-:|
+        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('HEAT', 'climate.heat_virtuel_manuel'), ('COOL', 'climate.cool_virtuel_manuel'), ('DRY', 'climate.dry_virtuel_manuel'), ('FAN_ONLY', 'climate.fan_only_virtuel_manuel'), ('AUTO', 'climate.auto_virtuel_manuel'), ('ALL', 'climate.all_virtuel_manuel')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante_manuel') }} °C**

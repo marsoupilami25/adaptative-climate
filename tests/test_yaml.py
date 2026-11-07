@@ -29,8 +29,8 @@ pytestmark = pytest.mark.usefixtures("sources")
 
 YAML_ENTRY = {CONF_NAME: "Living room", CONF_HEAT_ENTITY: HEATER, CONF_COOL_ENTITY: AC}
 
-# What the import stores: the YAML entry with its defaults filled in.
-IMPORTED_DATA = {**YAML_ENTRY, CONF_MIN_TEMP: 7.0, CONF_MAX_TEMP: 35.0}
+# What the import stores: the YAML entry as it is (limits are optional).
+IMPORTED_DATA = YAML_ENTRY
 
 
 async def _setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
@@ -100,11 +100,20 @@ async def test_import_updates_existing_entry(hass: HomeAssistant) -> None:
     assert await _setup(hass, {DOMAIN: [{**heat_only, CONF_MAX_TEMP: 28}]})
 
     assert hass.config_entries.async_entries(DOMAIN) == [entry]
-    assert entry.data == {**heat_only, CONF_MIN_TEMP: 7.0, CONF_MAX_TEMP: 28.0}
+    assert entry.data == {**heat_only, CONF_MAX_TEMP: 28.0}
     assert entry.state is ConfigEntryState.LOADED
     state = hass.states.get(ENTITY_ID)
     assert state.attributes["hvac_modes"] == [HVACMode.OFF, HVACMode.HEAT]
     assert state.attributes["max_temp"] == 28.0
+
+
+async def test_import_min_only(hass: HomeAssistant) -> None:
+    """One limit can be set without the other."""
+    assert await _setup(hass, {DOMAIN: [{**YAML_ENTRY, CONF_MIN_TEMP: 18}]})
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.data == {**YAML_ENTRY, CONF_MIN_TEMP: 18.0}
+    assert hass.states.get(ENTITY_ID).attributes["min_temp"] == 18.0
 
 
 async def test_import_reloads_loaded_entry(hass: HomeAssistant) -> None:
@@ -131,7 +140,8 @@ async def test_import_clears_options(hass: HomeAssistant) -> None:
     assert await _setup(hass, {DOMAIN: [YAML_ENTRY]})
 
     assert entry.options == {}
-    assert hass.states.get(ENTITY_ID).attributes["max_temp"] == 30.0  # heater max
+    # Off: the widest maximum of the sources (AC).
+    assert hass.states.get(ENTITY_ID).attributes["max_temp"] == 32.0
 
 
 async def test_import_unchanged_entry_not_updated(hass: HomeAssistant) -> None:
