@@ -19,7 +19,8 @@
     "error": {
       "min_max_invalid": "The minimum temperature must be lower than the maximum temperature.",
       "self_reference": "An Adaptative Climate entity cannot be used as a source.",
-      "no_source": "Choose a climate entity for at least one mode."
+      "no_source": "Choose a climate entity for at least one mode.",
+      "mode_not_supported": "The selected climate entity does not support this mode."
     },
     "abort": {
       "already_configured": "This entry is already configured.",
@@ -44,7 +45,8 @@
     "error": {
       "min_max_invalid": "The minimum temperature must be lower than the maximum temperature.",
       "no_source": "Choose a climate entity for at least one mode.",
-      "self_reference": "An Adaptative Climate entity cannot be used as a source."
+      "self_reference": "An Adaptative Climate entity cannot be used as a source.",
+      "mode_not_supported": "The selected climate entity does not support this mode."
     }
   },
   "exceptions": {

@@ -8,6 +8,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.components.climate import ATTR_HVAC_MODES
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
@@ -166,7 +167,7 @@ def _validate_input(hass: HomeAssistant, user_input: dict[str, Any]) -> dict[str
     registry = er.async_get(hass)
 
     configured = 0
-    for key in MODE_SOURCE_KEYS.values():
+    for mode, key in MODE_SOURCE_KEYS.items():
         source = user_input.get(key)
         if not source:
             continue
@@ -175,6 +176,13 @@ def _validate_input(hass: HomeAssistant, user_input: dict[str, Any]) -> dict[str
         registry_entry = registry.async_get(source)
         if registry_entry is not None and registry_entry.platform == DOMAIN:
             errors[key] = "self_reference"
+            continue
+        # The source must offer the mode it serves. A source that is not
+        # loaded yet (or unavailable) has no modes to check, so it is accepted.
+        state = hass.states.get(source)
+        source_modes = state.attributes.get(ATTR_HVAC_MODES) if state else None
+        if source_modes is not None and mode not in source_modes:
+            errors[key] = "mode_not_supported"
 
     if configured == 0:
         errors["base"] = "no_source"

@@ -100,6 +100,26 @@ async def test_user_flow_self_reference(
     assert result["errors"] == {CONF_HEAT_ENTITY: "self_reference"}
 
 
+async def test_user_flow_mode_not_supported(hass: HomeAssistant, sources: None) -> None:
+    """A source must offer the mode it serves."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    # The heater has no cool mode.
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {CONF_NAME: "Living room", CONF_HEAT_ENTITY: HEATER, CONF_COOL_ENTITY: HEATER},
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {CONF_COOL_ENTITY: "mode_not_supported"}
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {CONF_NAME: "Living room", CONF_HEAT_ENTITY: HEATER, CONF_COOL_ENTITY: AC},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
 async def test_options_flow(
     hass: HomeAssistant, init_integration: MockConfigEntry
 ) -> None:
@@ -137,3 +157,17 @@ async def test_options_flow_error(
     )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "no_source"}
+
+
+async def test_options_flow_mode_not_supported(
+    hass: HomeAssistant, init_integration: MockConfigEntry
+) -> None:
+    """The options flow also rejects a source without the mode."""
+    result = await hass.config_entries.options.async_init(init_integration.entry_id)
+    # The AC has no heat mode.
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_HEAT_ENTITY: AC, CONF_MIN_TEMP: 10.0, CONF_MAX_TEMP: 28.0},
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {CONF_HEAT_ENTITY: "mode_not_supported"}
