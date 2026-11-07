@@ -40,6 +40,11 @@ dev/
 | AUTO Virtuel | off, auto | consigne, fan, swing, swing horizontal |
 | ALL Virtuel | tous | consigne, consigne basse/haute, fan, swing, swing horizontal |
 
+Dans les cas *multi* et *manuel*, les sources n'écrivent pas leurs options de la
+même façon, pour tester la synchronisation sans tenir compte de la casse : HEAT en
+capitales (*Auto*, *Off*...) avec une vitesse *Turbo* en plus, DRY en majuscules
+(*AUTO*, *LOW*, *HIGH*) sans *medium*, les autres en minuscules.
+
 Les sources sont des `climate` de l'intégration
 [Template](https://www.home-assistant.io/integrations/template/) de Home
 Assistant : rien à installer.
@@ -65,8 +70,8 @@ redémarrer : la source ne propose alors plus aucune option, comme un appareil
 qui n'en a pas (un radiateur par exemple). Ils reviennent aussi à *on* à chaque redémarrage.
 
 Le script `script.reset_sources_test_<cas>` remet tout à zéro, pour son cas seulement : sources disponibles
-et éteintes, fan et swings actifs (*auto* et *off*), pièce à 20 °C,
-consignes par défaut.
+et éteintes, fan et swings actifs (sur leur première option, *auto* et *off*), pièce à 20 °C,
+consignes par défaut. Il n'efface pas les réglages mémorisés par les entités testées.
 
 ## Cas de test
 
@@ -77,8 +82,8 @@ l'entité testée, ses sources avec tous leurs réglages, un résumé de l'état
 | Cas | Entités | Sources | Tableau de bord |
 |:--|:--|:--|:--|
 | Un mode | `climate.adaptative_heat`, `_cool`, `_dry`, `_fan_only`, `_auto` | la source mono-mode du même mode (`_mono`) | *Tests mono-mode* (une vue par mode) |
-| Tous les modes, une source par mode | `climate.adaptative_multi` | les 5 sources mono-mode (`_multi`) | *Tests multi-sources* |
-| Tous les modes, une seule source | `climate.adaptative_all` | ALL Virtuel (`_unique`) | *Tests source unique* |
+| Tous les modes, une source par mode | `climate.adaptative_multi` (heat, cool et dry synchronisés) | les 5 sources mono-mode (`_multi`) | *Tests multi-sources* |
+| Tous les modes, une seule source | `climate.adaptative_all` (heat, cool et dry synchronisés) | ALL Virtuel (`_unique`) | *Tests source unique* |
 | Manuel | `climate.adaptative_manuel`, créé depuis l'interface | au choix parmi les 6 sources (`_manuel`) | *Tests manuels* (vues *Sources* et *Adaptative*) |
 
 Pour le cas manuel, ajouter un Adaptative Climate depuis *Paramètres > Appareils

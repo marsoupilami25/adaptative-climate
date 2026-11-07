@@ -11,10 +11,12 @@
           "auto_entity": "Auto mode climate entity",
           "dry_entity": "Dry mode climate entity",
           "fan_only_entity": "Fan only mode climate entity",
+          "sync_modes": "Synchronized modes",
           "min_temp": "Minimum temperature",
           "max_temp": "Maximum temperature"
         },
         "data_description": {
+          "sync_modes": "Optional. These modes share their fan and swing settings. A mode without a climate entity is ignored.",
           "min_temp": "Optional. Leave empty to follow the minimum of the climate entity in use. Can only raise it.",
           "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it."
         }
@@ -41,10 +43,12 @@
           "auto_entity": "Auto mode climate entity",
           "dry_entity": "Dry mode climate entity",
           "fan_only_entity": "Fan only mode climate entity",
+          "sync_modes": "Synchronized modes",
           "min_temp": "Minimum temperature",
           "max_temp": "Maximum temperature"
         },
         "data_description": {
+          "sync_modes": "Optional. These modes share their fan and swing settings. A mode without a climate entity is ignored.",
           "min_temp": "Optional. Leave empty to follow the minimum of the climate entity in use. Can only raise it.",
           "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it."
         }
@@ -66,6 +70,17 @@
     },
     "source_unavailable": {
       "message": "The source of mode {hvac_mode} ({entity_id}) is unavailable."
+    }
+  },
+  "selector": {
+    "sync_modes": {
+      "options": {
+        "heat": "Heat",
+        "cool": "Cool",
+        "auto": "Auto",
+        "dry": "Dry",
+        "fan_only": "Fan only"
+      }
     }
   }
 }

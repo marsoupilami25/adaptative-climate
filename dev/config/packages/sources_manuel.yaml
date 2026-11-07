@@ -12,6 +12,10 @@
 # device without them.
 # All sources read the same room temperature (input_number.temperature_courante_manuel).
 # hvac_action is computed from the mode and the room vs target temperature.
+#
+# Option names differ between sources, to test the case-insensitive sync:
+# HEAT is capitalized and has a Turbo fan speed, DRY is upper case without
+# medium, the others are lower case. The first option is always auto / off.
 
 # Each source has its own temperature range (heat 5-30, cool 16-32, dry 18-30,
 # fan_only 10-35, auto 10-30, all 8-32), so ranges differ between modes.
@@ -438,13 +442,13 @@ input_select:
     options: ["off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"]
   fan_heat_manuel:
     name: Fan HEAT
-    options: ["auto", "low", "medium", "high"]
+    options: ["Auto", "Low", "Medium", "High", "Turbo"]
   fan_cool_manuel:
     name: Fan COOL
     options: ["auto", "low", "medium", "high"]
   fan_dry_manuel:
     name: Fan DRY
-    options: ["auto", "low", "medium", "high"]
+    options: ["AUTO", "LOW", "HIGH"]
   fan_fan_only_manuel:
     name: Fan FAN_ONLY
     options: ["auto", "low", "medium", "high"]
@@ -456,7 +460,7 @@ input_select:
     options: ["auto", "low", "medium", "high"]
   swing_heat_manuel:
     name: Swing HEAT
-    options: ["off", "on", "vertical", "horizontal", "both"]
+    options: ["Off", "On", "Vertical", "Horizontal", "Both"]
   swing_cool_manuel:
     name: Swing COOL
     options: ["off", "on", "vertical", "horizontal", "both"]
@@ -474,7 +478,7 @@ input_select:
     options: ["off", "on", "vertical", "horizontal", "both"]
   swing_horizontal_heat_manuel:
     name: Swing horizontal HEAT
-    options: ["off", "on", "left", "center", "right", "wide"]
+    options: ["Off", "On", "Left", "Center", "Right", "Wide"]
   swing_horizontal_cool_manuel:
     name: Swing horizontal COOL
     options: ["off", "on", "left", "center", "right", "wide"]
@@ -706,7 +710,7 @@ script:
             - input_select.mode_all_manuel
         data:
           option: "off"
-      - action: input_select.select_option
+      - action: input_select.select_first
         target:
           entity_id:
             - input_select.fan_heat_manuel
@@ -715,9 +719,7 @@ script:
             - input_select.fan_fan_only_manuel
             - input_select.fan_auto_manuel
             - input_select.fan_all_manuel
-        data:
-          option: auto
-      - action: input_select.select_option
+      - action: input_select.select_first
         target:
           entity_id:
             - input_select.swing_heat_manuel
@@ -726,9 +728,7 @@ script:
             - input_select.swing_fan_only_manuel
             - input_select.swing_auto_manuel
             - input_select.swing_all_manuel
-        data:
-          option: "off"
-      - action: input_select.select_option
+      - action: input_select.select_first
         target:
           entity_id:
             - input_select.swing_horizontal_heat_manuel
@@ -737,8 +737,6 @@ script:
             - input_select.swing_horizontal_fan_only_manuel
             - input_select.swing_horizontal_auto_manuel
             - input_select.swing_horizontal_all_manuel
-        data:
-          option: "off"
       - action: input_number.set_value
         target:
           entity_id:

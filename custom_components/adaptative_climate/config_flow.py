@@ -9,7 +9,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.components.climate import ATTR_HVAC_MODES
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
@@ -18,11 +18,15 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
 )
 
 from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
+    CONF_SYNC_MODES,
     DEFAULT_NAME,
     DOMAIN,
     MODE_SOURCE_KEYS,
@@ -48,15 +52,28 @@ TEMPERATURE_SCHEMA: dict[vol.Marker, Any] = {
     vol.Optional(CONF_MAX_TEMP): TEMPERATURE_SELECTOR,
 }
 
+# Modes sharing their fan and swing settings. A mode without a source is ignored.
+SYNC_SCHEMA: dict[vol.Marker, Any] = {
+    vol.Optional(CONF_SYNC_MODES): SelectSelector(
+        SelectSelectorConfig(
+            options=[str(mode) for mode in MODE_SOURCE_KEYS],
+            multiple=True,
+            mode=SelectSelectorMode.LIST,
+            translation_key=CONF_SYNC_MODES,
+        )
+    ),
+}
+
 CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
         **SOURCES_SCHEMA,
+        **SYNC_SCHEMA,
         **TEMPERATURE_SCHEMA,
     }
 )
 
-OPTIONS_SCHEMA = vol.Schema({**SOURCES_SCHEMA, **TEMPERATURE_SCHEMA})
+OPTIONS_SCHEMA = vol.Schema({**SOURCES_SCHEMA, **SYNC_SCHEMA, **TEMPERATURE_SCHEMA})
 
 
 class AdaptativeClimateConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -177,9 +194,14 @@ def _validate_input(hass: HomeAssistant, user_input: dict[str, Any]) -> dict[str
             errors[key] = "self_reference"
             continue
         # The source must offer the mode it serves. A source that is not
-        # loaded yet (or unavailable) has no modes to check, so it is accepted.
+        # loaded yet, unknown (still starting) or unavailable may not list its
+        # real modes, so it is accepted.
         state = hass.states.get(source)
-        source_modes = state.attributes.get(ATTR_HVAC_MODES) if state else None
+        source_modes = (
+            state.attributes.get(ATTR_HVAC_MODES)
+            if state is not None and state.state not in {STATE_UNAVAILABLE, STATE_UNKNOWN}
+            else None
+        )
         if source_modes is not None and mode not in source_modes:
             errors[key] = "mode_not_supported"
 

@@ -12,6 +12,10 @@
 # device without them.
 # All sources read the same room temperature (input_number.temperature_courante_multi).
 # hvac_action is computed from the mode and the room vs target temperature.
+#
+# Option names differ between sources, to test the case-insensitive sync:
+# HEAT is capitalized and has a Turbo fan speed, DRY is upper case without
+# medium, the others are lower case. The first option is always auto / off.
 
 # Each source has its own temperature range (heat 5-30, cool 16-32, dry 18-30,
 # fan_only 10-35, auto 10-30, all 8-32), so ranges differ between modes.
@@ -344,13 +348,13 @@ input_select:
     options: ["off", "auto"]
   fan_heat_multi:
     name: Fan HEAT
-    options: ["auto", "low", "medium", "high"]
+    options: ["Auto", "Low", "Medium", "High", "Turbo"]
   fan_cool_multi:
     name: Fan COOL
     options: ["auto", "low", "medium", "high"]
   fan_dry_multi:
     name: Fan DRY
-    options: ["auto", "low", "medium", "high"]
+    options: ["AUTO", "LOW", "HIGH"]
   fan_fan_only_multi:
     name: Fan FAN_ONLY
     options: ["auto", "low", "medium", "high"]
@@ -359,7 +363,7 @@ input_select:
     options: ["auto", "low", "medium", "high"]
   swing_heat_multi:
     name: Swing HEAT
-    options: ["off", "on", "vertical", "horizontal", "both"]
+    options: ["Off", "On", "Vertical", "Horizontal", "Both"]
   swing_cool_multi:
     name: Swing COOL
     options: ["off", "on", "vertical", "horizontal", "both"]
@@ -374,7 +378,7 @@ input_select:
     options: ["off", "on", "vertical", "horizontal", "both"]
   swing_horizontal_heat_multi:
     name: Swing horizontal HEAT
-    options: ["off", "on", "left", "center", "right", "wide"]
+    options: ["Off", "On", "Left", "Center", "Right", "Wide"]
   swing_horizontal_cool_multi:
     name: Swing horizontal COOL
     options: ["off", "on", "left", "center", "right", "wide"]
@@ -521,6 +525,32 @@ input_boolean:
     icon: mdi:arrow-left-right
 
 script:
+  sources_indisponibles_multi:
+    alias: Rendre toutes les sources indisponibles (multi)
+    icon: mdi:power-plug-off
+    sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.dispo_heat_multi
+            - input_boolean.dispo_cool_multi
+            - input_boolean.dispo_dry_multi
+            - input_boolean.dispo_fan_only_multi
+            - input_boolean.dispo_auto_multi
+
+  sources_disponibles_multi:
+    alias: Rendre toutes les sources disponibles (multi)
+    icon: mdi:power-plug
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.dispo_heat_multi
+            - input_boolean.dispo_cool_multi
+            - input_boolean.dispo_dry_multi
+            - input_boolean.dispo_fan_only_multi
+            - input_boolean.dispo_auto_multi
+
   reset_sources_test_multi:
     alias: Réinitialiser les sources (multi)
     icon: mdi:restore
@@ -558,7 +588,7 @@ script:
             - input_select.mode_auto_multi
         data:
           option: "off"
-      - action: input_select.select_option
+      - action: input_select.select_first
         target:
           entity_id:
             - input_select.fan_heat_multi
@@ -566,9 +596,7 @@ script:
             - input_select.fan_dry_multi
             - input_select.fan_fan_only_multi
             - input_select.fan_auto_multi
-        data:
-          option: auto
-      - action: input_select.select_option
+      - action: input_select.select_first
         target:
           entity_id:
             - input_select.swing_heat_multi
@@ -576,9 +604,7 @@ script:
             - input_select.swing_dry_multi
             - input_select.swing_fan_only_multi
             - input_select.swing_auto_multi
-        data:
-          option: "off"
-      - action: input_select.select_option
+      - action: input_select.select_first
         target:
           entity_id:
             - input_select.swing_horizontal_heat_multi
@@ -586,8 +612,6 @@ script:
             - input_select.swing_horizontal_dry_multi
             - input_select.swing_horizontal_fan_only_multi
             - input_select.swing_horizontal_auto_multi
-        data:
-          option: "off"
       - action: input_number.set_value
         target:
           entity_id:

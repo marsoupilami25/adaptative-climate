@@ -26,7 +26,7 @@ from homeassistant.core import (
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import DOMAIN, entry_settings, mode_sources
+from .const import DOMAIN, entry_settings, mode_sources, sync_modes
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,7 +56,10 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
             name=DOMAIN,
             update_interval=None,
         )
-        self.mode_sources: dict[HVACMode, str] = mode_sources(entry_settings(entry))
+        settings = entry_settings(entry)
+        self.mode_sources: dict[HVACMode, str] = mode_sources(settings)
+        # Modes sharing their fan and swing settings (each has a source).
+        self.sync_modes: set[HVACMode] = sync_modes(settings)
         # Each source once, in mode order (a source can serve several modes).
         self.source_entity_ids: list[str] = list(dict.fromkeys(self.mode_sources.values()))
         self._unsub_state_change: CALLBACK_TYPE | None = None

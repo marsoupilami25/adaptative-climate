@@ -62,6 +62,8 @@ adaptative_climate:
     dry_entity: climate.dry_virtuel_multi
     fan_only_entity: climate.fan_only_virtuel_multi
     auto_entity: climate.auto_virtuel_multi
+    # Heat, cool and dry share their fan and swing settings.
+    sync_modes: [heat, cool, dry]
 
   # Case 3: every mode on the multi-mode source.
   - name: Adaptative ALL
@@ -70,6 +72,8 @@ adaptative_climate:
     dry_entity: climate.all_virtuel_unique
     fan_only_entity: climate.all_virtuel_unique
     auto_entity: climate.all_virtuel_unique
+    # Heat, cool and dry share their fan and swing settings, as on multi.
+    sync_modes: [heat, cool, dry]
 
 logger:
   default: warning

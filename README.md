@@ -38,6 +38,7 @@ adaptative_climate:
     heat_entity: climate.heater
     cool_entity: climate.air_conditioner
     dry_entity: climate.air_conditioner
+    sync_modes: [cool, dry]   # optional, see "Fan and swing settings"
     max_temp: 23   # optional, see "Temperature range"
 ```
 
@@ -55,10 +56,30 @@ Switching to a mode sets its source to the HVAC mode of the same name, after
 turning off the source of the previous mode when it is a different entity.
 The `heat_cool` mode is not supported yet.
 
+### Fan and swing settings
+
 Fan, swing and horizontal swing come from the source of the current mode:
-they are shown when that source has them, in any mode, and changes are sent
-to it. A heat pump used for heating keeps its fan; a radiator shows none.
-When the entity is off, none of them is shown.
+they are shown when that source has them, in any mode, with the options of
+that source, and changes are sent to it. A heat pump used for heating keeps
+its fan; a radiator shows none. When the entity is off, none of them is shown.
+
+Each mode remembers its settings and sends them back to its source when the
+entity switches to that mode, so a mode finds the settings it was left with.
+A change made on the source itself (remote control, app) while the mode is
+on is remembered too. The first time a mode is used, it keeps the settings
+the source already has. The settings are kept across restarts.
+
+`sync_modes` lists modes that share their settings: a fan speed chosen in
+`cool` is used in `dry` too. A shared value must be offered by every
+synchronized source that has the setting (a radiator without fan does not
+count). A value only some of them offer, such as a `turbo` speed, can still
+be chosen, but it is not remembered: the mode gets the shared value back
+next time. Modes outside `sync_modes` keep their own settings. A listed mode
+without a source is ignored.
+
+Values are compared without case: `Low` on one source and `low` on another
+are the same value, and each source receives it as it spells it. Other names
+are not matched (`1` is not `low`).
 
 ### Temperature range
 

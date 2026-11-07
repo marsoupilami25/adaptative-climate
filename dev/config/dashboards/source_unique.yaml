@@ -1,137 +1,140 @@
 # Case 3: one Adaptative Climate with every mode, all on the multi-mode source ALL Virtuel.
 # YAML dashboard: after editing this file, refresh the page in the browser.
+# Views with scenarios use the sidebar layout: scenarios on the right, controls in the main area.
 title: Tests source unique
 views:
 - title: Pilotage
   path: pilotage
-  type: sections
-  max_columns: 3
-  sections:
+  type: sidebar
+  cards:
   - type: grid
+    columns: 2
+    square: false
     cards:
-    - type: heading
-      heading: Adaptative ALL
-    - type: thermostat
-      entity: climate.adaptative_all
-      features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
-      grid_options:
-        columns: full
-    - type: entities
-      entities:
-      - entity: climate.adaptative_all
-        type: attribute
-        attribute: hvac_action
-        name: Action
-      - entity: climate.adaptative_all
-        type: attribute
-        attribute: active_entity_id
-        name: Source active
-      - entity: climate.adaptative_all
-        type: attribute
-        attribute: temperature
-        name: Consigne
-        suffix: °C
-      - entity: climate.adaptative_all
-        type: attribute
-        attribute: fan_mode
-        name: Fan
-      - entity: climate.adaptative_all
-        type: attribute
-        attribute: swing_mode
-        name: Swing
-      - entity: climate.adaptative_all
-        type: attribute
-        attribute: swing_horizontal_mode
-        name: Swing horizontal
-      - entity: climate.adaptative_all
-        type: attribute
-        attribute: min_temp
-        name: Min
-        suffix: °C
-      - entity: climate.adaptative_all
-        type: attribute
-        attribute: max_temp
-        name: Max
-        suffix: °C
-      grid_options:
-        columns: full
-    - type: tile
-      entity: climate.adaptative_all
-      name: Marche / arrêt
-      icon_tap_action:
-        action: toggle
-      grid_options:
-        columns: full
-  - type: grid
-    cards:
-    - type: heading
-      heading: Source ALL Virtuel
-    - type: thermostat
-      entity: climate.all_virtuel_unique
-      grid_options:
-        columns: full
-    - type: entities
-      entities:
-      - input_select.mode_all_unique
-      - input_number.consigne_all_unique
-      - input_number.consigne_all_basse_unique
-      - input_number.consigne_all_haute_unique
-      - input_select.fan_all_unique
-      - input_select.swing_all_unique
-      - input_select.swing_horizontal_all_unique
-      - input_boolean.dispo_all_unique
-      - input_boolean.fan_actif_all_unique
-      - input_boolean.swing_actif_all_unique
-      - input_boolean.swing_horizontal_actif_all_unique
-      grid_options:
-        columns: full
-  - type: grid
-    cards:
-    - type: heading
-      heading: État
-    - type: markdown
-      content: |
-        {% if states.climate.adaptative_all is none %}
-        > ⚠️ **`climate.adaptative_all` introuvable.** Vérifier la section `adaptative_climate:` de
-        > `dev/config/configuration.yaml` et les journaux, puis redémarrer.
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Adaptative ALL
+      - type: thermostat
+        entity: climate.adaptative_all
+        features:
+        - type: climate-hvac-modes
+        - type: climate-fan-modes
+        - type: climate-swing-modes
+        - type: climate-swing-horizontal-modes
+      - type: entities
+        entities:
+        - entity: climate.adaptative_all
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_all
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_all
+          type: attribute
+          attribute: temperature
+          name: Consigne
+          suffix: °C
+        - entity: climate.adaptative_all
+          type: attribute
+          attribute: fan_mode
+          name: Fan
+        - entity: climate.adaptative_all
+          type: attribute
+          attribute: swing_mode
+          name: Swing
+        - entity: climate.adaptative_all
+          type: attribute
+          attribute: swing_horizontal_mode
+          name: Swing horizontal
+        - entity: climate.adaptative_all
+          type: attribute
+          attribute: min_temp
+          name: Min
+          suffix: °C
+        - entity: climate.adaptative_all
+          type: attribute
+          attribute: max_temp
+          name: Max
+          suffix: °C
+      - type: tile
+        entity: climate.adaptative_all
+        name: Marche / arrêt
+        icon_tap_action:
+          action: toggle
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Source ALL Virtuel
+      - type: thermostat
+        entity: climate.all_virtuel_unique
+      - type: entities
+        entities:
+        - input_select.mode_all_unique
+        - input_number.consigne_all_unique
+        - input_number.consigne_all_basse_unique
+        - input_number.consigne_all_haute_unique
+        - input_select.fan_all_unique
+        - input_select.swing_all_unique
+        - input_select.swing_horizontal_all_unique
+        - input_boolean.dispo_all_unique
+        - input_boolean.fan_actif_all_unique
+        - input_boolean.swing_actif_all_unique
+        - input_boolean.swing_horizontal_actif_all_unique
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: État
+      - type: markdown
+        content: |
+          {% if states.climate.adaptative_all is none %}
+          > ⚠️ **`climate.adaptative_all` introuvable.** Vérifier la section `adaptative_climate:` de
+          > `dev/config/configuration.yaml` et les journaux, puis redémarrer.
 
-        {% endif %}
-        {% set active = state_attr('climate.adaptative_all', 'active_entity_id') %}
-        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
-        {% for label, e in [('ALL', 'climate.all_virtuel_unique')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
-        {% endfor %}
+          {% endif %}
+          {% set active = state_attr('climate.adaptative_all', 'active_entity_id') %}
+          | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+          |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
+          {% for label, e in [('ALL', 'climate.all_virtuel_unique')] %}
+          | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+          {% endfor %}
 
-        Pièce : **{{ states('input_number.temperature_courante_unique') }} °C**
-      grid_options:
-        columns: full
-    - type: entities
-      entities:
-      - input_number.temperature_courante_unique
-      - entity: script.reset_sources_test_unique
-        name: Tout remettre à zéro
-      grid_options:
-        columns: full
-  - type: grid
-    cards:
-    - type: markdown
-      content: |
-        ## Scénarios
+          Pièce : **{{ states('input_number.temperature_courante_unique') }} °C**
+      - type: entities
+        entities:
+        - input_number.temperature_courante_unique
+        - entity: script.reset_sources_test_unique
+          name: Tout remettre à zéro
+  - type: markdown
+    content: |
+      ## Scénarios
 
-        Partir de **Tout remettre à zéro**.
+      Partir de **Tout remettre à zéro**.
 
-        1. **Changement de mode** : passer de *heat* à *cool* puis *dry*. ALL Virtuel change de mode sans passer par *off*.
-        2. **heat_cool** : ce mode n'est pas proposé, même si ALL Virtuel le gère.
-        3. **Changement externe** : mettre ALL Virtuel en *heat_cool* depuis sa carte. Adaptative ALL affiche *off*.
-        4. **Consigne** : changer la consigne. *Consigne ALL* suit.
-        5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
-        6. **Source indisponible** : couper *ALL disponible*. Adaptative ALL devient indisponible.
-        7. **Fan et swing** : régler le fan en *heat*, puis passer en *cool*. Le fan garde sa valeur (même source).
-        8. **Fan/swing absents** : couper *Fan ALL actif*. Le fan disparaît dans tous les modes ; le rallumer, il revient. Idem avec *Swing ALL actif* et *Swing horizontal ALL actif*.
-      grid_options:
-        columns: full
+      1. **Changement de mode** : passer de *heat* à *cool* puis *dry*. ALL Virtuel change de mode sans passer par *off*.
+      2. **heat_cool** : ce mode n'est pas proposé, même si ALL Virtuel le gère.
+      3. **Changement externe** : mettre ALL Virtuel en *heat_cool* depuis sa carte. Adaptative ALL affiche *off*.
+      4. **Consigne** : changer la consigne. *Consigne ALL* suit.
+      5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
+      6. **Source indisponible** : couper *ALL disponible*. Adaptative ALL devient indisponible.
+      7. **Fan et swing** : changer le fan, le swing et le swing horizontal d'Adaptative ALL. *Fan ALL*, *Swing ALL* et *Swing horizontal ALL* suivent.
+      8. **Fan/swing absents** : couper *Fan ALL actif*. Le fan disparaît dans tous les modes ; le rallumer, il revient. Idem avec *Swing ALL actif* et *Swing horizontal ALL actif*.
+
+      ### Mémoire des réglages
+
+      *heat*, *cool* et *dry* sont synchronisés ; *fan_only* et *auto* ont chacun leur mémoire.
+      Une seule source, donc une seule liste d'options : toutes les valeurs sont communes
+      (la casse et les valeurs propres à une source se testent dans *Tests multi-sources*).
+      **Tout remettre à zéro** n'efface pas la mémoire : elle appartient à Adaptative ALL.
+
+      9. **Mémoire par mode** : en *fan_only*, fan *high*. En *auto*, fan *low*. Repasser en *fan_only* : *Fan ALL* revient à *high* ; puis en *auto* : *low*.
+      10. **Changement pendant l'arrêt** : éteindre, mettre *Fan ALL* à *auto*, passer en *fan_only* : le fan revient à *high*.
+      11. **Synchronisation** : en *cool*, fan *medium*. Passer en *fan_only* (*high*), puis en *heat* : le fan revient à *medium*. Passer en *dry* : toujours *medium*.
+      12. **Modes séparés** : en *heat*, fan *high*. Passer en *auto* : *low* (sa propre mémoire). Y mettre *medium*, repasser en *cool* : *high*.
+      13. **Changement sur la source** : en *dry*, mettre *Fan ALL* à *medium* depuis sa carte. Passer en *fan_only*, puis en *heat* : *medium*.
+      14. **Swing synchronisé** : en *heat*, swing *on* et swing horizontal *left*. Passer en *fan_only*, puis en *cool* : *on* et *left* reviennent.
+      15. **Après un redémarrage** : en *cool*, fan *high*, puis passer en *auto* : *medium*. Redémarrer Home Assistant, passer en *heat* : le fan revient à *high*.
+    view_layout:
+      position: sidebar

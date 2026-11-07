@@ -9,7 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.config_entries import SOURCE_IMPORT, SOURCE_USER, ConfigEntryState
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -20,6 +20,7 @@ from custom_components.adaptative_climate.const import (
     CONF_HEAT_ENTITY,
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
+    CONF_SYNC_MODES,
     DOMAIN,
 )
 
@@ -70,6 +71,15 @@ async def test_import_creates_entry(hass: HomeAssistant) -> None:
     state = hass.states.get(ENTITY_ID)
     assert state.state == HVACMode.OFF
     assert state.attributes["hvac_modes"] == [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL]
+
+
+async def test_import_sync_modes(hass: HomeAssistant) -> None:
+    """sync_modes is imported as a list, a single mode included."""
+    assert await _setup(hass, {DOMAIN: [{**YAML_ENTRY, CONF_SYNC_MODES: "cool"}]})
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.data == {**IMPORTED_DATA, CONF_SYNC_MODES: ["cool"]}
+    assert entry.runtime_data.sync_modes == {HVACMode.COOL}
 
 
 async def test_import_single_entry_without_list(hass: HomeAssistant) -> None:
@@ -198,6 +208,7 @@ async def test_ui_entries_kept(
         pytest.param({CONF_HEAT_ENTITY: HEATER}, id="no_name"),
         pytest.param({**YAML_ENTRY, "unknown": 1}, id="unknown_key"),
         pytest.param([YAML_ENTRY, YAML_ENTRY], id="duplicate_name"),
+        pytest.param({**YAML_ENTRY, CONF_SYNC_MODES: ["heat", "off"]}, id="sync_off"),
     ],
 )
 async def test_invalid_yaml(hass: HomeAssistant, conf: Any) -> None:
@@ -205,6 +216,19 @@ async def test_invalid_yaml(hass: HomeAssistant, conf: Any) -> None:
     assert not await _setup(hass, {DOMAIN: conf})
 
     assert hass.config_entries.async_entries(DOMAIN) == []
+
+
+@pytest.mark.parametrize("source_state", [STATE_UNKNOWN, STATE_UNAVAILABLE])
+async def test_import_source_not_ready(hass: HomeAssistant, source_state: str) -> None:
+    """A source still starting may list wrong modes: it is not checked."""
+    hass.states.async_set("climate.starting", source_state, {"hvac_modes": []})
+
+    assert await _setup(
+        hass, {DOMAIN: [{**YAML_ENTRY, CONF_COOL_ENTITY: "climate.starting"}]}
+    )
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.data[CONF_COOL_ENTITY] == "climate.starting"
 
 
 async def test_import_self_reference(

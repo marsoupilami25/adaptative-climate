@@ -16,6 +16,7 @@ from custom_components.adaptative_climate.const import (
     CONF_HEAT_ENTITY,
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
+    CONF_SYNC_MODES,
     DOMAIN,
 )
 
@@ -160,6 +161,26 @@ async def test_options_flow(
     assert state.attributes["hvac_modes"] == [HVACMode.OFF, HVACMode.HEAT]
     assert state.attributes["min_temp"] == 10.0
     assert state.attributes["max_temp"] == 28.0
+
+
+async def test_options_flow_sync_modes(
+    hass: HomeAssistant, init_integration: MockConfigEntry
+) -> None:
+    """Synchronized modes are saved; a mode without a source is ignored."""
+    result = await hass.config_entries.options.async_init(init_integration.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_HEAT_ENTITY: HEATER,
+            CONF_COOL_ENTITY: AC,
+            CONF_SYNC_MODES: ["heat", "cool", "auto"],
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert init_integration.options[CONF_SYNC_MODES] == ["heat", "cool", "auto"]
+    assert init_integration.runtime_data.sync_modes == {HVACMode.HEAT, HVACMode.COOL}
 
 
 async def test_options_flow_error(

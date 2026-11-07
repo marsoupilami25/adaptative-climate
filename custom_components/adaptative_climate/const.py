@@ -21,6 +21,9 @@ CONF_AUTO_ENTITY: Final = "auto_entity"
 CONF_DRY_ENTITY: Final = "dry_entity"
 CONF_FAN_ONLY_ENTITY: Final = "fan_only_entity"
 
+# Modes whose fan and swing settings are kept in sync.
+CONF_SYNC_MODES: Final = "sync_modes"
+
 # Source climate entity option for each Adaptative Climate mode. Each mode is
 # sent to its source as the HVAC mode of the same name. HEAT_COOL comes later.
 MODE_SOURCE_KEYS: Final[dict[HVACMode, str]] = {
@@ -47,4 +50,14 @@ def mode_sources(settings: Mapping[str, Any]) -> dict[HVACMode, str]:
         mode: settings[key]
         for mode, key in MODE_SOURCE_KEYS.items()
         if settings.get(key)
+    }
+
+
+def sync_modes(settings: Mapping[str, Any]) -> set[HVACMode]:
+    """Return the synchronized modes that have a source."""
+    sources = mode_sources(settings)
+    return {
+        HVACMode(mode)
+        for mode in settings.get(CONF_SYNC_MODES) or []
+        if mode in sources
     }

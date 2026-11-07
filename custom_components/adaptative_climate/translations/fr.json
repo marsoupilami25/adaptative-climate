@@ -11,10 +11,12 @@
           "auto_entity": "Entité climate du mode Auto",
           "dry_entity": "Entité climate du mode Déshumidification",
           "fan_only_entity": "Entité climate du mode Ventilation",
+          "sync_modes": "Modes synchronisés",
           "min_temp": "Température minimale",
           "max_temp": "Température maximale"
         },
         "data_description": {
+          "sync_modes": "Facultatif. Ces modes partagent leurs réglages de ventilation et de balayage. Un mode sans entité climate est ignoré.",
           "min_temp": "Facultatif. Laisser vide pour suivre le minimum de l'appareil utilisé. Ne peut que le relever.",
           "max_temp": "Facultatif. Laisser vide pour suivre le maximum de l'appareil utilisé. Ne peut que l'abaisser."
         }
@@ -41,10 +43,12 @@
           "auto_entity": "Entité climate du mode Auto",
           "dry_entity": "Entité climate du mode Déshumidification",
           "fan_only_entity": "Entité climate du mode Ventilation",
+          "sync_modes": "Modes synchronisés",
           "min_temp": "Température minimale",
           "max_temp": "Température maximale"
         },
         "data_description": {
+          "sync_modes": "Facultatif. Ces modes partagent leurs réglages de ventilation et de balayage. Un mode sans entité climate est ignoré.",
           "min_temp": "Facultatif. Laisser vide pour suivre le minimum de l'appareil utilisé. Ne peut que le relever.",
           "max_temp": "Facultatif. Laisser vide pour suivre le maximum de l'appareil utilisé. Ne peut que l'abaisser."
         }
@@ -66,6 +70,17 @@
     },
     "source_unavailable": {
       "message": "La source du mode {hvac_mode} ({entity_id}) est indisponible."
+    }
+  },
+  "selector": {
+    "sync_modes": {
+      "options": {
+        "heat": "Chauffage",
+        "cool": "Climatisation",
+        "auto": "Auto",
+        "dry": "Déshumidification",
+        "fan_only": "Ventilation"
+      }
     }
   }
 }

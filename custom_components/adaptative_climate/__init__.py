@@ -17,6 +17,7 @@ from homeassistant.helpers.typing import ConfigType
 from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
+    CONF_SYNC_MODES,
     DOMAIN,
     MODE_SOURCE_KEYS,
 )
@@ -56,6 +57,9 @@ ENTRY_SCHEMA = vol.All(
             },
             vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
             vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
+            vol.Optional(CONF_SYNC_MODES): vol.All(
+                cv.ensure_list, [vol.In([str(mode) for mode in MODE_SOURCE_KEYS])]
+            ),
         }
     ),
     _check_entry,

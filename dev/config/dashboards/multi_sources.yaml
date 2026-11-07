@@ -1,118 +1,129 @@
 # Case 2: one Adaptative Climate with every mode, one single-mode source per mode.
 # YAML dashboard: after editing this file, refresh the page in the browser.
+# Views with scenarios use the sidebar layout: scenarios on the right, controls in the main area.
 title: Tests multi-sources
 views:
 - title: Pilotage
   path: pilotage
-  type: sections
-  max_columns: 3
-  sections:
+  type: sidebar
+  cards:
   - type: grid
+    columns: 2
+    square: false
     cards:
-    - type: heading
-      heading: Adaptative MULTI
-    - type: thermostat
-      entity: climate.adaptative_multi
-      features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
-      grid_options:
-        columns: full
-    - type: entities
-      entities:
-      - entity: climate.adaptative_multi
-        type: attribute
-        attribute: hvac_action
-        name: Action
-      - entity: climate.adaptative_multi
-        type: attribute
-        attribute: active_entity_id
-        name: Source active
-      - entity: climate.adaptative_multi
-        type: attribute
-        attribute: temperature
-        name: Consigne
-        suffix: °C
-      - entity: climate.adaptative_multi
-        type: attribute
-        attribute: fan_mode
-        name: Fan
-      - entity: climate.adaptative_multi
-        type: attribute
-        attribute: swing_mode
-        name: Swing
-      - entity: climate.adaptative_multi
-        type: attribute
-        attribute: swing_horizontal_mode
-        name: Swing horizontal
-      - entity: climate.adaptative_multi
-        type: attribute
-        attribute: min_temp
-        name: Min
-        suffix: °C
-      - entity: climate.adaptative_multi
-        type: attribute
-        attribute: max_temp
-        name: Max
-        suffix: °C
-      grid_options:
-        columns: full
-    - type: tile
-      entity: climate.adaptative_multi
-      name: Marche / arrêt
-      icon_tap_action:
-        action: toggle
-      grid_options:
-        columns: full
-  - type: grid
-    cards:
-    - type: heading
-      heading: État
-    - type: markdown
-      content: |
-        {% if states.climate.adaptative_multi is none %}
-        > ⚠️ **`climate.adaptative_multi` introuvable.** Vérifier la section `adaptative_climate:` de
-        > `dev/config/configuration.yaml` et les journaux, puis redémarrer.
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Adaptative MULTI
+      - type: thermostat
+        entity: climate.adaptative_multi
+        features:
+        - type: climate-hvac-modes
+        - type: climate-fan-modes
+        - type: climate-swing-modes
+        - type: climate-swing-horizontal-modes
+      - type: entities
+        entities:
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: temperature
+          name: Consigne
+          suffix: °C
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: fan_mode
+          name: Fan
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: swing_mode
+          name: Swing
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: swing_horizontal_mode
+          name: Swing horizontal
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: min_temp
+          name: Min
+          suffix: °C
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: max_temp
+          name: Max
+          suffix: °C
+      - type: tile
+        entity: climate.adaptative_multi
+        name: Marche / arrêt
+        icon_tap_action:
+          action: toggle
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: État
+      - type: markdown
+        content: |
+          {% if states.climate.adaptative_multi is none %}
+          > ⚠️ **`climate.adaptative_multi` introuvable.** Vérifier la section `adaptative_climate:` de
+          > `dev/config/configuration.yaml` et les journaux, puis redémarrer.
 
-        {% endif %}
-        {% set active = state_attr('climate.adaptative_multi', 'active_entity_id') %}
-        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
-        {% for label, e in [('HEAT', 'climate.heat_virtuel_multi'), ('COOL', 'climate.cool_virtuel_multi'), ('DRY', 'climate.dry_virtuel_multi'), ('FAN_ONLY', 'climate.fan_only_virtuel_multi'), ('AUTO', 'climate.auto_virtuel_multi')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
-        {% endfor %}
+          {% endif %}
+          {% set active = state_attr('climate.adaptative_multi', 'active_entity_id') %}
+          | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+          |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
+          {% for label, e in [('HEAT', 'climate.heat_virtuel_multi'), ('COOL', 'climate.cool_virtuel_multi'), ('DRY', 'climate.dry_virtuel_multi'), ('FAN_ONLY', 'climate.fan_only_virtuel_multi'), ('AUTO', 'climate.auto_virtuel_multi')] %}
+          | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+          {% endfor %}
 
-        Pièce : **{{ states('input_number.temperature_courante_multi') }} °C**
-      grid_options:
-        columns: full
-    - type: entities
-      entities:
-      - input_number.temperature_courante_multi
-      - entity: script.reset_sources_test_multi
-        name: Tout remettre à zéro
-      grid_options:
-        columns: full
-  - type: grid
-    cards:
-    - type: markdown
-      content: |
-        ## Scénarios
+          Pièce : **{{ states('input_number.temperature_courante_multi') }} °C**
+      - type: entities
+        entities:
+        - input_number.temperature_courante_multi
+        - entity: script.reset_sources_test_multi
+          name: Tout remettre à zéro
+        - entity: script.sources_indisponibles_multi
+          name: Toutes les sources indisponibles
+        - entity: script.sources_disponibles_multi
+          name: Toutes les sources disponibles
+  - type: markdown
+    content: |
+      ## Scénarios
 
-        Partir de **Tout remettre à zéro**.
+      Partir de **Tout remettre à zéro**.
 
-        1. **Changement de mode** : passer en *heat*, puis en *cool*. HEAT Virtuel repasse à *off* avant que COOL Virtuel passe à *cool*.
-        2. **Consigne** : en *cool*, changer la consigne. Seule *Consigne COOL* bouge.
-        3. **Changement externe** : allumer HEAT Virtuel depuis sa carte (vue Sources). Adaptative MULTI passe en *heat*.
-        4. **Deux sources allumées** : allumer aussi COOL Virtuel à la main. Adaptative MULTI affiche le premier mode dans l'ordre heat, cool, auto, dry, fan_only.
-        5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
-        6. **Source indisponible** : couper *HEAT disponible*. *heat* n'est plus détecté ; l'entité reste disponible tant qu'une autre source l'est. Tout couper : l'entité devient indisponible.
-        7. **Bornes** : Min/Max suivent la source du mode actif. En *heat* : 5–30 °C, en *cool* : 16–32 °C, en *dry* : 18–30 °C, en *fan_only* : 10–35 °C, en *auto* : 10–30 °C. Éteint : la plage la plus large, 5–35 °C.
-        8. **Fan et swing par source** : en *heat*, changer le fan. Seul *Fan HEAT* bouge. Passer en *cool* : le fan affiché est celui de COOL Virtuel.
-        9. **Fan/swing absents** : couper *Fan HEAT actif*, *Swing HEAT actif* et *Swing horizontal HEAT actif*. En *heat*, ni fan ni swing ; en *cool*, ils reviennent. Éteint : ni fan ni swing.
-      grid_options:
-        columns: full
+      1. **Changement de mode** : passer en *heat*, puis en *cool*. HEAT Virtuel repasse à *off* avant que COOL Virtuel passe à *cool*.
+      2. **Consigne** : en *cool*, changer la consigne. Seule *Consigne COOL* bouge.
+      3. **Changement externe** : allumer HEAT Virtuel depuis sa carte (vue Sources). Adaptative MULTI passe en *heat*.
+      4. **Deuxième source allumée** : HEAT Virtuel allumé (scénario 3), allumer aussi COOL Virtuel à la main. HEAT Virtuel s'éteint et Adaptative MULTI passe en *cool* : la dernière source allumée l'emporte.
+      5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
+      6. **Source indisponible** : couper *HEAT disponible*. *heat* n'est plus détecté ; l'entité reste disponible tant qu'une autre source l'est. **Toutes les sources indisponibles** : l'entité devient indisponible ; **Toutes les sources disponibles** les rétablit.
+      7. **Bornes** : Min/Max suivent la source du mode actif. En *heat* : 5–30 °C, en *cool* : 16–32 °C, en *dry* : 18–30 °C, en *fan_only* : 10–35 °C, en *auto* : 10–30 °C. Éteint : la plage la plus large, 5–35 °C.
+      8. **Fan et swing par source** : en *fan_only*, changer le fan. Seul *Fan FAN_ONLY* bouge. Passer en *auto* : le fan affiché est celui d'AUTO Virtuel.
+      9. **Fan/swing absents** : couper *Fan HEAT actif*, *Swing HEAT actif* et *Swing horizontal HEAT actif*. En *heat*, ni fan ni swing ; en *cool*, ils reviennent. Éteint : ni fan ni swing.
+
+      ### Mémoire des réglages
+
+      *heat*, *cool* et *dry* sont synchronisés ; *fan_only* et *auto* ont chacun leur mémoire.
+      Les sources n'écrivent pas leurs options pareil : HEAT en *Capitales* avec *Turbo* en plus,
+      DRY en *MAJUSCULES* sans *medium*, les autres en minuscules.
+      **Tout remettre à zéro** n'efface pas la mémoire : elle appartient à Adaptative MULTI.
+
+      10. **Mémoire par mode** : en *fan_only*, fan *high*. En *auto*, fan *low*. Repasser en *fan_only* : *Fan FAN_ONLY* revient à *high* ; puis en *auto* : *Fan AUTO* revient à *low*.
+      11. **Changement pendant l'arrêt** : éteindre, mettre *Fan FAN_ONLY* à *auto* (vue Sources), passer en *fan_only* : le fan revient à *high*.
+      12. **Synchronisation et casse** : en *cool*, fan *high*. Passer en *heat* : *Fan HEAT* passe à *High*. Passer en *dry* : *Fan DRY* passe à *HIGH*.
+      13. **Valeur propre à une source** : en *heat*, la liste propose *Turbo*. Le choisir : HEAT Virtuel passe en *Turbo*. Passer en *cool* : le fan revient à *high*, *Turbo* n'est pas retenu. Même chose avec *Medium* (absent de DRY).
+      14. **Changement sur la source** : en *cool*, mettre *Fan COOL* à *low* depuis la vue Sources. Passer en *heat* : *Fan HEAT* passe à *Low*.
+      15. **Swing synchronisé** : en *heat*, swing *On* et swing horizontal *Left*. Passer en *cool*, puis en *dry* : *on* et *left* partout.
+      16. **Après un redémarrage** : en *cool*, fan *high*, puis éteindre et mettre *Fan HEAT* à *Auto* (vue Sources). Redémarrer Home Assistant, passer en *heat* : *Fan HEAT* passe à *High*.
+    view_layout:
+      position: sidebar
 - title: Sources
   path: sources
   type: sections
