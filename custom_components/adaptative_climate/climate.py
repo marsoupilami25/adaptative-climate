@@ -198,7 +198,7 @@ class AdaptativeClimateEntity(
         return features
 
     @property
-    def temperature_unit(self) -> str:
+    def native_temperature_unit(self) -> str:
         """Return the unit of measurement.
 
         Climate state attributes are always in the system unit, so the
@@ -207,24 +207,32 @@ class AdaptativeClimateEntity(
         return self.hass.config.units.temperature_unit
 
     @property
-    def current_temperature(self) -> float | None:
+    def native_current_temperature(self) -> float | None:
         """Return the current temperature."""
         return self._attr_from_display(ATTR_CURRENT_TEMPERATURE)
 
     @property
-    def target_temperature(self) -> float | None:
+    def native_target_temperature(self) -> float | None:
         """Return the target temperature."""
         return self._attr_from(self._active_source, ATTR_TEMPERATURE)
 
     @property
-    def target_temperature_high(self) -> float | None:
+    def native_target_temperature_high(self) -> float | None:
         """Return the high target temperature."""
         return self._attr_from(self._active_source, ATTR_TARGET_TEMP_HIGH)
 
     @property
-    def target_temperature_low(self) -> float | None:
+    def native_target_temperature_low(self) -> float | None:
         """Return the low target temperature."""
         return self._attr_from(self._active_source, ATTR_TARGET_TEMP_LOW)
+
+    if not hasattr(ClimateEntity, "native_temperature_unit"):
+        # Home Assistant < 2026.11 only reads the names without "native_".
+        temperature_unit = native_temperature_unit
+        current_temperature = native_current_temperature
+        target_temperature = native_target_temperature
+        target_temperature_high = native_target_temperature_high
+        target_temperature_low = native_target_temperature_low
 
     @property
     def target_temperature_step(self) -> float | None:

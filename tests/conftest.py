@@ -36,6 +36,23 @@ HEATER = "climate.heater"
 AC = "climate.ac"
 ENTITY_ID = "climate.living_room"
 
+# Home Assistant 2026.11 renamed the temperature attributes to "native_*".
+NATIVE_PREFIX = "native_" if hasattr(ClimateEntity, "native_temperature_unit") else ""
+TEMPERATURE_ATTRS = {
+    "temperature_unit",
+    "current_temperature",
+    "target_temperature",
+    "target_temperature_high",
+    "target_temperature_low",
+}
+
+
+def _attr_name(key: str) -> str:
+    """Return the entity attribute name for key on this HA version."""
+    if key in TEMPERATURE_ATTRS:
+        return f"_attr_{NATIVE_PREFIX}{key}"
+    return f"_attr_{key}"
+
 
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
@@ -52,7 +69,6 @@ class FakeClimate(ClimateEntity):
     """Source climate entity that applies service calls to its own state."""
 
     _attr_should_poll = False
-    _attr_temperature_unit = UnitOfTemperature.CELSIUS
 
     def __init__(
         self,
@@ -68,8 +84,9 @@ class FakeClimate(ClimateEntity):
         self._attr_hvac_modes = hvac_modes
         self._attr_hvac_mode = HVACMode.OFF
         self._attr_supported_features = features
+        setattr(self, _attr_name("temperature_unit"), UnitOfTemperature.CELSIUS)
         for key, value in attrs.items():
-            setattr(self, f"_attr_{key}", value)
+            setattr(self, _attr_name(key), value)
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
@@ -82,7 +99,7 @@ class FakeClimate(ClimateEntity):
         """Change the target temperature."""
         self.calls.append(("set_temperature", kwargs))
         if ATTR_TEMPERATURE in kwargs:
-            self._attr_target_temperature = kwargs[ATTR_TEMPERATURE]
+            setattr(self, _attr_name("target_temperature"), kwargs[ATTR_TEMPERATURE])
         self.async_write_ha_state()
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
