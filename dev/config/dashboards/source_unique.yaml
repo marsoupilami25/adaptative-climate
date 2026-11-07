@@ -15,6 +15,9 @@ views:
       entity: climate.adaptative_all
       features:
       - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
       grid_options:
         columns: full
     - type: entities
@@ -32,6 +35,18 @@ views:
         attribute: temperature
         name: Consigne
         suffix: °C
+      - entity: climate.adaptative_all
+        type: attribute
+        attribute: fan_mode
+        name: Fan
+      - entity: climate.adaptative_all
+        type: attribute
+        attribute: swing_mode
+        name: Swing
+      - entity: climate.adaptative_all
+        type: attribute
+        attribute: swing_horizontal_mode
+        name: Swing horizontal
       - entity: climate.adaptative_all
         type: attribute
         attribute: min_temp
@@ -67,7 +82,11 @@ views:
       - input_number.consigne_all_haute
       - input_select.fan_all
       - input_select.swing_all
+      - input_select.swing_horizontal_all
       - input_boolean.dispo_all
+      - input_boolean.fan_actif_all
+      - input_boolean.swing_actif_all
+      - input_boolean.swing_horizontal_actif_all
       grid_options:
         columns: full
   - type: grid
@@ -82,10 +101,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_all', 'active_entity_id') %}
-        | Source | Mode | Consigne | Action | |
-        |:--|:--|--:|:--|:-:|
+        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('ALL', 'climate.all_virtuel')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante') }} °C**
@@ -112,5 +131,7 @@ views:
         4. **Consigne** : changer la consigne. *Consigne ALL* suit.
         5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
         6. **Source indisponible** : couper *ALL disponible*. Adaptative ALL devient indisponible.
+        7. **Fan et swing** : régler le fan en *heat*, puis passer en *cool*. Le fan garde sa valeur (même source).
+        8. **Fan/swing absents** : couper *Fan ALL actif*. Le fan disparaît dans tous les modes ; le rallumer, il revient. Idem avec *Swing ALL actif* et *Swing horizontal ALL actif*.
       grid_options:
         columns: full

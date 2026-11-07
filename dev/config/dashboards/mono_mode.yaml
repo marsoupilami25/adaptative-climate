@@ -15,6 +15,9 @@ views:
       entity: climate.adaptative_heat
       features:
       - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
       grid_options:
         columns: full
     - type: entities
@@ -32,6 +35,18 @@ views:
         attribute: temperature
         name: Consigne
         suffix: °C
+      - entity: climate.adaptative_heat
+        type: attribute
+        attribute: fan_mode
+        name: Fan
+      - entity: climate.adaptative_heat
+        type: attribute
+        attribute: swing_mode
+        name: Swing
+      - entity: climate.adaptative_heat
+        type: attribute
+        attribute: swing_horizontal_mode
+        name: Swing horizontal
       - entity: climate.adaptative_heat
         type: attribute
         attribute: min_temp
@@ -63,7 +78,13 @@ views:
       entities:
       - input_select.mode_heat
       - input_number.consigne_heat
+      - input_select.fan_heat
+      - input_select.swing_heat
+      - input_select.swing_horizontal_heat
       - input_boolean.dispo_heat
+      - input_boolean.fan_actif_heat
+      - input_boolean.swing_actif_heat
+      - input_boolean.swing_horizontal_actif_heat
       grid_options:
         columns: full
   - type: grid
@@ -78,10 +99,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_heat', 'active_entity_id') %}
-        | Source | Mode | Consigne | Action | |
-        |:--|:--|--:|:--|:-:|
+        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('HEAT', 'climate.heat_virtuel')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante') }} °C**
@@ -108,6 +129,8 @@ views:
         4. **Changement externe** : régler HEAT Virtuel sur *heat* depuis sa carte. Adaptative HEAT suit.
         5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
         6. **Source indisponible** : couper *HEAT disponible*. Adaptative HEAT devient indisponible.
+        7. **Fan et swing** : allumer Adaptative HEAT, puis changer son fan, son swing et son swing horizontal. *Fan HEAT*, *Swing HEAT* et *Swing horizontal HEAT* suivent.
+        8. **Fan/swing absents** : couper *Fan HEAT actif*. Le fan disparaît d'Adaptative HEAT, le swing reste ; le rallumer, il revient. Idem avec *Swing HEAT actif* et *Swing horizontal HEAT actif*. Éteint, Adaptative HEAT n'affiche ni fan ni swing.
       grid_options:
         columns: full
 - title: COOL
@@ -123,6 +146,9 @@ views:
       entity: climate.adaptative_cool
       features:
       - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
       grid_options:
         columns: full
     - type: entities
@@ -140,6 +166,18 @@ views:
         attribute: temperature
         name: Consigne
         suffix: °C
+      - entity: climate.adaptative_cool
+        type: attribute
+        attribute: fan_mode
+        name: Fan
+      - entity: climate.adaptative_cool
+        type: attribute
+        attribute: swing_mode
+        name: Swing
+      - entity: climate.adaptative_cool
+        type: attribute
+        attribute: swing_horizontal_mode
+        name: Swing horizontal
       - entity: climate.adaptative_cool
         type: attribute
         attribute: min_temp
@@ -173,7 +211,11 @@ views:
       - input_number.consigne_cool
       - input_select.fan_cool
       - input_select.swing_cool
+      - input_select.swing_horizontal_cool
       - input_boolean.dispo_cool
+      - input_boolean.fan_actif_cool
+      - input_boolean.swing_actif_cool
+      - input_boolean.swing_horizontal_actif_cool
       grid_options:
         columns: full
   - type: grid
@@ -188,10 +230,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_cool', 'active_entity_id') %}
-        | Source | Mode | Consigne | Action | |
-        |:--|:--|--:|:--|:-:|
+        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('COOL', 'climate.cool_virtuel')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante') }} °C**
@@ -218,6 +260,8 @@ views:
         4. **Changement externe** : régler COOL Virtuel sur *cool* depuis sa carte. Adaptative COOL suit.
         5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
         6. **Source indisponible** : couper *COOL disponible*. Adaptative COOL devient indisponible.
+        7. **Fan et swing** : allumer Adaptative COOL, puis changer son fan, son swing et son swing horizontal. *Fan COOL*, *Swing COOL* et *Swing horizontal COOL* suivent.
+        8. **Fan/swing absents** : couper *Fan COOL actif*. Le fan disparaît d'Adaptative COOL, le swing reste ; le rallumer, il revient. Idem avec *Swing COOL actif* et *Swing horizontal COOL actif*. Éteint, Adaptative COOL n'affiche ni fan ni swing.
       grid_options:
         columns: full
 - title: DRY
@@ -233,6 +277,9 @@ views:
       entity: climate.adaptative_dry
       features:
       - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
       grid_options:
         columns: full
     - type: entities
@@ -250,6 +297,18 @@ views:
         attribute: temperature
         name: Consigne
         suffix: °C
+      - entity: climate.adaptative_dry
+        type: attribute
+        attribute: fan_mode
+        name: Fan
+      - entity: climate.adaptative_dry
+        type: attribute
+        attribute: swing_mode
+        name: Swing
+      - entity: climate.adaptative_dry
+        type: attribute
+        attribute: swing_horizontal_mode
+        name: Swing horizontal
       - entity: climate.adaptative_dry
         type: attribute
         attribute: min_temp
@@ -283,7 +342,11 @@ views:
       - input_number.consigne_dry
       - input_select.fan_dry
       - input_select.swing_dry
+      - input_select.swing_horizontal_dry
       - input_boolean.dispo_dry
+      - input_boolean.fan_actif_dry
+      - input_boolean.swing_actif_dry
+      - input_boolean.swing_horizontal_actif_dry
       grid_options:
         columns: full
   - type: grid
@@ -298,10 +361,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_dry', 'active_entity_id') %}
-        | Source | Mode | Consigne | Action | |
-        |:--|:--|--:|:--|:-:|
+        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('DRY', 'climate.dry_virtuel')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante') }} °C**
@@ -328,6 +391,8 @@ views:
         4. **Changement externe** : régler DRY Virtuel sur *dry* depuis sa carte. Adaptative DRY suit.
         5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
         6. **Source indisponible** : couper *DRY disponible*. Adaptative DRY devient indisponible.
+        7. **Fan et swing** : allumer Adaptative DRY, puis changer son fan, son swing et son swing horizontal. *Fan DRY*, *Swing DRY* et *Swing horizontal DRY* suivent.
+        8. **Fan/swing absents** : couper *Fan DRY actif*. Le fan disparaît d'Adaptative DRY, le swing reste ; le rallumer, il revient. Idem avec *Swing DRY actif* et *Swing horizontal DRY actif*. Éteint, Adaptative DRY n'affiche ni fan ni swing.
       grid_options:
         columns: full
 - title: FAN_ONLY
@@ -343,6 +408,9 @@ views:
       entity: climate.adaptative_fan_only
       features:
       - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
       grid_options:
         columns: full
     - type: entities
@@ -360,6 +428,18 @@ views:
         attribute: temperature
         name: Consigne
         suffix: °C
+      - entity: climate.adaptative_fan_only
+        type: attribute
+        attribute: fan_mode
+        name: Fan
+      - entity: climate.adaptative_fan_only
+        type: attribute
+        attribute: swing_mode
+        name: Swing
+      - entity: climate.adaptative_fan_only
+        type: attribute
+        attribute: swing_horizontal_mode
+        name: Swing horizontal
       - entity: climate.adaptative_fan_only
         type: attribute
         attribute: min_temp
@@ -393,7 +473,11 @@ views:
       - input_number.consigne_fan_only
       - input_select.fan_fan_only
       - input_select.swing_fan_only
+      - input_select.swing_horizontal_fan_only
       - input_boolean.dispo_fan_only
+      - input_boolean.fan_actif_fan_only
+      - input_boolean.swing_actif_fan_only
+      - input_boolean.swing_horizontal_actif_fan_only
       grid_options:
         columns: full
   - type: grid
@@ -408,10 +492,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_fan_only', 'active_entity_id') %}
-        | Source | Mode | Consigne | Action | |
-        |:--|:--|--:|:--|:-:|
+        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('FAN_ONLY', 'climate.fan_only_virtuel')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante') }} °C**
@@ -438,6 +522,8 @@ views:
         4. **Changement externe** : régler FAN_ONLY Virtuel sur *fan_only* depuis sa carte. Adaptative FAN_ONLY suit.
         5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
         6. **Source indisponible** : couper *FAN_ONLY disponible*. Adaptative FAN_ONLY devient indisponible.
+        7. **Fan et swing** : allumer Adaptative FAN_ONLY, puis changer son fan, son swing et son swing horizontal. *Fan FAN_ONLY*, *Swing FAN_ONLY* et *Swing horizontal FAN_ONLY* suivent.
+        8. **Fan/swing absents** : couper *Fan FAN_ONLY actif*. Le fan disparaît d'Adaptative FAN_ONLY, le swing reste ; le rallumer, il revient. Idem avec *Swing FAN_ONLY actif* et *Swing horizontal FAN_ONLY actif*. Éteint, Adaptative FAN_ONLY n'affiche ni fan ni swing.
       grid_options:
         columns: full
 - title: AUTO
@@ -453,6 +539,9 @@ views:
       entity: climate.adaptative_auto
       features:
       - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
       grid_options:
         columns: full
     - type: entities
@@ -470,6 +559,18 @@ views:
         attribute: temperature
         name: Consigne
         suffix: °C
+      - entity: climate.adaptative_auto
+        type: attribute
+        attribute: fan_mode
+        name: Fan
+      - entity: climate.adaptative_auto
+        type: attribute
+        attribute: swing_mode
+        name: Swing
+      - entity: climate.adaptative_auto
+        type: attribute
+        attribute: swing_horizontal_mode
+        name: Swing horizontal
       - entity: climate.adaptative_auto
         type: attribute
         attribute: min_temp
@@ -501,7 +602,13 @@ views:
       entities:
       - input_select.mode_auto
       - input_number.consigne_auto
+      - input_select.fan_auto
+      - input_select.swing_auto
+      - input_select.swing_horizontal_auto
       - input_boolean.dispo_auto
+      - input_boolean.fan_actif_auto
+      - input_boolean.swing_actif_auto
+      - input_boolean.swing_horizontal_actif_auto
       grid_options:
         columns: full
   - type: grid
@@ -516,10 +623,10 @@ views:
 
         {% endif %}
         {% set active = state_attr('climate.adaptative_auto', 'active_entity_id') %}
-        | Source | Mode | Consigne | Action | |
-        |:--|:--|--:|:--|:-:|
+        | Source | Mode | Consigne | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('AUTO', 'climate.auto_virtuel')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
         Pièce : **{{ states('input_number.temperature_courante') }} °C**
@@ -546,5 +653,7 @@ views:
         4. **Changement externe** : régler AUTO Virtuel sur *auto* depuis sa carte. Adaptative AUTO suit.
         5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
         6. **Source indisponible** : couper *AUTO disponible*. Adaptative AUTO devient indisponible.
+        7. **Fan et swing** : allumer Adaptative AUTO, puis changer son fan, son swing et son swing horizontal. *Fan AUTO*, *Swing AUTO* et *Swing horizontal AUTO* suivent.
+        8. **Fan/swing absents** : couper *Fan AUTO actif*. Le fan disparaît d'Adaptative AUTO, le swing reste ; le rallumer, il revient. Idem avec *Swing AUTO actif* et *Swing horizontal AUTO actif*. Éteint, Adaptative AUTO n'affiche ni fan ni swing.
       grid_options:
         columns: full

@@ -85,10 +85,33 @@ class FakeClimate(ClimateEntity):
             self._attr_target_temperature = kwargs[ATTR_TEMPERATURE]
         self.async_write_ha_state()
 
+    async def async_set_fan_mode(self, fan_mode: str) -> None:
+        """Change the fan mode."""
+        self.calls.append(("set_fan_mode", {"fan_mode": fan_mode}))
+        self._attr_fan_mode = fan_mode
+        self.async_write_ha_state()
+
+    async def async_set_swing_mode(self, swing_mode: str) -> None:
+        """Change the swing mode."""
+        self.calls.append(("set_swing_mode", {"swing_mode": swing_mode}))
+        self._attr_swing_mode = swing_mode
+        self.async_write_ha_state()
+
+    async def async_set_swing_horizontal_mode(self, swing_horizontal_mode: str) -> None:
+        """Change the horizontal swing mode."""
+        self.calls.append(
+            (
+                "set_swing_horizontal_mode",
+                {"swing_horizontal_mode": swing_horizontal_mode},
+            )
+        )
+        self._attr_swing_horizontal_mode = swing_horizontal_mode
+        self.async_write_ha_state()
+
 
 @pytest.fixture
 def heater() -> FakeClimate:
-    """Heat-only source."""
+    """Heat-only source, without fan or swing."""
     return FakeClimate(
         HEATER,
         [HVACMode.OFF, HVACMode.HEAT],
@@ -109,14 +132,20 @@ def ac() -> FakeClimate:
         [HVACMode.OFF, HVACMode.COOL, HVACMode.DRY],
         features=ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
-        | ClimateEntityFeature.FAN_MODE,
+        | ClimateEntityFeature.FAN_MODE
+        | ClimateEntityFeature.SWING_MODE
+        | ClimateEntityFeature.SWING_HORIZONTAL_MODE,
         current_temperature=21.0,
         target_temperature=24.0,
         target_temperature_low=20.0,
         target_temperature_high=26.0,
         hvac_action=HVACAction.COOLING,
-        fan_modes=["auto"],
+        fan_modes=["auto", "low", "high"],
         fan_mode="auto",
+        swing_modes=["off", "on"],
+        swing_mode="off",
+        swing_horizontal_modes=["off", "left", "right"],
+        swing_horizontal_mode="off",
         min_temp=16.0,
         max_temp=32.0,
     )

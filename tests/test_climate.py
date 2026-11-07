@@ -12,12 +12,21 @@ from pytest_homeassistant_custom_component.common import (
 from syrupy.assertion import SnapshotAssertion
 
 from homeassistant.components.climate import (
+    ATTR_FAN_MODE,
+    ATTR_FAN_MODES,
     ATTR_HVAC_ACTION,
     ATTR_HVAC_MODE,
+    ATTR_SWING_HORIZONTAL_MODE,
+    ATTR_SWING_HORIZONTAL_MODES,
+    ATTR_SWING_MODE,
+    ATTR_SWING_MODES,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     DOMAIN as CLIMATE_DOMAIN,
+    SERVICE_SET_FAN_MODE,
     SERVICE_SET_HVAC_MODE,
+    SERVICE_SET_SWING_HORIZONTAL_MODE,
+    SERVICE_SET_SWING_MODE,
     SERVICE_SET_TEMPERATURE,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
@@ -358,16 +367,117 @@ async def test_turn_on_defaults_to_first_mode(
     assert heater.calls == []
 
 
+BASE_FEATURES = (
+    ClimateEntityFeature.TARGET_TEMPERATURE
+    | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+    | ClimateEntityFeature.TURN_ON
+    | ClimateEntityFeature.TURN_OFF
+)
+FAN_SWING = (
+    ClimateEntityFeature.FAN_MODE
+    | ClimateEntityFeature.SWING_MODE
+    | ClimateEntityFeature.SWING_HORIZONTAL_MODE
+)
+
+
+def _features(hass: HomeAssistant) -> int:
+    return hass.states.get(ENTITY_ID).attributes[ATTR_SUPPORTED_FEATURES]
+
+
 @pytest.mark.usefixtures("init_integration")
 async def test_supported_features(hass: HomeAssistant) -> None:
-    """Features combine the sources, without the ones not implemented."""
-    features = hass.states.get(ENTITY_ID).attributes[ATTR_SUPPORTED_FEATURES]
-    assert features == (
-        ClimateEntityFeature.TARGET_TEMPERATURE
-        | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
-        | ClimateEntityFeature.TURN_ON
-        | ClimateEntityFeature.TURN_OFF
+    """When off, features combine the sources, without fan or swing."""
+    assert _features(hass) == BASE_FEATURES
+    attributes = hass.states.get(ENTITY_ID).attributes
+    assert ATTR_FAN_MODES not in attributes
+    assert ATTR_SWING_MODES not in attributes
+    assert ATTR_SWING_HORIZONTAL_MODES not in attributes
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_fan_swing_follow_active_source(hass: HomeAssistant) -> None:
+    """Fan and swing are shown only when the active source has them."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    assert _features(hass) == BASE_FEATURES
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+    assert _features(hass) == BASE_FEATURES | FAN_SWING
+    attributes = hass.states.get(ENTITY_ID).attributes
+    assert attributes[ATTR_FAN_MODES] == ["auto", "low", "high"]
+    assert attributes[ATTR_FAN_MODE] == "auto"
+    assert attributes[ATTR_SWING_MODES] == ["off", "on"]
+    assert attributes[ATTR_SWING_MODE] == "off"
+    assert attributes[ATTR_SWING_HORIZONTAL_MODES] == ["off", "left", "right"]
+    assert attributes[ATTR_SWING_HORIZONTAL_MODE] == "off"
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    assert _features(hass) == BASE_FEATURES
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_fan_swing_in_heat_mode(
+    hass: HomeAssistant, heater: FakeClimate
+) -> None:
+    """A heat source with a fan (heat pump) shows it in heat mode too."""
+    heater._attr_supported_features |= ClimateEntityFeature.FAN_MODE
+    heater._attr_fan_modes = ["low", "high"]
+    heater._attr_fan_mode = "low"
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+
+    assert _features(hass) == BASE_FEATURES | ClimateEntityFeature.FAN_MODE
+    assert hass.states.get(ENTITY_ID).attributes[ATTR_FAN_MODES] == ["low", "high"]
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_fan_swing_hidden_without_options(
+    hass: HomeAssistant, ac: FakeClimate
+) -> None:
+    """A source with the feature but no option to choose does not show it."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+
+    ac._attr_fan_modes = []
+    ac._attr_swing_modes = None
+    ac._attr_swing_horizontal_modes = []
+    ac.async_write_ha_state()
+    await hass.async_block_till_done()
+
+    assert _features(hass) == BASE_FEATURES
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_set_fan_and_swing_forward_to_active_source(
+    hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
+) -> None:
+    """Fan and swing changes go to the active source only."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+    ac.calls.clear()
+
+    await _call(hass, SERVICE_SET_FAN_MODE, fan_mode="high")
+    await _call(hass, SERVICE_SET_SWING_MODE, swing_mode="on")
+    await _call(
+        hass, SERVICE_SET_SWING_HORIZONTAL_MODE, swing_horizontal_mode="left"
     )
+
+    assert ac.calls == [
+        ("set_fan_mode", {"fan_mode": "high"}),
+        ("set_swing_mode", {"swing_mode": "on"}),
+        ("set_swing_horizontal_mode", {"swing_horizontal_mode": "left"}),
+    ]
+    assert heater.calls == []
+    attributes = hass.states.get(ENTITY_ID).attributes
+    assert attributes[ATTR_FAN_MODE] == "high"
+    assert attributes[ATTR_SWING_MODE] == "on"
+    assert attributes[ATTR_SWING_HORIZONTAL_MODE] == "left"
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_set_fan_mode_when_off(hass: HomeAssistant) -> None:
+    """Setting a fan mode while off is refused with a clear message."""
+    entity = hass.data[CLIMATE_DOMAIN].get_entity(ENTITY_ID)
+    with pytest.raises(ServiceValidationError) as err:
+        await entity.async_set_fan_mode("auto")
+    assert err.value.translation_key == "no_active_mode"
 
 
 @pytest.mark.usefixtures("init_integration")

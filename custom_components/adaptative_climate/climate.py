@@ -6,10 +6,16 @@ from typing import Any
 
 from homeassistant.components.climate import (
     ATTR_CURRENT_TEMPERATURE,
+    ATTR_FAN_MODE,
+    ATTR_FAN_MODES,
     ATTR_HVAC_ACTION,
     ATTR_HVAC_MODE,
     ATTR_MAX_TEMP,
     ATTR_MIN_TEMP,
+    ATTR_SWING_HORIZONTAL_MODE,
+    ATTR_SWING_HORIZONTAL_MODES,
+    ATTR_SWING_MODE,
+    ATTR_SWING_MODES,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     ATTR_TARGET_TEMP_STEP,
@@ -42,11 +48,19 @@ from .const import (
 from .coordinator import AdaptativeClimateConfigEntry, AdaptativeClimateCoordinator
 
 # Features this entity implements. Other features of the sources
-# (presets, fan, swing...) are dropped: exposing them without implementing
+# (presets, humidity...) are dropped: exposing them without implementing
 # them makes Home Assistant fail when the entity is added.
 SOURCE_FEATURES = (
     ClimateEntityFeature.TARGET_TEMPERATURE
     | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+)
+
+# Features taken from the source of the current mode only, with the
+# attribute listing their options: a heater has no fan, an AC has one.
+ACTIVE_SOURCE_FEATURES: tuple[tuple[ClimateEntityFeature, str], ...] = (
+    (ClimateEntityFeature.FAN_MODE, ATTR_FAN_MODES),
+    (ClimateEntityFeature.SWING_MODE, ATTR_SWING_MODES),
+    (ClimateEntityFeature.SWING_HORIZONTAL_MODE, ATTR_SWING_HORIZONTAL_MODES),
 )
 
 # set_temperature fields forwarded to the source entity. Home Assistant also
@@ -158,16 +172,29 @@ class AdaptativeClimateEntity(
         """Return True when at least one source is usable."""
         return self._display_source is not None
 
+    def _source_features(self, entity_id: str | None) -> ClimateEntityFeature:
+        """Return the supported features of a source entity."""
+        return ClimateEntityFeature(
+            self._attr_from(entity_id, ATTR_SUPPORTED_FEATURES) or 0
+        )
+
     @property
     def supported_features(self) -> ClimateEntityFeature:
         """Return the features of the sources this entity implements.
 
-        Combined over every source so the features do not change with the mode.
+        Temperature features are combined over every source, so they do not
+        change with the mode. Fan and swing (vertical and horizontal) come
+        from the source of the current mode, when it lists at least one option.
         """
         features = ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
         for entity_id in self.coordinator.source_entity_ids:
-            raw = self._attr_from(entity_id, ATTR_SUPPORTED_FEATURES) or 0
-            features |= ClimateEntityFeature(raw) & SOURCE_FEATURES
+            features |= self._source_features(entity_id) & SOURCE_FEATURES
+
+        active = self._active_source
+        active_features = self._source_features(active)
+        for feature, options_attr in ACTIVE_SOURCE_FEATURES:
+            if feature in active_features and self._attr_from(active, options_attr):
+                features |= feature
         return features
 
     @property
@@ -243,6 +270,36 @@ class AdaptativeClimateEntity(
             return None
 
     @property
+    def fan_mode(self) -> str | None:
+        """Return the fan mode of the active source."""
+        return self._attr_from(self._active_source, ATTR_FAN_MODE)
+
+    @property
+    def fan_modes(self) -> list[str] | None:
+        """Return the fan modes of the active source."""
+        return self._attr_from(self._active_source, ATTR_FAN_MODES)
+
+    @property
+    def swing_mode(self) -> str | None:
+        """Return the swing mode of the active source."""
+        return self._attr_from(self._active_source, ATTR_SWING_MODE)
+
+    @property
+    def swing_modes(self) -> list[str] | None:
+        """Return the swing modes of the active source."""
+        return self._attr_from(self._active_source, ATTR_SWING_MODES)
+
+    @property
+    def swing_horizontal_mode(self) -> str | None:
+        """Return the horizontal swing mode of the active source."""
+        return self._attr_from(self._active_source, ATTR_SWING_HORIZONTAL_MODE)
+
+    @property
+    def swing_horizontal_modes(self) -> list[str] | None:
+        """Return the horizontal swing modes of the active source."""
+        return self._attr_from(self._active_source, ATTR_SWING_HORIZONTAL_MODES)
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return extra attributes."""
         return {
@@ -269,12 +326,7 @@ class AdaptativeClimateEntity(
                 return
             source = self._mode_sources[HVACMode(hvac_mode)]
         else:
-            source = self._active_source
-            if source is None:
-                raise ServiceValidationError(
-                    translation_domain=DOMAIN,
-                    translation_key="no_active_mode",
-                )
+            source = self._require_active_source()
 
         service_data = {
             key: value
@@ -291,6 +343,31 @@ class AdaptativeClimateEntity(
             "set_temperature",
             service_data,
             blocking=True,
+        )
+
+    async def async_set_fan_mode(self, fan_mode: str) -> None:
+        """Set the fan mode of the active source.
+
+        Home Assistant has already checked that fan_mode is in fan_modes.
+        """
+        await self._async_source_call("set_fan_mode", {ATTR_FAN_MODE: fan_mode})
+
+    async def async_set_swing_mode(self, swing_mode: str) -> None:
+        """Set the swing mode of the active source.
+
+        Home Assistant has already checked that swing_mode is in swing_modes.
+        """
+        await self._async_source_call("set_swing_mode", {ATTR_SWING_MODE: swing_mode})
+
+    async def async_set_swing_horizontal_mode(self, swing_horizontal_mode: str) -> None:
+        """Set the horizontal swing mode of the active source.
+
+        Home Assistant has already checked that swing_horizontal_mode is in
+        swing_horizontal_modes.
+        """
+        await self._async_source_call(
+            "set_swing_horizontal_mode",
+            {ATTR_SWING_HORIZONTAL_MODE: swing_horizontal_mode},
         )
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
@@ -321,6 +398,25 @@ class AdaptativeClimateEntity(
     async def async_turn_off(self) -> None:
         """Turn off every source that is on."""
         await self.async_set_hvac_mode(HVACMode.OFF)
+
+    def _require_active_source(self) -> str:
+        """Return the active source, or refuse the command when off."""
+        source = self._active_source
+        if source is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="no_active_mode",
+            )
+        return source
+
+    async def _async_source_call(self, service: str, data: dict[str, Any]) -> None:
+        """Call a climate service on the active source."""
+        await self.hass.services.async_call(
+            CLIMATE_DOMAIN,
+            service,
+            {**data, ATTR_ENTITY_ID: self._require_active_source()},
+            blocking=True,
+        )
 
     async def _async_source_set_hvac_mode(
         self, entity_id: str, hvac_mode: HVACMode

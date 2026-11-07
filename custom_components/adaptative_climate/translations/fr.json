@@ -52,7 +52,7 @@
       "message": "Mode HVAC non pris en charge : {hvac_mode}."
     },
     "no_active_mode": {
-      "message": "Allume l'entité avant de régler une température."
+      "message": "Allume l'entité avant de modifier ce réglage."
     }
   }
 }

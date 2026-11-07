@@ -14,9 +14,7 @@ dev/
 
 ## Installation
 
-1. Installer [Climate Template](https://github.com/jcwillox/hass-template-climate)
-   (via HACS) dans la config HA de dev.
-2. Relier la config du dépôt :
+1. Relier la config du dépôt :
 
    ```bash
    dev/link_config.sh ~/ha-dev/config
@@ -27,7 +25,7 @@ dev/
    est d'abord renommé en `.bak`. Toute modification faite dans le dépôt est donc
    prise en compte au prochain redémarrage (ou rafraîchissement de la page pour
    le tableau de bord).
-3. Démarrer Home Assistant. Les entités testées sont déclarées dans la section
+2. Démarrer Home Assistant. Les entités testées sont déclarées dans la section
    `adaptative_climate:` de `configuration.yaml` et créées au démarrage (voir
    [Cas de test](#cas-de-test)).
 
@@ -35,12 +33,16 @@ dev/
 
 | Source | Modes | Réglages |
 |:--|:--|:--|
-| HEAT Virtuel | off, heat | consigne |
-| COOL Virtuel | off, cool | consigne, fan, swing |
-| DRY Virtuel | off, dry | consigne, fan, swing |
-| FAN_ONLY Virtuel | off, fan_only | consigne, fan, swing |
-| AUTO Virtuel | off, auto | consigne |
-| ALL Virtuel | tous | consigne, consigne basse/haute, fan, swing |
+| HEAT Virtuel | off, heat | consigne, fan, swing, swing horizontal |
+| COOL Virtuel | off, cool | consigne, fan, swing, swing horizontal |
+| DRY Virtuel | off, dry | consigne, fan, swing, swing horizontal |
+| FAN_ONLY Virtuel | off, fan_only | consigne, fan, swing, swing horizontal |
+| AUTO Virtuel | off, auto | consigne, fan, swing, swing horizontal |
+| ALL Virtuel | tous | consigne, consigne basse/haute, fan, swing, swing horizontal |
+
+Les sources sont des `climate` de l'intégration
+[Template](https://www.home-assistant.io/integrations/template/) de Home
+Assistant : rien à installer.
 
 Chaque source a sa propre consigne (`input_number.consigne_<mode>`) : on voit
 ainsi quelle source reçoit les commandes. Toutes lisent la même température de
@@ -50,8 +52,14 @@ calculée à partir du mode et de l'écart entre pièce et consigne.
 Un interrupteur `input_boolean.dispo_<mode>` rend chaque source indisponible.
 Il revient à *on* à chaque redémarrage.
 
+Les interrupteurs `input_boolean.fan_actif_<mode>`, `swing_actif_<mode>` et
+`swing_horizontal_actif_<mode>` retirent le fan ou un swing d'une source, sans
+redémarrer : la source ne propose alors plus aucune option, comme un appareil
+qui n'en a pas (un radiateur par exemple). Ils reviennent aussi à *on* à chaque redémarrage.
+
 Le script `script.reset_sources_test` remet tout à zéro : sources disponibles
-et éteintes, pièce à 20 °C, consignes par défaut.
+et éteintes, fan et swings actifs (*auto* et *off*), pièce à 20 °C,
+consignes par défaut.
 
 ## Cas de test
 

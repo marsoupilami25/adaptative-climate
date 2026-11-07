@@ -56,6 +56,11 @@ Switching to a mode sets its source to the HVAC mode of the same name, after
 turning off the source of the previous mode when it is a different entity.
 The `heat_cool` mode is not supported yet.
 
+Fan, swing and horizontal swing come from the source of the current mode:
+they are shown when that source has them, in any mode, and changes are sent
+to it. A heat pump used for heating keeps its fan; a radiator shows none.
+When the entity is off, none of them is shown.
+
 ## Development
 
 Tests use [pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component),

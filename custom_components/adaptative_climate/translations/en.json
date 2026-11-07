@@ -52,7 +52,7 @@
       "message": "Unsupported HVAC mode: {hvac_mode}."
     },
     "no_active_mode": {
-      "message": "Turn the entity on before setting a temperature."
+      "message": "Turn the entity on before changing this setting."
     }
   }
 }
