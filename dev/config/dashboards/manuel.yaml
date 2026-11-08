@@ -251,6 +251,10 @@ views:
         suffix: °C
       - entity: climate.adaptative_manuel
         type: attribute
+        attribute: saved_targets
+        name: Consignes enregistrées
+      - entity: climate.adaptative_manuel
+        type: attribute
         attribute: fan_mode
         name: Fan
       - entity: climate.adaptative_manuel

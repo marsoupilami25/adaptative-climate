@@ -174,7 +174,10 @@ gets nothing, so nothing confirms it: its targets are ignored for the full
 
 While the entity is off, the targets of the sources are ignored. A target
 set while off, in fan only, or in a mode whose source has none, is kept for
-the next mode. The targets are kept across restarts. The first heating
+the next mode. The `saved_targets` attribute lists the three targets kept
+(`temperature`, `target_temp_low`, `target_temp_high`), also those the current
+mode does not show, as they were set (before offset and rounding). The targets
+are kept across restarts. The first heating
 setpoint comes from the heat source, the cooling one from the cool source
 (a `heat_cool_entity` with low/high targets comes first), else 1 degree
 around the single target, which comes from a source, else the middle of

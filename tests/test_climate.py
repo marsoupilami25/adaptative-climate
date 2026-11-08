@@ -328,6 +328,10 @@ async def test_set_temperature_range_outside_heat_cool(
     assert attributes[ATTR_TEMPERATURE] == 25.0
     assert attributes[ATTR_TARGET_TEMP_LOW] is None
     assert attributes[ATTR_TARGET_TEMP_HIGH] is None
+    # The low target is not shown, but still listed with the saved targets.
+    saved = attributes["saved_targets"]
+    assert saved[ATTR_TARGET_TEMP_LOW] == 20.0
+    assert saved[ATTR_TARGET_TEMP_HIGH] == 25.0
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -341,6 +345,9 @@ async def test_set_temperature_range_when_off(hass: HomeAssistant) -> None:
     saved = entity.extra_restore_state_data.as_dict()
     assert saved["target_temperature_low"] == 18.0
     assert saved["target_temperature_high"] == 25.0
+    shown = hass.states.get(ENTITY_ID).attributes["saved_targets"]
+    assert shown[ATTR_TARGET_TEMP_LOW] == 18.0
+    assert shown[ATTR_TARGET_TEMP_HIGH] == 25.0
 
 
 @pytest.mark.usefixtures("init_integration")

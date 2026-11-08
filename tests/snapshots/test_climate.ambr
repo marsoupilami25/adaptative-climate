@@ -70,6 +70,11 @@
         'dry': 'climate.ac',
         'heat': 'climate.heater',
       }),
+      'saved_targets': dict({
+        'target_temp_high': 24.0,
+        'target_temp_low': 20.0,
+        'temperature': 20.0,
+      }),
       <EntityStateAttribute.SUPPORTED_FEATURES: 'supported_features'>: <ClimateEntityFeature: 387>,
       <ClimateEntityStateAttribute.TARGET_TEMP_HIGH: 'target_temp_high'>: 24.0,
       <ClimateEntityStateAttribute.TARGET_TEMP_LOW: 'target_temp_low'>: 20.0,

@@ -55,6 +55,10 @@ views:
           suffix: °C
         - entity: climate.adaptative_multi
           type: attribute
+          attribute: saved_targets
+          name: Consignes enregistrées
+        - entity: climate.adaptative_multi
+          type: attribute
           attribute: unavailable_modes
           name: Modes indisponibles
         - entity: climate.adaptative_multi

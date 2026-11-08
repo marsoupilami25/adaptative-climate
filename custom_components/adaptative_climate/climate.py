@@ -450,6 +450,9 @@ class AdaptativeClimateEntity(
             # Sources running in a mode they do not serve here (set
             # elsewhere), which the entity ignores.
             "foreign_modes": self._sources.foreign_modes(),
+            # Every target kept by the entity, also those the current mode
+            # does not show, as set (before offset and rounding).
+            "saved_targets": {target: self._target_store[target] for target in TARGETS},
         }
 
     # Commands
