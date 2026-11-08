@@ -56,7 +56,8 @@ from homeassistant.const import ATTR_TEMPERATURE
 # Targets kept by the entity, named like the source attributes. The low target
 # is the heating setpoint and the high target the cooling setpoint: the single
 # target of heat is the low one, the one of cool the high one, and HEAT_COOL
-# shows both. The single target only serves the other modes (auto, dry...).
+# shows both, like auto on a source with low/high. The single target only
+# serves dry, and auto on a source without low/high.
 TARGETS = (ATTR_TEMPERATURE, ATTR_TARGET_TEMP_LOW, ATTR_TARGET_TEMP_HIGH)
 
 # Target behind the single target, in the modes that have a setpoint.

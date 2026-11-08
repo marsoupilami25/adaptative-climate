@@ -20,7 +20,10 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.adaptative_climate.engine.phase import CombinedPhase, wanted_phase
 from custom_components.adaptative_climate.engine.profiles import (
+    AutoProfile,
     CombinedHeatCoolProfile,
+    DryProfile,
+    FanOnlyProfile,
     ModeProfile,
     RangeHeatCoolProfile,
     SetpointProfile,
@@ -40,6 +43,7 @@ LOW = ATTR_TARGET_TEMP_LOW
 HIGH = ATTR_TARGET_TEMP_HIGH
 TEMP = ATTR_TEMPERATURE
 RANGE = ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+TARGET = ClimateEntityFeature.TARGET_TEMPERATURE
 
 
 # util
@@ -214,12 +218,27 @@ def _sources(features: int = 0, **modes: str) -> Any:
 
 def test_build_profiles() -> None:
     """Each configured mode gets its profile, in display order."""
-    sources = _sources(heat="climate.h", cool="climate.c", dry="climate.d")
+    sources = _sources(
+        heat="climate.h",
+        cool="climate.c",
+        auto="climate.a",
+        dry="climate.d",
+        fan_only="climate.f",
+    )
     profiles = build_profiles(sources, combined=True)
-    assert list(profiles) == [HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL, HVACMode.DRY]
+    assert list(profiles) == [
+        HVACMode.HEAT,
+        HVACMode.COOL,
+        HVACMode.HEAT_COOL,
+        HVACMode.AUTO,
+        HVACMode.DRY,
+        HVACMode.FAN_ONLY,
+    ]
+    assert type(profiles[HVACMode.AUTO]) is AutoProfile
     assert type(profiles[HVACMode.HEAT]) is SetpointProfile
     assert type(profiles[HVACMode.HEAT_COOL]) is CombinedHeatCoolProfile
-    assert type(profiles[HVACMode.DRY]) is ModeProfile
+    assert type(profiles[HVACMode.DRY]) is DryProfile
+    assert type(profiles[HVACMode.FAN_ONLY]) is FanOnlyProfile
 
     assert HVACMode.HEAT_COOL not in build_profiles(sources, combined=False)
 
@@ -230,16 +249,68 @@ def test_build_profiles() -> None:
 
 
 def test_single_target_profile() -> None:
-    """Auto, dry, fan only and off use the single target."""
-    profile = ModeProfile(HVACMode.AUTO, _sources(auto="climate.a"))
+    """Off uses the single target."""
+    profile = ModeProfile(HVACMode.OFF, _sources())
     mapping = profile.target_map(None)
     assert mapping == {TEMP: TEMP}
-    assert profile.source_modes() == (HVACMode.AUTO,)
-    assert profile.source_mode(HVACMode.HEAT) is HVACMode.AUTO
+    assert profile.source_modes() == (HVACMode.OFF,)
+    assert profile.source_mode(HVACMode.HEAT) is HVACMode.OFF
     assert profile.shown_target(TEMP, mapping) == TEMP
     assert profile.shown_target(LOW, mapping) is None
     assert profile.target_source(LOW) is None
     assert profile.features == ClimateEntityFeature(0)
+
+
+def test_fan_only_profile() -> None:
+    """Fan only sends and shows no target."""
+    profile = FanOnlyProfile(HVACMode.FAN_ONLY, _sources(RANGE, fan_only="climate.f"))
+    mapping = profile.target_map(None)
+    assert mapping == {}
+    assert profile.source_mode(None) is HVACMode.FAN_ONLY
+    for attr in (TEMP, LOW, HIGH):
+        assert profile.shown_target(attr, mapping) is None
+    assert profile.target_source(LOW) is None
+
+
+def test_dry_profile() -> None:
+    """Dry uses the single target when its source has one, else none."""
+    profile = DryProfile(HVACMode.DRY, _sources(TARGET, dry="climate.d"))
+    mapping = profile.target_map(None)
+    assert mapping == {TEMP: TEMP}
+    assert profile.shown_target(TEMP, mapping) == TEMP
+    assert profile.shown_target(LOW, mapping) is None
+
+    profile = DryProfile(HVACMode.DRY, _sources(RANGE, dry="climate.d"))
+    mapping = profile.target_map(None)
+    assert mapping == {}
+    for attr in (TEMP, LOW, HIGH):
+        # Even with the mapping of another mode (off shows the next mode).
+        assert profile.shown_target(attr, {TEMP: TEMP}) is None
+
+
+def test_auto_profile() -> None:
+    """Auto uses low/high when its source has them, else the single target, else none."""
+    profile = AutoProfile(HVACMode.AUTO, _sources(TARGET | RANGE, auto="climate.a"))
+    mapping = profile.target_map(None)
+    assert mapping == {LOW: LOW, HIGH: HIGH}
+    assert profile.shown_target(TEMP, mapping) is None
+    assert profile.shown_target(LOW, mapping) == LOW
+    assert profile.shown_target(HIGH, mapping) == HIGH
+    assert profile.target_source(LOW) == "climate.a"
+    assert profile.target_source(TEMP) is None
+
+    profile = AutoProfile(HVACMode.AUTO, _sources(TARGET, auto="climate.a"))
+    mapping = profile.target_map(None)
+    assert mapping == {TEMP: TEMP}
+    assert profile.shown_target(TEMP, mapping) == TEMP
+    assert profile.shown_target(LOW, mapping) is None
+    assert profile.target_source(LOW) is None
+
+    profile = AutoProfile(HVACMode.AUTO, _sources(0, auto="climate.a"))
+    mapping = profile.target_map(None)
+    assert mapping == {}
+    for attr in (TEMP, LOW, HIGH):
+        assert profile.shown_target(attr, {TEMP: TEMP}) is None
 
 
 @pytest.mark.parametrize(("mode", "target"), [(HVACMode.HEAT, LOW), (HVACMode.COOL, HIGH)])

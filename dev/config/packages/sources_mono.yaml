@@ -432,6 +432,32 @@ template:
           data:
             option: "{{ fan_mode }}"
 
+      # Dry and auto source without target temperature (no set_temperature),
+      # with a fan: source of Adaptative DESHUM.
+      - name: DESHUM Virtuel (mono)
+        default_entity_id: climate.deshum_virtuel_mono
+        hvac_modes: '{{ ["off", "dry", "auto"] }}'
+        availability: "{{ is_state('input_boolean.dispo_deshum_mono', 'on') }}"
+        current_temperature: "{{ states('input_number.temperature_courante_mono') }}"
+        hvac_mode: "{{ states('input_select.mode_deshum_mono') }}"
+        hvac_action: >
+          {% if is_state('input_select.mode_deshum_mono', 'off') %}off
+          {% elif is_state('input_select.mode_deshum_mono', 'dry') %}drying{% else %}fan{% endif %}
+        fan_modes: "{{ state_attr('input_select.fan_deshum_mono', 'options') }}"
+        fan_mode: "{{ states('input_select.fan_deshum_mono') }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_deshum_mono
+          data:
+            option: "{{ hvac_mode }}"
+        set_fan_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.fan_deshum_mono
+          data:
+            option: "{{ fan_mode }}"
+
 input_select:
   mode_heat_cool_mono:
     name: Mode HEAT_COOL
@@ -444,6 +470,12 @@ input_select:
     options: ["off", "cool"]
   fan_clim_mono:
     name: Fan CLIM
+    options: ["auto", "low", "high"]
+  mode_deshum_mono:
+    name: Mode DESHUM
+    options: ["off", "dry", "auto"]
+  fan_deshum_mono:
+    name: Fan DESHUM
     options: ["auto", "low", "high"]
   mode_heat_mono:
     name: Mode HEAT
@@ -615,6 +647,10 @@ input_boolean:
     icon: mdi:power-plug
   dispo_clim_mono:
     name: CLIM disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_deshum_mono:
+    name: DESHUM disponible
     initial: true
     icon: mdi:power-plug
   dispo_heat_mono:
@@ -800,18 +836,21 @@ script:
             - input_boolean.dispo_heat_cool_mono
             - input_boolean.dispo_radiateur_mono
             - input_boolean.dispo_clim_mono
+            - input_boolean.dispo_deshum_mono
       - action: input_select.select_option
         target:
           entity_id:
             - input_select.mode_heat_cool_mono
             - input_select.mode_radiateur_mono
             - input_select.mode_clim_mono
+            - input_select.mode_deshum_mono
         data:
           option: "off"
       - action: input_select.select_option
         target:
           entity_id:
             - input_select.fan_clim_mono
+            - input_select.fan_deshum_mono
         data:
           option: auto
       - action: input_number.set_value

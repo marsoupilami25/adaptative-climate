@@ -363,6 +363,94 @@ views:
       8. **Fan/swing absents** : couper *Fan DRY actif*. Le fan disparaît d'Adaptative DRY, le swing reste ; le rallumer, il revient. Idem avec *Swing DRY actif* et *Swing horizontal DRY actif*. Éteint, Adaptative DRY n'affiche ni fan ni swing.
     view_layout:
       position: sidebar
+- title: Sans consigne
+  path: sans-consigne
+  type: sidebar
+  cards:
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Adaptative DESHUM
+      - type: thermostat
+        entity: climate.adaptative_deshum
+        features:
+        - type: climate-hvac-modes
+        - type: climate-fan-modes
+      - type: entities
+        entities:
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: temperature
+          name: Consigne
+          suffix: °C
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: fan_mode
+          name: Fan
+      - type: tile
+        entity: climate.adaptative_deshum
+        name: Marche / arrêt
+        icon_tap_action:
+          action: toggle
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Source DESHUM Virtuel
+      - type: thermostat
+        entity: climate.deshum_virtuel_mono
+      - type: entities
+        entities:
+        - input_select.mode_deshum_mono
+        - input_select.fan_deshum_mono
+        - input_boolean.dispo_deshum_mono
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: État
+      - type: markdown
+        content: |
+          {% if states.climate.adaptative_deshum is none %}
+          > ⚠️ **`climate.adaptative_deshum` introuvable.** Vérifier la section `adaptative_climate:` de
+          > `dev/config/configuration.yaml` et les journaux, puis redémarrer.
+
+          {% endif %}
+          {% set active = state_attr('climate.adaptative_deshum', 'active_entity_id') %}
+          | Source | Mode | Consigne | Fan | Action | |
+          |:--|:--|--:|:--|:--|:-:|
+          {% for label, e in [('DESHUM', 'climate.deshum_virtuel_mono')] %}
+          | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+          {% endfor %}
+          Adaptative DESHUM : consigne **{{ state_attr('climate.adaptative_deshum', 'temperature') }}**
+      - type: entities
+        entities:
+        - entity: script.reset_sources_test_mono
+          name: Tout remettre à zéro
+  - type: markdown
+    content: |
+      ## Scénarios
+
+      DESHUM Virtuel est une source *dry* et *auto* sans consigne de température : dans ces deux
+      modes, Adaptative DESHUM se comporte alors comme en *fan_only*. Partir de **Tout remettre à zéro**.
+
+      1. **Pas de consigne** : en *dry*, en *auto* et éteint, Adaptative DESHUM n'affiche aucune consigne (*Consigne* vide, le thermostat ne propose pas de régler une température).
+      2. **Marche / arrêt** : passer Adaptative DESHUM en *dry* puis en *auto* : DESHUM Virtuel suit ; éteindre, il repasse à *off*.
+      3. **Changement externe** : Adaptative DESHUM éteint, régler DESHUM Virtuel sur *dry* depuis sa carte, puis sur *auto*. Adaptative DESHUM suit, toujours sans consigne.
+      4. **Fan** : en *dry*, changer le fan d'Adaptative DESHUM. *Fan DESHUM* suit.
+      5. **Source indisponible** : couper *DESHUM disponible*. Adaptative DESHUM devient indisponible.
+    view_layout:
+      position: sidebar
 - title: FAN_ONLY
   path: fan-only
   type: sidebar
@@ -473,8 +561,8 @@ views:
 
       1. **Marche / arrêt** : allumer Adaptative FAN_ONLY. FAN_ONLY Virtuel passe en *fan_only* ; éteindre, il repasse à *off*.
       2. **Modes proposés** : seuls *off* et *fan_only* sont proposés.
-      3. **Consigne** : changer la consigne d'Adaptative FAN_ONLY. *Consigne FAN_ONLY* suit.
-      4. **Changement externe** : Adaptative FAN_ONLY éteint, mettre *Consigne FAN_ONLY* à une autre valeur (Adaptative FAN_ONLY ne bouge pas), puis régler FAN_ONLY Virtuel sur *fan_only* depuis sa carte. Adaptative FAN_ONLY suit et *Consigne FAN_ONLY* revient à la consigne d'Adaptative FAN_ONLY.
+      3. **Pas de consigne** : allumé comme éteint, Adaptative FAN_ONLY n'affiche aucune consigne. Allumé, attendre 12 s, puis mettre *Consigne FAN_ONLY* à 25 : Adaptative FAN_ONLY n'affiche toujours aucune consigne.
+      4. **Changement externe** : Adaptative FAN_ONLY éteint, régler FAN_ONLY Virtuel sur *fan_only* depuis sa carte. Adaptative FAN_ONLY suit ; *Consigne FAN_ONLY* ne bouge pas (rien ne lui est envoyé).
       5. **Action** : allumer Adaptative FAN_ONLY : *fan*, quelle que soit la température de la pièce.
       6. **Source indisponible** : couper *FAN_ONLY disponible*. Adaptative FAN_ONLY devient indisponible.
       7. **Fan et swing** : allumer Adaptative FAN_ONLY, puis changer son fan, son swing et son swing horizontal. *Fan FAN_ONLY*, *Swing FAN_ONLY* et *Swing horizontal FAN_ONLY* suivent.

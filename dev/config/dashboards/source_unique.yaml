@@ -165,24 +165,27 @@ views:
       ### Consigne
 
       Adaptative ALL garde deux consignes, chauffage et refroidissement (la basse et la haute de *heat_cool*),
-      et une consigne simple pour *dry* et *auto*. ALL Virtuel n'a qu'une consigne : elle reçoit celle du mode
+      et une consigne simple pour *dry* ; *fan_only* n'en a pas, *auto* utilise la plage basse/haute (ALL Virtuel l'a). ALL Virtuel n'a qu'une consigne : elle reçoit celle du mode
       (les bornes et l'arrondi se testent dans *Tests multi-sources*).
 
       1. **Consigne par mode** : en *heat*, consigne 22 ; en *cool*, 26 ; en *dry*, 21. Passer de l'un à l'autre : *Consigne ALL* prend 22, 26 ou 21 à chaque entrée, et chaque mode retrouve la sienne.
       2. **Source allumée ailleurs** : éteindre, mettre *Consigne ALL* à 30 : Adaptative ALL ne bouge pas. Mettre ALL Virtuel en *heat* depuis sa carte : *Consigne ALL* revient à 22.
       3. **Changement sur la source** : en *cool*, attendre 12 s, puis mettre *Consigne ALL* à 24 depuis sa carte. Adaptative ALL affiche 24 ; passer en *heat* : 22 ; en *dry* : 21 ; de retour en *cool* : 24.
       4. **Consigne changée juste après le mode** : régler *heat* et *cool* à 24. En *heat*, passer en *cool* : la source est déjà à la consigne, rien ne confirme le mode. Dans les 12 s, mettre *Consigne ALL* à 27 depuis sa carte : Adaptative ALL affiche toujours sa consigne. Au bout des 12 s, *Consigne ALL* y revient, même sans changer de mode.
+      5. **fan_only sans consigne** : en *dry*, consigne 21. Passer en *fan_only* : Adaptative ALL n'affiche aucune consigne ni plage, *Consigne ALL* reste à 21. Attendre 12 s, la mettre à 30 depuis sa carte : Adaptative ALL n'affiche toujours rien. Repasser en *dry* : *Consigne ALL* revient à 21.
 
       ### Consignes basse/haute
 
-      ALL Virtuel est aussi la source de *heat_cool* : elle y reçoit la plage d'Adaptative ALL
-      (*Consigne ALL basse* et *haute*). La plage appartient à Adaptative ALL, comme les consignes,
-      et n'est affichée qu'en *heat_cool* et à l'arrêt (en *heat* la basse est la consigne, en *cool* la haute). **Tout remettre à zéro** met la source à 19–25.
+      ALL Virtuel est aussi la source de *heat_cool* et d'*auto* : elle y reçoit la plage d'Adaptative ALL
+      (*Consigne ALL basse* et *haute*), la même dans les deux modes. La plage appartient à Adaptative ALL, comme les consignes,
+      et n'est affichée qu'en *heat_cool*, en *auto* et à l'arrêt (en *heat* la basse est la consigne, en *cool* la haute). **Tout remettre à zéro** met la source à 19–25.
 
       1. **Plage envoyée** : en *heat_cool*, régler la plage à 20–24 : *Consigne ALL basse* et *haute* suivent. Passer en *heat* : *Consigne ALL* prend la consigne basse, 20 ; la plage de la source ne bouge pas. Revenir en *heat_cool* : toujours 20–24. Éteindre : le thermostat montre la plage.
       2. **Plage ignorée hors heat_cool** : en *heat*, mettre *Consigne ALL basse* à 17 depuis sa carte : Adaptative ALL ne la reprend pas. Passer en *heat_cool* : *Consigne ALL basse* revient à 20.
       3. **Changement sur la source** : en *heat_cool*, attendre 12 s, puis mettre *Consigne ALL basse* à 18 depuis sa carte : Adaptative ALL affiche 18–24. Passer en *heat*, puis revenir en *heat_cool* : toujours 18–24.
       4. **Plage changée juste après le mode** : en *heat_cool*, plage 20–24, éteindre, puis repasser en *heat_cool* : la source a déjà la plage, rien ne confirme le mode. Dans les 12 s, mettre *Consigne ALL haute* à 28 depuis sa carte : Adaptative ALL affiche toujours 20–24. Au bout des 12 s, *Consigne ALL haute* revient à 24.
       5. **Après un redémarrage** : en *heat_cool*, plage 21–23, puis **Tout remettre à zéro** (source à 19–25). Redémarrer Home Assistant, passer en *heat_cool* : la source passe à 21–23.
+      6. **auto comme heat_cool** : en *auto*, Adaptative ALL montre une plage, pas de consigne simple. La régler à 21–23 : *Consigne ALL basse* et *haute* suivent, *Consigne ALL* ne bouge pas. Passer en *heat* : *Consigne ALL* prend 21 ; en *cool* : 23 ; en *heat_cool* : toujours 21–23.
+      7. **Changement sur la source en auto** : en *auto*, attendre 12 s, puis mettre *Consigne ALL haute* à 26 depuis sa carte : Adaptative ALL affiche 21–26. Passer en *cool* : *Consigne ALL* prend 26 ; en *heat_cool* : 21–26.
     view_layout:
       position: sidebar

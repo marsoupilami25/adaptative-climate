@@ -42,6 +42,7 @@ dev/
 | HEAT_COOL Virtuel (mono seulement) | off, heat_cool | consigne basse/haute |
 | RADIATEUR Virtuel (mono seulement) | off, heat | consigne |
 | CLIM Virtuel (mono seulement) | off, cool | consigne au pas de 1 °C, fan |
+| DESHUM Virtuel (mono seulement) | off, dry, auto | fan (pas de consigne) |
 
 Dans les cas *multi* et *manuel*, les sources n'écrivent pas leurs options de la
 même façon, pour tester la synchronisation sans tenir compte de la casse : HEAT en
@@ -99,7 +100,7 @@ l'entité testée, ses sources avec tous leurs réglages, un résumé de l'état
 
 | Cas | Entités | Sources | Tableau de bord |
 |:--|:--|:--|:--|
-| Un mode | `climate.adaptative_heat`, `_cool`, `_dry`, `_fan_only`, `_auto`, `_heat_cool` ; `climate.adaptative_combine` (heat_cool sans source propre, écart minimal `min_gap: 2`) | la source mono-mode du même mode ; RADIATEUR et CLIM pour `_combine` (`_mono`) | *Tests mono-mode* (une vue par entité) |
+| Un mode | `climate.adaptative_heat`, `_cool`, `_dry`, `_fan_only`, `_auto`, `_heat_cool` ; `climate.adaptative_combine` (heat_cool sans source propre, écart minimal `min_gap: 2`) ; `climate.adaptative_deshum` (dry et auto sur une source sans consigne) | la source mono-mode du même mode ; RADIATEUR et CLIM pour `_combine`, DESHUM pour `_deshum` (`_mono`) | *Tests mono-mode* (une vue par entité) |
 | Tous les modes, une source par mode | `climate.adaptative_multi` (heat, cool et dry synchronisés ; heat_cool bascule entre HEAT et COOL selon le capteur) | les 5 sources mono-mode et le capteur (`_multi`) | *Tests multi-sources* |
 | Tous les modes, une seule source | `climate.adaptative_all` (heat, cool et dry synchronisés ; heat_cool sur ALL Virtuel) | ALL Virtuel (`_unique`) | *Tests source unique* |
 | Manuel | `climate.adaptative_manuel`, créé depuis l'interface | au choix parmi les 6 sources et le capteur (`_manuel`) | *Tests manuels* (vues *Sources* et *Adaptative*) |

@@ -104,11 +104,17 @@ class TargetSync:
     def target_source(self, target: str) -> str | None:
         """Return the only source a low/high target goes to, if any.
 
-        The single target goes to several sources: None.
+        Low/high go to the source of HEAT_COOL and to that of auto, when it
+        has them. Several sources, or the single target: None.
         """
         if target == ATTR_TEMPERATURE:
             return None
-        return self._modes.profile(HVACMode.HEAT_COOL).target_source(target)
+        found = {
+            source
+            for mode in (HVACMode.HEAT_COOL, HVACMode.AUTO)
+            if (source := self._modes.profile(mode).target_source(target)) is not None
+        }
+        return found.pop() if len(found) == 1 else None
 
     def applied(self, target: str, entity_id: str | None) -> float | None:
         """Return a target as a source gets it."""
@@ -288,8 +294,8 @@ class TargetSync:
     async def async_send(self, key: TargetKey) -> None:
         """Send the targets to the active source, if its mode is still on.
 
-        A source without these targets (fan only) gets nothing, and they are
-        kept for the next mode. A source error is logged without failing.
+        A source without these targets, fan only, or dry or auto on a source
+        without target, gets nothing, and they are kept for the next mode. A source error is logged without failing.
         """
         if (
             key[0] is HVACMode.OFF
@@ -332,9 +338,10 @@ class TargetSync:
 
         Heat shows the low target as the single target and cool the high one;
         the low/high attributes are empty. HEAT_COOL shows low/high and no
-        single target. The other modes show the single target. While off, the
-        low/high targets are shown when the entity has them (range_supported),
-        else the targets of the mode turn_on goes to.
+        single target. Fan only shows none. Dry and auto show the targets
+        their source has (auto: low/high first). While off, the low/high
+        targets are shown when the entity has them (range_supported), else
+        the targets of the mode turn_on goes to.
 
         A target the active source gets is read from it: it shows what is
         applied, even a target set on it outside the limits. During the

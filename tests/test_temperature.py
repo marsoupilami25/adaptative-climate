@@ -570,3 +570,193 @@ async def test_change_on_source_outside_limits(
     assert _target(hass, AC) == 28.0
     assert _target(hass) == 28.0
     assert _saved(hass, HIGH) == 28.0
+
+
+async def test_fan_only_has_no_target(
+    hass: HomeAssistant,
+    sources: None,
+    mock_config_entry: MockConfigEntry,
+    ac: FakeClimate,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Fan only shows no target, sends none and takes none from its source.
+
+    A target set in fan only is kept for the next mode.
+    """
+    ac._attr_hvac_modes = [*ac.hvac_modes, HVACMode.FAN_ONLY]
+    ac.async_write_ha_state()
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry, data={**mock_config_entry.data, "fan_only_entity": AC}
+    )
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    await _mode(hass, HVACMode.DRY)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
+    await _mode(hass, HVACMode.FAN_ONLY)
+    ac.calls.clear()
+
+    assert _target(hass) is None
+    assert _range(hass) == (None, None)
+
+    # Past the settle time, a target changed on the source is ignored.
+    freezer.tick(timedelta(seconds=13))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    await _on_source(hass, AC, SERVICE_SET_TEMPERATURE, temperature=27.0)
+    ac.calls.clear()
+    assert _target(hass) is None
+
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=21.0)
+    assert ac.calls == []
+    assert _target(hass) is None
+
+    await _mode(hass, HVACMode.DRY)
+    print('CALLS', ac.calls, hass.states.get(AC))
+    assert _sent(ac) == [21.0]
+
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_dry_without_target(
+    hass: HomeAssistant, ac: FakeClimate, freezer: FrozenDateTimeFactory
+) -> None:
+    """Dry on a source without target works like fan only.
+
+    No target is shown, sent or taken; one set in dry is kept for the next
+    mode. A source with a target gets it in dry, as in auto.
+    """
+    features = ac.supported_features
+    ac._attr_supported_features = features & ~ClimateEntityFeature.TARGET_TEMPERATURE
+    ac.async_write_ha_state()
+    await hass.async_block_till_done()
+    await _mode(hass, HVACMode.DRY)
+    ac.calls.clear()
+
+    assert _target(hass) is None
+    assert _range(hass) == (None, None)
+
+    # Past the settle time, a target changed on the source is ignored.
+    freezer.tick(timedelta(seconds=13))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    setattr(ac, _attr_name("target_temperature"), 28.0)
+    ac.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert _target(hass) is None
+
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=21.0)
+    assert ac.calls == []
+    assert _target(hass) is None
+    assert _saved(hass) == 21.0
+
+    # With a target, dry gets the single target.
+    await _call(hass, SERVICE_TURN_OFF)
+    ac._attr_supported_features = features
+    ac.async_write_ha_state()
+    await hass.async_block_till_done()
+    await _mode(hass, HVACMode.DRY)
+    assert _sent(ac) == [21.0]
+    assert _target(hass) == 21.0
+
+
+async def _setup_auto(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, ac: FakeClimate
+) -> None:
+    """Set up the entity with the AC also serving auto."""
+    ac._attr_hvac_modes = [*ac.hvac_modes, HVACMode.AUTO]
+    ac.async_write_ha_state()
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry, data={**mock_config_entry.data, "auto_entity": AC}
+    )
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+
+def _sent_range(source: FakeClimate) -> list[tuple[float, float]]:
+    """Return the low/high targets sent to a source."""
+    return [
+        (data["target_temp_low"], data["target_temp_high"])
+        for name, data in source.calls
+        if name == "set_temperature" and "target_temp_low" in data
+    ]
+
+
+async def test_auto_with_range(
+    hass: HomeAssistant,
+    sources: None,
+    mock_config_entry: MockConfigEntry,
+    heater: FakeClimate,
+    ac: FakeClimate,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Auto on a source with low/high works like heat_cool.
+
+    Its low/high are the heating and cooling setpoints of heat and cool.
+    """
+    await _setup_auto(hass, mock_config_entry, ac)
+    await _call(hass, SERVICE_SET_TEMPERATURE, target_temp_low=19.0, target_temp_high=25.0)
+
+    await _mode(hass, HVACMode.AUTO)
+    assert _sent_range(ac) == [(19.0, 25.0)]
+    assert _target(hass) is None
+    assert _range(hass) == (19.0, 25.0)
+
+    # A change made on the source past the settle time is taken.
+    freezer.tick(timedelta(seconds=13))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    await _on_source(
+        hass, AC, SERVICE_SET_TEMPERATURE, target_temp_low=18.0, target_temp_high=25.0
+    )
+    assert _range(hass) == (18.0, 25.0)
+
+    # The same low target in heat.
+    await _mode(hass, HVACMode.HEAT)
+    assert _sent(heater)[-1] == 18.0
+    assert _target(hass) == 18.0
+
+    # And the same high target in cool.
+    await _mode(hass, HVACMode.COOL)
+    assert _sent(ac)[-1] == 25.0
+
+
+async def test_auto_with_single_target(
+    hass: HomeAssistant,
+    sources: None,
+    mock_config_entry: MockConfigEntry,
+    ac: FakeClimate,
+) -> None:
+    """Auto on a source with the single target only works like dry, same target."""
+    ac._attr_supported_features = (
+        ac.supported_features & ~ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+    )
+    await _setup_auto(hass, mock_config_entry, ac)
+
+    await _mode(hass, HVACMode.DRY)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
+    await _mode(hass, HVACMode.AUTO)
+    assert _target(hass) == 23.0
+    assert _range(hass) == (None, None)
+    assert _sent(ac)[-1] == 23.0
+    assert _sent_range(ac) == []
+
+
+async def test_auto_without_target(
+    hass: HomeAssistant,
+    sources: None,
+    mock_config_entry: MockConfigEntry,
+    ac: FakeClimate,
+) -> None:
+    """Auto on a source without target works like fan only."""
+    ac._attr_supported_features = ClimateEntityFeature.FAN_MODE
+    await _setup_auto(hass, mock_config_entry, ac)
+
+    await _mode(hass, HVACMode.AUTO)
+    ac.calls.clear()
+    assert _target(hass) is None
+    assert _range(hass) == (None, None)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
+    assert ac.calls == []

@@ -50,6 +50,11 @@ adaptative_climate:
     cool_entity: climate.cool_virtuel_mono
   - name: Adaptative DRY
     dry_entity: climate.dry_virtuel_mono
+  # Dry and auto on a source without target temperature: no target, like
+  # fan only.
+  - name: Adaptative DESHUM
+    dry_entity: climate.deshum_virtuel_mono
+    auto_entity: climate.deshum_virtuel_mono
   - name: Adaptative FAN_ONLY
     fan_only_entity: climate.fan_only_virtuel_mono
   - name: Adaptative AUTO

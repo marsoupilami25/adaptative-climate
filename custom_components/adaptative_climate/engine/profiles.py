@@ -13,8 +13,15 @@ testing the mode itself. A profile answers:
 - features: what the mode adds to the entity, whatever its sources offer.
 
 Profiles:
-- ModeProfile: auto, dry, fan only, and off. The single target goes to
-  the single target of the source.
+- ModeProfile: off. The single target goes to the single target of the
+  source.
+- FanOnlyProfile: fan only. No target: nothing is sent to the source,
+  taken from it or shown; the targets are kept for the next mode.
+- DryProfile: dry. The single target when its source has one, else no
+  target (like fan only).
+- AutoProfile: auto. The low/high targets when its source has them (like
+  HEAT_COOL with its own source), else the single target (like dry), else
+  no target (like fan only).
 - SetpointProfile: heat sends the low target (heating setpoint) as the
   single target of its source, cool the high one (cooling setpoint).
 - RangeHeatCoolProfile: HEAT_COOL with a source of its own. The source
@@ -42,13 +49,11 @@ from .model import PHASES, SINGLE_TARGETS
 from .sources import Sources
 
 _RANGE = ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+_TARGET = ClimateEntityFeature.TARGET_TEMPERATURE
 
 
 class ModeProfile:
-    """A mode with a source of its own and the single target (auto, dry, fan only).
-
-    Also the profile of OFF.
-    """
+    """A mode with a source of its own and the single target: OFF."""
 
     # Features the mode adds to the entity, whatever its sources offer.
     features = ClimateEntityFeature(0)
@@ -80,6 +85,67 @@ class ModeProfile:
     def target_source(self, target: str) -> str | None:
         """Return the only source a low/high target goes to, if any."""
         return None
+
+
+class FanOnlyProfile(ModeProfile):
+    """Fan only: the fan alone, without target.
+
+    The source gets no target, its targets are ignored and the entity shows
+    none. The targets are kept for the next mode.
+    """
+
+    def target_map(self, phase: HVACMode | None) -> dict[str, str]:
+        """Send no target."""
+        return {}
+
+    def shown_target(self, attr: str, mapping: dict[str, str]) -> str | None:
+        """Show no target."""
+        return None
+
+
+class SourceTargetsProfile(ModeProfile):
+    """A mode whose targets are those its source has (dry, auto).
+
+    The low/high targets when the source has them and the mode uses them
+    (use_range), else the single target when the source has it, else none.
+    The targets are the same as in the other modes: one single target, one
+    low and one high.
+    """
+
+    use_range = False
+
+    def _targets(self) -> tuple[str, ...]:
+        """Return the targets the source gets."""
+        features = self._sources.features(self._sources.mode_sources[self.mode])
+        if self.use_range and _RANGE in features:
+            return (ATTR_TARGET_TEMP_LOW, ATTR_TARGET_TEMP_HIGH)
+        if _TARGET in features:
+            return (ATTR_TEMPERATURE,)
+        return ()
+
+    def target_map(self, phase: HVACMode | None) -> dict[str, str]:
+        """Send the targets the source has."""
+        return {target: target for target in self._targets()}
+
+    def shown_target(self, attr: str, mapping: dict[str, str]) -> str | None:
+        """Show the targets the source gets."""
+        return attr if attr in self._targets() else None
+
+    def target_source(self, target: str) -> str | None:
+        """Low/high go to the source, when it gets them."""
+        if target != ATTR_TEMPERATURE and target in self._targets():
+            return self._sources.mode_sources[self.mode]
+        return None
+
+
+class DryProfile(SourceTargetsProfile):
+    """Dry: the single target when its source has one, else no target."""
+
+
+class AutoProfile(SourceTargetsProfile):
+    """Auto: low/high when its source has them, else the single target, else none."""
+
+    use_range = True
 
 
 class SetpointProfile(ModeProfile):
@@ -178,6 +244,12 @@ def build_profiles(sources: Sources, combined: bool) -> dict[HVACMode, ModeProfi
                 profile = RangeHeatCoolProfile
             elif mode in SINGLE_TARGETS:
                 profile = SetpointProfile
+            elif mode is HVACMode.FAN_ONLY:
+                profile = FanOnlyProfile
+            elif mode is HVACMode.DRY:
+                profile = DryProfile
+            elif mode is HVACMode.AUTO:
+                profile = AutoProfile
             else:
                 profile = ModeProfile
         elif mode is HVACMode.HEAT_COOL and combined:

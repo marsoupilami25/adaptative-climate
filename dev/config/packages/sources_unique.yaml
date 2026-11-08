@@ -59,7 +59,7 @@ template:
         swing_horizontal_mode: >
           {{ states('input_select.swing_horizontal_all_unique')
              if is_state('input_boolean.swing_horizontal_actif_all_unique', 'on') else none }}
-        # In heat_cool, HA sends target_temp_low/high instead of temperature.
+        # In heat_cool and auto, Adaptative sends target_temp_low/high instead of temperature.
         set_temperature:
           - if: "{{ temperature is not none }}"
             then:

@@ -167,7 +167,7 @@ views:
 
       Adaptative MULTI garde deux consignes : chauffage et refroidissement. Celle de *heat* est la
       consigne basse de *heat_cool*, celle de *cool* la consigne haute. *dry* et *auto* ont une
-      consigne simple à part. Chaque source reçoit la sienne en entrant dans son mode, et la basse
+      consigne simple à part ; *fan_only* n'en a pas. Chaque source reçoit la sienne en entrant dans son mode, et la basse
       reste au moins à l'écart minimal sous la haute (aucun ici : elles peuvent être égales).
       Sources : HEAT 5–30 °C, COOL 16–32 °C au pas de 1 °C, DRY 18–30 °C.
       **Tout remettre à zéro** remet les consignes des sources à 20 °C, pas celles d'Adaptative MULTI.
@@ -182,6 +182,7 @@ views:
       8. **Arrondi** : en *cool*, consigne 21,5 : *Consigne COOL* passe à 22 (pas de 1 °C) et Adaptative MULTI affiche 22.
       9. **Consignes réglées éteint** : éteindre, régler la plage d'Adaptative MULTI à 18–24. Aucune source ne bouge. Passer en *heat* : *Consigne HEAT* passe de 20 à 18. Éteindre, passer en *cool* : *Consigne COOL* passe à 24.
       10. **Après un redémarrage** : en *heat*, consigne 18 ; en *cool*, consigne 25 ; éteindre, puis **Tout remettre à zéro**. Redémarrer Home Assistant, passer en *heat* : *Consigne HEAT* passe à 18 ; en *cool* : *Consigne COOL* passe à 25.
+      11. **fan_only sans consigne** : en *dry*, consigne 24. Passer en *fan_only* : Adaptative MULTI n'affiche aucune consigne et *Consigne FAN_ONLY* reste à 20. Attendre 12 s, mettre *Consigne FAN_ONLY* à 27 (vue Sources) : Adaptative MULTI n'affiche toujours rien. Depuis *Outils de développement > Actions*, appeler `climate.set_temperature` sur Adaptative MULTI avec `temperature: 22` : aucune source ne bouge. Passer en *dry* : *Consigne DRY* passe à 22.
     view_layout:
       position: sidebar
 - title: heat_cool

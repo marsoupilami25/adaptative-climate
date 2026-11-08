@@ -102,12 +102,21 @@ exposed according to the mode:
 | heat | heating setpoint | none | none |
 | cool | cooling setpoint | none | none |
 | heat/cool | none | heating setpoint | cooling setpoint |
-| auto, dry... | single target | none | none |
+| auto, source with low/high | none | heating setpoint | cooling setpoint |
+| auto, other source | single target (none if its source has none) | none | none |
+| dry | single target (none if its source has none) | none | none |
+| fan only | none | none | none |
 
 So the target of heat is the low target of heat/cool, and the one of cool is
-the high target: going from heat to heat/cool reuses it. The other modes
-(auto, dry) have a single target of their own. While off, the entity shows
-both setpoints (low and high) so they can be set before turning on; a single
+the high target: going from heat to heat/cool reuses it. Auto works like
+heat/cool when its source has low/high targets (even if it also has a single
+target), with the same heating and cooling setpoints. Otherwise, auto and dry
+share a single target of their own, when their source has a target
+temperature. Fan only has no target, and neither have dry and auto on a
+source without one (a dehumidifier without thermostat): the source gets no
+target, a target changed on it is ignored, and a target set in that mode is
+kept for the next one. While off, the entity shows both setpoints (low and
+high) so they can be set before turning on; a single
 `temperature` set then goes to the mode `turn_on` goes to.
 
 The targets belong to the entity, not to the sources: switching mode keeps
@@ -127,7 +136,9 @@ Each source gets the target rounded to its step and kept in its range (and
 in the `min_temp`/`max_temp` limits). A setpoint that only goes to one
 source (see "Heat/cool mode") is kept as that source gets it: a high target
 of 14 °C for an AC whose minimum is 16 °C is 16 °C, also to decide when to
-switch to it. The single target of the other modes is kept as it was given.
+switch to it. When auto sends low/high to another source than heat/cool,
+they go to two sources and are kept as they were given, like the single
+target of the other modes.
 The entity shows the target of the active source (except right after
 entering a mode, see below).
 
@@ -147,7 +158,7 @@ gets nothing, so nothing confirms it: its targets are ignored for the full
 12 seconds (a change made on the remote control then is overridden).
 
 While the entity is off, the targets of the sources are ignored. A target
-set while off, or in a mode whose source has none (fan only), is kept for
+set while off, in fan only, or in a mode whose source has none, is kept for
 the next mode. The targets are kept across restarts. The first heating
 setpoint comes from the heat source, the cooling one from the cool source
 (a `heat_cool_entity` with low/high targets comes first), else 1 degree
