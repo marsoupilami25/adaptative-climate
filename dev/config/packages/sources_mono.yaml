@@ -463,10 +463,11 @@ template:
           data:
             option: "{{ hvac_mode }}"
 
-      # 16-32 °C with a 1 °C step and a fan.
+      # 16-32 °C with a 1 °C step and a fan. Also offers fan only, which
+      # Adaptative COMBINE does not use it for: tests a foreign mode.
       - name: CLIM Virtuel (mono)
         default_entity_id: climate.clim_virtuel_mono
-        hvac_modes: '{{ ["off", "cool"] }}'
+        hvac_modes: '{{ ["off", "cool", "fan_only"] }}'
         min_temperature: 16
         max_temperature: 32
         target_temperature_step: 1
@@ -478,6 +479,7 @@ template:
           {% set t = states('input_number.temperature_clim_mono') | float(0) %}
           {% set c = states('input_number.consigne_clim_mono') | float(0) %}
           {% if is_state('input_select.mode_clim_mono', 'off') %}off
+          {% elif is_state('input_select.mode_clim_mono', 'fan_only') %}fan
           {% elif t > c %}cooling{% else %}idle{% endif %}
         fan_modes: "{{ state_attr('input_select.fan_clim_mono', 'options') }}"
         fan_mode: "{{ states('input_select.fan_clim_mono') }}"
@@ -535,7 +537,7 @@ input_select:
     options: ["off", "heat"]
   mode_clim_mono:
     name: Mode CLIM
-    options: ["off", "cool"]
+    options: ["off", "cool", "fan_only"]
   mode_pac_mono:
     name: Mode PAC
     options: ["off", "heat", "dry"]

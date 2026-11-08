@@ -447,6 +447,9 @@ class AdaptativeClimateEntity(
             "unavailable_modes": [
                 str(mode) for mode in self.hvac_modes[1:] if not self._modes.usable(mode)
             ],
+            # Sources running in a mode they do not serve here (set
+            # elsewhere), which the entity ignores.
+            "foreign_modes": self._sources.foreign_modes(),
         }
 
     # Commands

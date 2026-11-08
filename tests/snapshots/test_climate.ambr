@@ -52,6 +52,8 @@
     'attributes': ReadOnlyDict({
       'active_entity_id': None,
       <ClimateEntityStateAttribute.CURRENT_TEMPERATURE: 'current_temperature'>: 19.5,
+      'foreign_modes': dict({
+      }),
       <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living room',
       <ClimateEntityStateAttribute.HVAC_ACTION: 'hvac_action'>: <HVACAction.OFF: 'off'>,
       <ClimateEntityCapabilityAttribute.HVAC_MODES: 'hvac_modes'>: list([

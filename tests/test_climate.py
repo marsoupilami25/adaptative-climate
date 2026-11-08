@@ -216,6 +216,82 @@ async def test_switch_mode_on_shared_source(
 
 
 @pytest.mark.usefixtures("init_integration")
+async def test_source_in_foreign_mode_is_ignored(
+    hass: HomeAssistant,
+    heater: FakeClimate,
+    ac: FakeClimate,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A source set elsewhere to a mode it does not serve here is ignored.
+
+    The other sources keep running, the mode is shown in foreign_modes and
+    logged.
+    """
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    assert hass.states.get(ENTITY_ID).attributes["foreign_modes"] == {}
+    heater.calls.clear()
+
+    # The AC serves cool and dry, not fan only.
+    ac._attr_hvac_mode = HVACMode.FAN_ONLY
+    ac.async_write_ha_state()
+    await hass.async_block_till_done()
+
+    assert heater.calls == []
+    assert _mode(hass, HEATER) == HVACMode.HEAT
+    state = hass.states.get(ENTITY_ID)
+    assert state.state == HVACMode.HEAT
+    assert state.attributes["active_entity_id"] == HEATER
+    assert state.attributes["foreign_modes"] == {AC: HVACMode.FAN_ONLY}
+    assert "climate.ac runs in the fan_only mode" in caplog.text
+
+    # Turning the entity off turns every running source off, that one too.
+    await _call(hass, SERVICE_TURN_OFF)
+    assert _mode(hass, HEATER) == HVACMode.OFF
+    assert _mode(hass, AC) == HVACMode.OFF
+    assert hass.states.get(ENTITY_ID).attributes["foreign_modes"] == {}
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_source_in_foreign_mode_alone_shows_off(
+    hass: HomeAssistant, heater: FakeClimate
+) -> None:
+    """The entity is off while its only running source is in a foreign mode."""
+    heater._attr_hvac_mode = HVACMode.FAN_ONLY
+    heater.async_write_ha_state()
+    await hass.async_block_till_done()
+
+    state = hass.states.get(ENTITY_ID)
+    assert state.state == HVACMode.OFF
+    assert state.attributes["foreign_modes"] == {HEATER: HVACMode.FAN_ONLY}
+
+    # Turning on runs the source in a mode it serves.
+    await _call(hass, SERVICE_TURN_ON)
+    assert _mode(hass) == HVACMode.HEAT
+    assert _mode(hass, HEATER) == HVACMode.HEAT
+    assert hass.states.get(ENTITY_ID).attributes["foreign_modes"] == {}
+
+
+async def test_source_in_foreign_mode_at_startup(
+    hass: HomeAssistant,
+    sources: None,
+    ac: FakeClimate,
+    mock_config_entry: MockConfigEntry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A source already in a foreign mode at startup is logged and shown."""
+    ac._attr_hvac_mode = HVACMode.FAN_ONLY
+    ac.async_write_ha_state()
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(ENTITY_ID)
+    assert state.state == HVACMode.OFF
+    assert state.attributes["foreign_modes"] == {AC: HVACMode.FAN_ONLY}
+    assert "climate.ac runs in the fan_only mode" in caplog.text
+
+
+@pytest.mark.usefixtures("init_integration")
 async def test_set_temperature_forwards_to_active_source(
     hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
 ) -> None:

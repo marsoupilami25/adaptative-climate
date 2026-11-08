@@ -858,6 +858,10 @@ views:
           type: attribute
           attribute: unavailable_modes
           name: Modes indisponibles
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: foreign_modes
+          name: Modes non gérés
       - type: tile
         entity: climate.adaptative_combine
         name: Marche / arrêt
@@ -933,6 +937,7 @@ views:
       11. **Marche / arrêt et redémarrage** : en *heat_cool*, éteindre puis rallumer : *heat_cool* revient. Redémarrer Home Assistant en *heat_cool* : il y est toujours, avec sa plage.
       12. **Écart minimal** : plage 19–25. En *heat*, consigne 24 : la consigne haute passe à 26 (*Consigne CLIM* y passe à l'entrée en *cool*). En *cool*, consigne 20 : la consigne basse passe à 18. En *heat_cool*, régler la plage à 20–21 : Adaptative COMBINE affiche 20–22. Changer *Consigne RADIATEUR* depuis sa carte (après 12 s en *heat*) à 25 : Adaptative COMBINE prend 25 sans corriger la haute (la source a la main).
       13. **Sources contradictoires** : plage 19–25, *Température RADIATEUR* et *Température CLIM* à 18, passer en *heat_cool* : RADIATEUR s'allume. *Température RADIATEUR* à 26 (près du radiateur il fait chaud) : RADIATEUR reste allumé, CLIM lit 18. *Température CLIM* à 22 : toujours RADIATEUR. *Température CLIM* à 26 : bascule sur CLIM. *Température CLIM* à 18 : CLIM reste allumée (RADIATEUR lit 26).
+      14. **Mode non géré** : CLIM offre aussi *fan_only*, qu'Adaptative COMBINE n'utilise pas. Passer en *heat*, puis mettre *Mode CLIM* à *fan_only* : RADIATEUR reste en *heat*, Adaptative COMBINE reste en *heat* (source active RADIATEUR) et *Modes non gérés* montre `climate.clim_virtuel_mono: fan_only` ; un warning « runs in the fan_only mode » est dans le journal. Éteindre Adaptative COMBINE : RADIATEUR et CLIM s'éteignent, *Modes non gérés* est vide. Mettre *Mode CLIM* à *fan_only* : Adaptative COMBINE reste *off*. L'allumer : il passe en *heat*, CLIM s'éteint.
     view_layout:
       position: sidebar
 - title: OFFSET

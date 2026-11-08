@@ -7,6 +7,8 @@ no state: it reads what the coordinator received at its last update.
   unavailable is not usable and reads as None everywhere.
 - running_mode: the mode whose source runs in that same mode, else OFF.
   When several do, the one turned on last wins.
+- foreign_modes: the sources running in a mode they do not serve (set
+  elsewhere), which the entity ignores.
 - Offsets: each mode source may have a temperature offset (how much
   warmer than the room it reads). Values of the entity are those of the
   room; a source gets them plus its offset (fit), and its targets and
@@ -59,7 +61,7 @@ from homeassistant.core import State
 from homeassistant.util.unit_conversion import TemperatureConverter
 
 from ..const import CONF_MAX_TEMP, CONF_MIN_TEMP, entry_settings, mode_offsets
-from ..coordinator import AdaptativeClimateCoordinator
+from ..coordinator import AdaptativeClimateCoordinator, foreign_mode
 from .model import PHASES
 from .util import is_number
 
@@ -116,6 +118,22 @@ class Sources:
             if entity_id == self._coordinator.last_on_source:
                 return mode
         return running[0][0] if running else HVACMode.OFF
+
+    def foreign_modes(self) -> dict[str, str]:
+        """Return the sources running in a mode they do not serve, with that mode.
+
+        Set elsewhere (remote, app): the entity ignores them.
+        """
+        return {
+            entity_id: mode
+            for entity_id in self.entity_ids
+            if (
+                mode := foreign_mode(
+                    self.state(entity_id), self._coordinator.served_modes[entity_id]
+                )
+            )
+            is not None
+        }
 
     def offset(self, mode: HVACMode | None) -> float:
         """Return the temperature offset of the source of a mode (0 for None)."""

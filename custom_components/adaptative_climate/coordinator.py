@@ -65,6 +65,16 @@ def lacks_mode(state: State | None, mode: HVACMode) -> bool:
     return modes is not None and mode not in modes
 
 
+def foreign_mode(state: State | None, served: set[HVACMode]) -> str | None:
+    """Return the mode a source runs in when it does not serve it here, else None.
+
+    Such a mode was set elsewhere (remote, app): the entity ignores it.
+    """
+    if not is_running(state) or state.state in served:
+        return None
+    return state.state
+
+
 class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
     """Coordinate updates from the source climate entities."""
 
@@ -90,6 +100,11 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         self.min_phase_duration: timedelta = min_phase_duration(settings)
         # Each source once, in mode order (a source can serve several modes).
         self.source_entity_ids: list[str] = list(dict.fromkeys(self.mode_sources.values()))
+        # Modes each source serves.
+        self.served_modes: dict[str, set[HVACMode]] = {
+            entity_id: {m for m, e in self.mode_sources.items() if e == entity_id}
+            for entity_id in self.source_entity_ids
+        }
         # Optional sensor giving the room temperature.
         self.temperature_sensor: str | None = settings.get(CONF_TEMPERATURE_SENSOR) or None
         # Entities whose states are followed: the sources, then the sensor.
@@ -109,6 +124,8 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
     def async_start(self) -> None:
         """Check the source modes, then listen for source and sensor state changes."""
         self._async_check_modes()
+        for entity_id in self.source_entity_ids:
+            self._warn_foreign(entity_id, self.hass.states.get(entity_id))
         self._unsub_state_change = async_track_state_change_event(
             self.hass,
             self.tracked_entity_ids,
@@ -168,6 +185,18 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
             ir.async_delete_issue(self.hass, DOMAIN, self._issue_id(mode))
         self.unsupported_modes = unsupported
 
+    def _warn_foreign(self, entity_id: str, state: State | None) -> None:
+        """Log a source running in a mode it does not serve here."""
+        mode = foreign_mode(state, self.served_modes[entity_id])
+        if mode is not None:
+            _LOGGER.warning(
+                "%s: %s runs in the %s mode, which it does not serve here; "
+                "the entity ignores it",
+                self.config_entry.title,
+                entity_id,
+                mode,
+            )
+
     async def _async_update_data(self) -> SourceStates:
         """Fetch the state of every source entity and of the sensor."""
         return {
@@ -195,16 +224,25 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
     def _async_source_state_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle a source or sensor state update.
 
-        A source switched to a new running mode (by this integration or
+        A source switched to a new mode it serves (by this integration or
         elsewhere) becomes the active one and the other sources are turned off.
+        A source switched to a mode it does not serve here is only logged: the
+        entity ignores it and the other sources keep running.
         """
         entity_id = event.data["entity_id"]
         old_state = event.data["old_state"]
         new_state = event.data["new_state"]
 
-        switched_on = entity_id in self.source_entity_ids and is_running(new_state) and (
-            old_state is None or old_state.state != new_state.state
+        mode_changed = (
+            entity_id in self.source_entity_ids
+            and is_running(new_state)
+            and (old_state is None or old_state.state != new_state.state)
         )
+        switched_on = (
+            mode_changed and new_state.state in self.served_modes[entity_id]
+        )
+        if mode_changed and not switched_on:
+            self._warn_foreign(entity_id, new_state)
         if switched_on:
             self.last_on_source = entity_id
 

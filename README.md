@@ -72,6 +72,14 @@ listed, appears in the `unavailable_modes` attribute (like a mode whose source
 is unavailable) and raises a Repairs issue, removed once the source offers it.
 Switching to that mode is refused before anything is turned off.
 
+A source set elsewhere (remote, app) to a mode it does not serve here, such
+as a heat source put in fan only, is ignored: the entity does not follow it
+and the other sources keep running. It shows off when no other source runs.
+The source and its mode appear in the `foreign_modes` attribute
+(`{climate.pac: fan_only}`, empty otherwise) and a warning is logged, also at
+startup. Turning the entity off, or switching it to a mode, still turns that
+source off like any other.
+
 ### Fan and swing settings
 
 Fan, swing and horizontal swing come from the source of the current mode:
