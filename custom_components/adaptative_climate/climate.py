@@ -6,7 +6,8 @@ Home Assistant properties.
 
 - Update cycle (_handle_coordinator_update): check the combined phase
   against the sources, remember the last mode, observe the active source
-  (settings and targets), switch the phase if the temperature asks for it.
+  (settings and targets; a source entering a mode the entity did not ask
+  for gives its targets), switch the phase if the temperature asks for it.
 - Combined HEAT_COOL: the phase is chosen by wanted_phase and switched in
   the background, under the mode lock.
 - Commands: set_temperature (targets, optional mode), set_hvac_mode,
@@ -208,8 +209,11 @@ class AdaptativeClimateEntity(
             return
 
         before = None if previous is None or previous[0] != key else previous[1]
+        # Entering a mode: asked by this entity, or the source was turned on
+        # elsewhere (remote, app), which then gives its targets.
+        requested = before is None and self._modes.take_request(source, source_mode)
         self._memory.observe(source_mode, values, before)
-        self._targets.observe(key, source, values, before)
+        self._targets.observe(key, source, values, before, requested=requested)
 
     # Combined HEAT_COOL
 

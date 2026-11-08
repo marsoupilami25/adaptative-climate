@@ -9,8 +9,10 @@ TargetSync uses the TargetStore and the profiles to:
 - Set: set (targets asked by the user; the single target is low in heat,
   high in cool), apply_gap (with the configured gap), init (first
   targets from the sources once one is usable).
-- Follow the active source (observe): entering a mode starts the settle
-  time and sends the targets. During the settle time the source targets
+- Follow the active source (observe): entering a mode turned on
+  elsewhere (remote, app) takes the targets of the source. Entering a mode
+  asked by the entity starts the settle time and sends the targets. During
+  the settle time the source targets
   are ignored (it may report its own, late); the source showing the
   targets sent ends it, otherwise they are sent again at its end if it
   showed others. Outside the settle time, a target changed on the source
@@ -215,11 +217,17 @@ class TargetSync:
         source: str,
         values: dict[str, Any],
         before: dict[str, Any] | None,
+        *,
+        requested: bool = True,
     ) -> None:
         """Send the targets to a source entering its mode, or take a change made on it.
 
-        Entering a mode (by this entity or elsewhere) starts the settle time
-        and sends the targets once the source shows the mode. During the
+        A source turned on elsewhere (not requested by this entity) gives
+        its targets: the source takeover wins, as for a change made on it.
+        A target it reports late is taken too, as a change.
+
+        Entering a mode asked by this entity starts the settle time and
+        sends the targets once the source shows the mode. During the
         settle time, the targets of the source are ignored: it may report
         its own targets for the mode, late. The source showing the targets
         sent to it ends the settle time. Otherwise, at its end, the targets
@@ -230,11 +238,15 @@ class TargetSync:
         target of this entity, unless it is the value sent to it (rounded
         and in its range).
         """
+        mapping = self.mapping()
         if before is None:
+            if not requested:
+                self.end_settle()
+                self._take(source, values, list(mapping))
+                return
             self._start_settle(key)
             self.schedule_send(key)
             return
-        mapping = self.mapping()
         changes = [attr for attr in mapping if changed(values[attr], before[attr])]
         if self.settling:
             if self._settle_sent and all(
@@ -245,8 +257,14 @@ class TargetSync:
             elif changes:
                 self._settle_received = True
             return
+        self._take(source, values, changes)
+
+    @callback
+    def _take(self, source: str, values: dict[str, Any], attrs: list[str]) -> None:
+        """Take target attributes shown by the active source as the targets."""
+        mapping = self.mapping()
         taken: list[str] = []
-        for attr in changes:
+        for attr in attrs:
             value = values[attr]
             target = mapping[attr]
             if not is_number(value) or same_temperature(value, self.applied(target, source)):

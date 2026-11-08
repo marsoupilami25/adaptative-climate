@@ -119,18 +119,103 @@ async def test_modes_keep_their_own_target(
 
 
 @pytest.mark.usefixtures("init_integration")
-async def test_source_turned_on_elsewhere_gets_target(
+async def test_source_turned_on_elsewhere_gives_target(
     hass: HomeAssistant, ac: FakeClimate
 ) -> None:
-    """A source turned on outside the integration gets the target of the entity."""
+    """A source turned on outside the integration gives its target to the entity."""
     await _call(
         hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=22.0
     )
 
+    # The AC shows its own setpoint (24): the source takeover wins.
     await _on_source(hass, AC, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+
+    assert _sent(ac) == []
+    assert _target(hass) == 24.0
+    assert _saved(hass, HIGH) == 24.0
+    assert _saved(hass, LOW) == 20.0
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_source_turned_on_elsewhere_late_target_taken(
+    hass: HomeAssistant, heater: FakeClimate
+) -> None:
+    """A source turned on elsewhere that reports its target late gives it too."""
+    await _on_source(hass, HEATER, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    await _set_on_device(hass, heater, 23.0)
+
+    assert _sent(heater) == []
+    assert _target(hass) == 23.0
+    assert _saved(hass, LOW) == 23.0
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_turned_on_by_entity_sends_target(
+    hass: HomeAssistant, ac: FakeClimate
+) -> None:
+    """A source the entity turns on gets the target of the entity."""
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=22.0
+    )
+
+    await _mode(hass, HVACMode.COOL)
 
     assert _sent(ac) == [22.0]
     assert _target(hass) == 22.0
+
+
+async def test_mode_shown_late_still_gets_target(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    ac: FakeClimate,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A source showing the asked mode a few seconds later gets the target."""
+
+    async def ignore(hvac_mode: HVACMode) -> None:
+        # The device switches later (cloud).
+        ac.calls.append(("set_hvac_mode", {ATTR_HVAC_MODE: hvac_mode}))
+
+    real = ac.async_set_hvac_mode
+    ac.async_set_hvac_mode = ignore
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=22.0
+    )
+    await _mode(hass, HVACMode.COOL)
+
+    await _settle(hass, freezer, 5)
+    await real(HVACMode.COOL)
+    await hass.async_block_till_done()
+
+    assert _sent(ac) == [22.0]
+    assert _target(hass) == 22.0
+
+
+async def test_mode_shown_too_late_counts_as_elsewhere(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    ac: FakeClimate,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A source showing the asked mode long after the request was turned on elsewhere."""
+
+    async def ignore(hvac_mode: HVACMode) -> None:
+        # The device takes the call but does not switch.
+        ac.calls.append(("set_hvac_mode", {ATTR_HVAC_MODE: hvac_mode}))
+
+    real = ac.async_set_hvac_mode
+    ac.async_set_hvac_mode = ignore
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=22.0
+    )
+    await _mode(hass, HVACMode.COOL)
+
+    await _settle(hass, freezer, 31)
+    await real(HVACMode.COOL)
+    await hass.async_block_till_done()
+
+    assert _sent(ac) == []
+    assert _target(hass) == 24.0
 
 
 @pytest.mark.usefixtures("init_integration")

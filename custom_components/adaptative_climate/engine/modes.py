@@ -18,8 +18,11 @@ sources each time.
 - async_activate: turns the other sources off, sets the mode of the
   source, sends back its remembered settings. switching_to is set
   meanwhile. async_turn_off turns every source off.
+- take_request: whether a source entering a mode was asked to by this
+  entity (recently), or turned on elsewhere.
 
-State: switching_to, lock (one mode change at a time), last_on_mode.
+State: switching_to, lock (one mode change at a time), last_on_mode,
+the mode last asked of a source.
 The phase of the combined HEAT_COOL is decided by CombinedPhase and the
 entity, not here; the targets are handled by TargetSync.
 """
@@ -27,13 +30,15 @@ entity, not here; the targets are handled by TargetSync.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 
 from homeassistant.components.climate import ATTR_HVAC_MODE, HVACMode
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN
 from ..coordinator import AdaptativeClimateCoordinator
-from .model import PHASES
+from .model import PHASES, REQUEST_TIME
 from .phase import CombinedPhase
 from .profiles import ModeProfile
 from .settings_memory import SettingsMemory
@@ -70,6 +75,8 @@ class ModeTracker:
         self.lock = asyncio.Lock()
         # Mode restored by turn_on. Kept in memory only.
         self.last_on_mode: HVACMode | None = None
+        # Source, mode asked of it and when, until the source shows it.
+        self._request: tuple[str, HVACMode, datetime] | None = None
 
     @property
     def switching(self) -> bool:
@@ -196,15 +203,33 @@ class ModeTracker:
         """
         entity_id = self._sources.mode_sources[source_mode]
         self.switching_to = mode
+        self._request = (entity_id, source_mode, dt_util.utcnow())
         try:
             await self._coordinator.async_turn_off_other_sources(entity_id)
             await self._sources.async_call(
                 "set_hvac_mode", entity_id, {ATTR_HVAC_MODE: source_mode}
             )
             await self._memory.async_send(source_mode, entity_id)
+        except BaseException:
+            self._request = None
+            raise
         finally:
             self.switching_to = None
 
     async def async_turn_off(self) -> None:
         """Turn off every source that is on."""
+        self._request = None
         await self._coordinator.async_turn_off_other_sources(None)
+
+    def take_request(self, entity_id: str, source_mode: HVACMode) -> bool:
+        """Return True when this entity asked a source for the mode it entered.
+
+        The request is used up. A source entering a mode nobody asked for
+        here, or too late (see REQUEST_TIME), was turned on elsewhere.
+        """
+        request, self._request = self._request, None
+        return (
+            request is not None
+            and request[:2] == (entity_id, source_mode)
+            and dt_util.utcnow() - request[2] <= REQUEST_TIME
+        )

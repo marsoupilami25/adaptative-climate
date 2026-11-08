@@ -24,6 +24,8 @@ Fan and swing settings:
 Timing:
 - SETTLE_TIME: how long a source may report its own targets, or the
   previous phase, after entering a mode.
+- REQUEST_TIME: how long a source may take to show a mode asked by the
+  entity; entering a mode later counts as a change made elsewhere.
 
 Type aliases:
 - MemoryData: memory key -> setting attribute -> value.
@@ -128,6 +130,12 @@ SYNC_KEY = "sync"
 # polling the device usually refresh right after a command, then at most
 # every 10 s (Home Assistant debounce of refresh requests).
 SETTLE_TIME = timedelta(seconds=12)
+
+# A source entering a mode the entity asked for within this time was
+# switched by the entity: it gets the targets. Otherwise it was turned on
+# elsewhere (remote, app) and its targets are taken. Cloud devices may take
+# a while to show the new mode.
+REQUEST_TIME = timedelta(seconds=30)
 
 # Remembered settings: memory key -> setting attribute -> value.
 type MemoryData = dict[str, dict[str, str]]
