@@ -468,8 +468,8 @@ async def test_combined_inverted_targets_keep_phase(hass: HomeAssistant) -> None
     """Low above high (a source took over): between them, the phase is kept."""
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
     entity = hass.data[CLIMATE_DOMAIN].get_entity(ENTITY_ID)
-    entity._targets[ATTR_TARGET_TEMP_LOW] = 25.0
-    entity._targets[ATTR_TARGET_TEMP_HIGH] = 23.0
+    entity._target_store[ATTR_TARGET_TEMP_LOW] = 25.0
+    entity._target_store[ATTR_TARGET_TEMP_HIGH] = 23.0
 
     await _set_room(hass, "24")
     assert _attrs(hass)["active_entity_id"] == HEATER
