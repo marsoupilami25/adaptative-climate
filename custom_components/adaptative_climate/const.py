@@ -17,18 +17,24 @@ CONF_MAX_TEMP: Final = "max_temp"
 
 CONF_HEAT_ENTITY: Final = "heat_entity"
 CONF_COOL_ENTITY: Final = "cool_entity"
+CONF_HEAT_COOL_ENTITY: Final = "heat_cool_entity"
 CONF_AUTO_ENTITY: Final = "auto_entity"
 CONF_DRY_ENTITY: Final = "dry_entity"
 CONF_FAN_ONLY_ENTITY: Final = "fan_only_entity"
+
+# Optional sensor giving the room temperature.
+CONF_TEMPERATURE_SENSOR: Final = "temperature_sensor"
 
 # Modes whose fan and swing settings are kept in sync.
 CONF_SYNC_MODES: Final = "sync_modes"
 
 # Source climate entity option for each Adaptative Climate mode. Each mode is
-# sent to its source as the HVAC mode of the same name. HEAT_COOL comes later.
+# sent to its source as the HVAC mode of the same name. Without a heat_cool
+# source, HEAT_COOL uses the heat and cool sources (see combined_heat_cool).
 MODE_SOURCE_KEYS: Final[dict[HVACMode, str]] = {
     HVACMode.HEAT: CONF_HEAT_ENTITY,
     HVACMode.COOL: CONF_COOL_ENTITY,
+    HVACMode.HEAT_COOL: CONF_HEAT_COOL_ENTITY,
     HVACMode.AUTO: CONF_AUTO_ENTITY,
     HVACMode.DRY: CONF_DRY_ENTITY,
     HVACMode.FAN_ONLY: CONF_FAN_ONLY_ENTITY,
@@ -51,6 +57,18 @@ def mode_sources(settings: Mapping[str, Any]) -> dict[HVACMode, str]:
         for mode, key in MODE_SOURCE_KEYS.items()
         if settings.get(key)
     }
+
+
+def combined_heat_cool(settings: Mapping[str, Any]) -> bool:
+    """Return True when HEAT_COOL switches between the heat and cool sources.
+
+    That is when it has no source of its own, but heat and cool have one.
+    """
+    return (
+        not settings.get(CONF_HEAT_COOL_ENTITY)
+        and bool(settings.get(CONF_HEAT_ENTITY))
+        and bool(settings.get(CONF_COOL_ENTITY))
+    )
 
 
 def sync_modes(settings: Mapping[str, Any]) -> set[HVACMode]:

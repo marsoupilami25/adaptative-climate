@@ -128,7 +128,7 @@ input_number:
     max: 50
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:home-thermometer
   consigne_all_unique:
     name: Consigne ALL
@@ -136,7 +136,7 @@ input_number:
     max: 32
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_all_basse_unique:
     name: Consigne ALL basse
@@ -144,7 +144,7 @@ input_number:
     max: 32
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_all_haute_unique:
     name: Consigne ALL haute
@@ -152,7 +152,7 @@ input_number:
     max: 32
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
 
 input_boolean:
@@ -220,7 +220,7 @@ script:
           entity_id:
             - input_number.consigne_all_unique
         data:
-          value: 22
+          value: 20
       - action: input_number.set_value
         target:
           entity_id:

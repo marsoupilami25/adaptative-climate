@@ -3,11 +3,12 @@
 # Views with scenarios use the sidebar layout: scenarios on the right, controls in the main area.
 title: Tests source unique
 views:
-- title: Pilotage
+- title: Base et mémoire
   path: pilotage
   type: sidebar
   cards:
-  - type: grid
+  - &pilotage
+    type: grid
     columns: 2
     square: false
     cards:
@@ -36,6 +37,16 @@ views:
           type: attribute
           attribute: temperature
           name: Consigne
+          suffix: °C
+        - entity: climate.adaptative_all
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+          suffix: °C
+        - entity: climate.adaptative_all
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
           suffix: °C
         - entity: climate.adaptative_all
           type: attribute
@@ -95,10 +106,10 @@ views:
 
           {% endif %}
           {% set active = state_attr('climate.adaptative_all', 'active_entity_id') %}
-          | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
-          |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
+          | Source | Mode | Consigne | Basse | Haute | Min | Max | Fan | Swing | Swing H | Action | |
+          |:--|:--|--:|--:|--:|--:|--:|:--|:--|:--|:--|:-:|
           {% for label, e in [('ALL', 'climate.all_virtuel_unique')] %}
-          | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+          | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'target_temp_low') }} | {{ state_attr(e, 'target_temp_high') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
           {% endfor %}
 
           Pièce : **{{ states('input_number.temperature_courante_unique') }} °C**
@@ -109,13 +120,15 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
-      ## Scénarios
+      ## Scénarios (1/2) : base et mémoire des réglages
 
       Partir de **Tout remettre à zéro**.
 
+      ### Base
+
       1. **Changement de mode** : passer de *heat* à *cool* puis *dry*. ALL Virtuel change de mode sans passer par *off*.
-      2. **heat_cool** : ce mode n'est pas proposé, même si ALL Virtuel le gère.
-      3. **Changement externe** : mettre ALL Virtuel en *heat_cool* depuis sa carte. Adaptative ALL affiche *off*.
+      2. **heat_cool** : passer en *heat_cool*. ALL Virtuel passe en *heat_cool* ; le thermostat d'Adaptative ALL montre une plage (basse–haute) au lieu de la consigne.
+      3. **Changement externe** : éteindre, puis mettre ALL Virtuel en *heat_cool* depuis sa carte. Adaptative ALL passe en *heat_cool*.
       4. **Consigne** : changer la consigne. *Consigne ALL* suit.
       5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
       6. **Source indisponible** : couper *ALL disponible*. Adaptative ALL devient indisponible.
@@ -129,21 +142,45 @@ views:
       (la casse et les valeurs propres à une source se testent dans *Tests multi-sources*).
       **Tout remettre à zéro** n'efface pas la mémoire : elle appartient à Adaptative ALL.
 
-      9. **Mémoire par mode** : en *fan_only*, fan *high*. En *auto*, fan *low*. Repasser en *fan_only* : *Fan ALL* revient à *high* ; puis en *auto* : *low*.
-      10. **Changement pendant l'arrêt** : éteindre, mettre *Fan ALL* à *auto*, passer en *fan_only* : le fan revient à *high*.
-      11. **Synchronisation** : en *cool*, fan *medium*. Passer en *fan_only* (*high*), puis en *heat* : le fan revient à *medium*. Passer en *dry* : toujours *medium*.
-      12. **Modes séparés** : en *heat*, fan *high*. Passer en *auto* : *low* (sa propre mémoire). Y mettre *medium*, repasser en *cool* : *high*.
-      13. **Changement sur la source** : en *dry*, mettre *Fan ALL* à *medium* depuis sa carte. Passer en *fan_only*, puis en *heat* : *medium*.
-      14. **Swing synchronisé** : en *heat*, swing *on* et swing horizontal *left*. Passer en *fan_only*, puis en *cool* : *on* et *left* reviennent.
-      15. **Après un redémarrage** : en *cool*, fan *high*, puis passer en *auto* : *medium*. Redémarrer Home Assistant, passer en *heat* : le fan revient à *high*.
+      1. **Mémoire par mode** : en *fan_only*, fan *high*. En *auto*, fan *low*. Repasser en *fan_only* : *Fan ALL* revient à *high* ; puis en *auto* : *low*.
+      2. **Changement pendant l'arrêt** : éteindre, mettre *Fan ALL* à *auto*, passer en *fan_only* : le fan revient à *high*.
+      3. **Synchronisation** : en *cool*, fan *medium*. Passer en *fan_only* (*high*), puis en *heat* : le fan revient à *medium*. Passer en *dry* : toujours *medium*.
+      4. **Modes séparés** : en *heat*, fan *high*. Passer en *auto* : *low* (sa propre mémoire). Y mettre *medium*, repasser en *cool* : *high*.
+      5. **Changement sur la source** : en *dry*, mettre *Fan ALL* à *medium* depuis sa carte. Passer en *fan_only*, puis en *heat* : *medium*.
+      6. **Swing synchronisé** : en *heat*, swing *on* et swing horizontal *left*. Passer en *fan_only*, puis en *cool* : *on* et *left* reviennent.
+      7. **Après un redémarrage** : en *cool*, fan *high*, puis passer en *auto* : *medium*. Redémarrer Home Assistant, passer en *heat* : le fan revient à *high*.
+    view_layout:
+      position: sidebar
+- title: Consignes
+  path: consignes
+  type: sidebar
+  cards:
+  - *pilotage
+  - type: markdown
+    content: |
+      ## Scénarios (2/2) : consigne et consignes basse/haute
+
+      Partir de **Tout remettre à zéro**.
 
       ### Consigne
 
       La consigne appartient à Adaptative ALL (les bornes et l'arrondi se testent dans *Tests multi-sources*).
 
-      16. **Changement de mode** : en *heat*, consigne 23. Passer en *cool*, puis en *dry* : *Consigne ALL* reste à 23.
-      17. **Source allumée ailleurs** : éteindre, mettre *Consigne ALL* à 26 : Adaptative ALL ne bouge pas. Mettre ALL Virtuel en *heat* depuis sa carte : *Consigne ALL* revient à 23.
-      18. **Changement sur la source** : en *cool*, attendre 12 s, puis mettre *Consigne ALL* à 19 depuis sa carte. Adaptative ALL affiche 19 ; passer en *dry* : toujours 19.
-      19. **Consigne changée juste après le mode** : en *heat*, passer en *cool* : la source est déjà à la consigne, rien ne confirme le mode. Dans les 12 s, mettre *Consigne ALL* à 27 depuis sa carte : Adaptative ALL affiche toujours sa consigne. Au bout des 12 s, *Consigne ALL* y revient, même sans changer de mode.
+      1. **Changement de mode** : en *heat*, consigne 23. Passer en *cool*, puis en *dry* : *Consigne ALL* reste à 23.
+      2. **Source allumée ailleurs** : éteindre, mettre *Consigne ALL* à 26 : Adaptative ALL ne bouge pas. Mettre ALL Virtuel en *heat* depuis sa carte : *Consigne ALL* revient à 23.
+      3. **Changement sur la source** : en *cool*, attendre 12 s, puis mettre *Consigne ALL* à 19 depuis sa carte. Adaptative ALL affiche 19 ; passer en *dry* : toujours 19.
+      4. **Consigne changée juste après le mode** : en *heat*, passer en *cool* : la source est déjà à la consigne, rien ne confirme le mode. Dans les 12 s, mettre *Consigne ALL* à 27 depuis sa carte : Adaptative ALL affiche toujours sa consigne. Au bout des 12 s, *Consigne ALL* y revient, même sans changer de mode.
+
+      ### Consignes basse/haute
+
+      ALL Virtuel est aussi la source de *heat_cool* : elle y reçoit la plage d'Adaptative ALL
+      (*Consigne ALL basse* et *haute*). La plage appartient à Adaptative ALL, comme la consigne,
+      et n'est affichée qu'en *heat_cool*. **Tout remettre à zéro** met la source à 19–25.
+
+      1. **Plage envoyée** : en *heat_cool*, régler la plage à 20–24 : *Consigne ALL basse* et *haute* suivent. Passer en *heat* : *Consigne ALL* reprend la consigne, la plage de la source ne bouge pas. Revenir en *heat_cool* : toujours 20–24.
+      2. **Plage ignorée hors heat_cool** : en *heat*, mettre *Consigne ALL basse* à 17 depuis sa carte : Adaptative ALL ne la reprend pas. Passer en *heat_cool* : *Consigne ALL basse* revient à 20.
+      3. **Changement sur la source** : en *heat_cool*, attendre 12 s, puis mettre *Consigne ALL basse* à 18 depuis sa carte : Adaptative ALL affiche 18–24. Passer en *heat*, puis revenir en *heat_cool* : toujours 18–24.
+      4. **Plage changée juste après le mode** : en *heat_cool*, plage 20–24, éteindre, puis repasser en *heat_cool* : la source a déjà la plage, rien ne confirme le mode. Dans les 12 s, mettre *Consigne ALL haute* à 28 depuis sa carte : Adaptative ALL affiche toujours 20–24. Au bout des 12 s, *Consigne ALL haute* revient à 24.
+      5. **Après un redémarrage** : en *heat_cool*, plage 21–23, puis **Tout remettre à zéro** (source à 19–25). Redémarrer Home Assistant, passer en *heat_cool* : la source passe à 21–23.
     view_layout:
       position: sidebar

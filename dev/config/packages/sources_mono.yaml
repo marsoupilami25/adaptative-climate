@@ -11,6 +11,7 @@
 # swing_horizontal_actif_<mode>): when off, the source lists no option, like a
 # device without them.
 # All sources read the same room temperature (input_number.temperature_courante_mono).
+# Except RADIATEUR and CLIM, which read their own (input_number.temperature_<source>_mono).
 # hvac_action is computed from the mode and the room vs target temperature.
 
 # Each source has its own temperature range (heat 5-30, cool 16-32, dry 18-30,
@@ -326,7 +327,124 @@ template:
           data:
             option: "{{ swing_horizontal_mode }}"
 
+      # heat_cool source of Adaptative HEAT_COOL: low/high targets only, 10-30 °C.
+      - name: HEAT_COOL Virtuel (mono)
+        default_entity_id: climate.heat_cool_virtuel_mono
+        hvac_modes: '{{ ["off", "heat_cool"] }}'
+        min_temperature: 10
+        max_temperature: 30
+        availability: "{{ is_state('input_boolean.dispo_heat_cool_mono', 'on') }}"
+        current_temperature: "{{ states('input_number.temperature_courante_mono') }}"
+        target_temperature_low: "{{ states('input_number.consigne_heat_cool_basse_mono') }}"
+        target_temperature_high: "{{ states('input_number.consigne_heat_cool_haute_mono') }}"
+        hvac_mode: "{{ states('input_select.mode_heat_cool_mono') }}"
+        hvac_action: >
+          {% set t = states('input_number.temperature_courante_mono') | float(0) %}
+          {% set lo = states('input_number.consigne_heat_cool_basse_mono') | float(0) %}
+          {% set hi = states('input_number.consigne_heat_cool_haute_mono') | float(0) %}
+          {% if is_state('input_select.mode_heat_cool_mono', 'off') %}off
+          {% elif t < lo %}heating{% elif t > hi %}cooling{% else %}idle{% endif %}
+        set_temperature:
+          - if: "{{ target_temp_low is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_heat_cool_basse_mono
+                data:
+                  value: "{{ target_temp_low }}"
+          - if: "{{ target_temp_high is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_heat_cool_haute_mono
+                data:
+                  value: "{{ target_temp_high }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_heat_cool_mono
+          data:
+            option: "{{ hvac_mode }}"
+
+      # Heat and cool sources of Adaptative COMBINE (heat_cool without its own
+      # source), apart from HEAT/COOL Virtuel so the other views do not move.
+      - name: RADIATEUR Virtuel (mono)
+        default_entity_id: climate.radiateur_virtuel_mono
+        hvac_modes: '{{ ["off", "heat"] }}'
+        min_temperature: 5
+        max_temperature: 30
+        availability: "{{ is_state('input_boolean.dispo_radiateur_mono', 'on') }}"
+        current_temperature: "{{ states('input_number.temperature_radiateur_mono') }}"
+        target_temperature: "{{ states('input_number.consigne_radiateur_mono') }}"
+        hvac_mode: "{{ states('input_select.mode_radiateur_mono') }}"
+        hvac_action: >
+          {% set t = states('input_number.temperature_radiateur_mono') | float(0) %}
+          {% set c = states('input_number.consigne_radiateur_mono') | float(0) %}
+          {% if is_state('input_select.mode_radiateur_mono', 'off') %}off
+          {% elif t < c %}heating{% else %}idle{% endif %}
+        set_temperature:
+          action: input_number.set_value
+          target:
+            entity_id: input_number.consigne_radiateur_mono
+          data:
+            value: "{{ temperature }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_radiateur_mono
+          data:
+            option: "{{ hvac_mode }}"
+
+      # 16-32 °C with a 1 °C step and a fan.
+      - name: CLIM Virtuel (mono)
+        default_entity_id: climate.clim_virtuel_mono
+        hvac_modes: '{{ ["off", "cool"] }}'
+        min_temperature: 16
+        max_temperature: 32
+        target_temperature_step: 1
+        availability: "{{ is_state('input_boolean.dispo_clim_mono', 'on') }}"
+        current_temperature: "{{ states('input_number.temperature_clim_mono') }}"
+        target_temperature: "{{ states('input_number.consigne_clim_mono') }}"
+        hvac_mode: "{{ states('input_select.mode_clim_mono') }}"
+        hvac_action: >
+          {% set t = states('input_number.temperature_clim_mono') | float(0) %}
+          {% set c = states('input_number.consigne_clim_mono') | float(0) %}
+          {% if is_state('input_select.mode_clim_mono', 'off') %}off
+          {% elif t > c %}cooling{% else %}idle{% endif %}
+        fan_modes: "{{ state_attr('input_select.fan_clim_mono', 'options') }}"
+        fan_mode: "{{ states('input_select.fan_clim_mono') }}"
+        set_temperature:
+          action: input_number.set_value
+          target:
+            entity_id: input_number.consigne_clim_mono
+          data:
+            value: "{{ temperature }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_clim_mono
+          data:
+            option: "{{ hvac_mode }}"
+        set_fan_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.fan_clim_mono
+          data:
+            option: "{{ fan_mode }}"
+
 input_select:
+  mode_heat_cool_mono:
+    name: Mode HEAT_COOL
+    options: ["off", "heat_cool"]
+  mode_radiateur_mono:
+    name: Mode RADIATEUR
+    options: ["off", "heat"]
+  mode_clim_mono:
+    name: Mode CLIM
+    options: ["off", "cool"]
+  fan_clim_mono:
+    name: Fan CLIM
+    options: ["auto", "low", "high"]
   mode_heat_mono:
     name: Mode HEAT
     options: ["off", "heat"]
@@ -389,13 +507,61 @@ input_select:
     options: ["off", "on", "left", "center", "right", "wide"]
 
 input_number:
+  temperature_radiateur_mono:
+    name: Température RADIATEUR
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  temperature_clim_mono:
+    name: Température CLIM
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  consigne_heat_cool_basse_mono:
+    name: Consigne HEAT_COOL basse
+    min: 10
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:thermometer-check
+  consigne_heat_cool_haute_mono:
+    name: Consigne HEAT_COOL haute
+    min: 10
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:thermometer-check
+  consigne_radiateur_mono:
+    name: Consigne RADIATEUR
+    min: 5
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:thermometer-check
+  consigne_clim_mono:
+    name: Consigne CLIM
+    min: 16
+    max: 32
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:thermometer-check
   temperature_courante_mono:
     name: Température de la pièce
     min: 0
     max: 50
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:home-thermometer
   consigne_heat_mono:
     name: Consigne HEAT
@@ -403,7 +569,7 @@ input_number:
     max: 30
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_cool_mono:
     name: Consigne COOL
@@ -411,7 +577,7 @@ input_number:
     max: 32
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_dry_mono:
     name: Consigne DRY
@@ -419,7 +585,7 @@ input_number:
     max: 30
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_fan_only_mono:
     name: Consigne FAN_ONLY
@@ -427,7 +593,7 @@ input_number:
     max: 35
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_auto_mono:
     name: Consigne AUTO
@@ -435,10 +601,22 @@ input_number:
     max: 30
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
 
 input_boolean:
+  dispo_heat_cool_mono:
+    name: HEAT_COOL disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_radiateur_mono:
+    name: RADIATEUR disponible
+    initial: true
+    icon: mdi:power-plug
+  dispo_clim_mono:
+    name: CLIM disponible
+    initial: true
+    icon: mdi:power-plug
   dispo_heat_mono:
     name: HEAT disponible
     initial: true
@@ -592,6 +770,8 @@ script:
         target:
           entity_id:
             - input_number.temperature_courante_mono
+            - input_number.temperature_radiateur_mono
+            - input_number.temperature_clim_mono
         data:
           value: 20
       - action: input_number.set_value
@@ -599,13 +779,13 @@ script:
           entity_id:
             - input_number.consigne_heat_mono
         data:
-          value: 21
+          value: 20
       - action: input_number.set_value
         target:
           entity_id:
             - input_number.consigne_cool_mono
         data:
-          value: 24
+          value: 20
       - action: input_number.set_value
         target:
           entity_id:
@@ -613,4 +793,48 @@ script:
             - input_number.consigne_fan_only_mono
             - input_number.consigne_auto_mono
         data:
-          value: 22
+          value: 20
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.dispo_heat_cool_mono
+            - input_boolean.dispo_radiateur_mono
+            - input_boolean.dispo_clim_mono
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.mode_heat_cool_mono
+            - input_select.mode_radiateur_mono
+            - input_select.mode_clim_mono
+        data:
+          option: "off"
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.fan_clim_mono
+        data:
+          option: auto
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_heat_cool_basse_mono
+        data:
+          value: 19
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_heat_cool_haute_mono
+        data:
+          value: 25
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_radiateur_mono
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_clim_mono
+        data:
+          value: 20

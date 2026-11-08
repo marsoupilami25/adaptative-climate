@@ -346,7 +346,7 @@ async def test_source_error_does_not_fail_mode_change(
     await _mode(hass, HVACMode.COOL)
 
     assert hass.states.get(ENTITY_ID).state == HVACMode.COOL
-    assert "Could not set the temperature 20.0 on climate.ac: refused" in caplog.text
+    assert "Could not set temperature 20.0 on climate.ac: refused" in caplog.text
 
 
 @pytest.mark.usefixtures("init_integration")

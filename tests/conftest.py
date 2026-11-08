@@ -13,6 +13,8 @@ from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotEx
 from syrupy.assertion import SnapshotAssertion
 
 from homeassistant.components.climate import (
+    ATTR_TARGET_TEMP_HIGH,
+    ATTR_TARGET_TEMP_LOW,
     DOMAIN as CLIMATE_DOMAIN,
     ClimateEntity,
     ClimateEntityFeature,
@@ -96,8 +98,13 @@ class FakeClimate(ClimateEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Change the target temperature."""
         self.calls.append(("set_temperature", kwargs))
-        if ATTR_TEMPERATURE in kwargs:
-            setattr(self, _attr_name("target_temperature"), kwargs[ATTR_TEMPERATURE])
+        for attr, key in (
+            (ATTR_TEMPERATURE, "target_temperature"),
+            (ATTR_TARGET_TEMP_LOW, "target_temperature_low"),
+            (ATTR_TARGET_TEMP_HIGH, "target_temperature_high"),
+        ):
+            if attr in kwargs:
+                setattr(self, _attr_name(key), kwargs[attr])
         self.async_write_ha_state()
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:

@@ -3,19 +3,22 @@
     "step": {
       "user": {
         "title": "Adaptative Climate",
-        "description": "Create an adaptative climate entity. Choose a source climate entity for each mode; a mode without a source is not shown. The same entity can serve several modes.",
+        "description": "Create an adaptative climate entity. Choose a source climate entity for each mode; a mode without a source is not shown. The same entity can serve several modes. Without a heat/cool mode entity, the heat/cool mode uses the heat and cool entities.",
         "data": {
           "name": "Name",
           "heat_entity": "Heat mode climate entity",
           "cool_entity": "Cool mode climate entity",
+          "heat_cool_entity": "Heat/cool mode climate entity",
           "auto_entity": "Auto mode climate entity",
           "dry_entity": "Dry mode climate entity",
           "fan_only_entity": "Fan only mode climate entity",
+          "temperature_sensor": "Temperature sensor",
           "sync_modes": "Synchronized modes",
           "min_temp": "Minimum temperature",
           "max_temp": "Maximum temperature"
         },
         "data_description": {
+          "temperature_sensor": "Optional. Room temperature shown by the entity. Without a heat/cool mode climate entity, the heat/cool mode switches between the heat and cool climate entities using it. Leave empty to use the temperature of the climate entities.",
           "sync_modes": "Optional. These modes share their fan and swing settings. A mode without a climate entity is ignored.",
           "min_temp": "Optional. Leave empty to follow the minimum of the climate entity in use. Can only raise it.",
           "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it."
@@ -40,14 +43,17 @@
         "data": {
           "heat_entity": "Heat mode climate entity",
           "cool_entity": "Cool mode climate entity",
+          "heat_cool_entity": "Heat/cool mode climate entity",
           "auto_entity": "Auto mode climate entity",
           "dry_entity": "Dry mode climate entity",
           "fan_only_entity": "Fan only mode climate entity",
+          "temperature_sensor": "Temperature sensor",
           "sync_modes": "Synchronized modes",
           "min_temp": "Minimum temperature",
           "max_temp": "Maximum temperature"
         },
         "data_description": {
+          "temperature_sensor": "Optional. Room temperature shown by the entity. Without a heat/cool mode climate entity, the heat/cool mode switches between the heat and cool climate entities using it. Leave empty to use the temperature of the climate entities.",
           "sync_modes": "Optional. These modes share their fan and swing settings. A mode without a climate entity is ignored.",
           "min_temp": "Optional. Leave empty to follow the minimum of the climate entity in use. Can only raise it.",
           "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it."
@@ -80,6 +86,7 @@
       "options": {
         "heat": "Heat",
         "cool": "Cool",
+        "heat_cool": "Heat/cool",
         "auto": "Auto",
         "dry": "Dry",
         "fan_only": "Fan only"

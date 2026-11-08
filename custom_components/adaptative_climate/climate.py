@@ -37,6 +37,7 @@ from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_SUPPORTED_FEATURES,
     ATTR_TEMPERATURE,
+    ATTR_UNIT_OF_MEASUREMENT,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
     UnitOfTemperature,
@@ -54,6 +55,7 @@ from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
     DOMAIN,
+    MODE_SOURCE_KEYS,
     entry_settings,
 )
 from .coordinator import AdaptativeClimateConfigEntry, AdaptativeClimateCoordinator
@@ -68,6 +70,26 @@ SOURCE_FEATURES = (
     | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 )
 
+# Targets kept by the entity, named like the source attributes: the single
+# target and the low/high targets of HEAT_COOL.
+TARGETS = (ATTR_TEMPERATURE, ATTR_TARGET_TEMP_LOW, ATTR_TARGET_TEMP_HIGH)
+
+# Feature a source needs to get a target attribute.
+TARGET_FEATURES = {
+    ATTR_TEMPERATURE: ClimateEntityFeature.TARGET_TEMPERATURE,
+    ATTR_TARGET_TEMP_LOW: ClimateEntityFeature.TARGET_TEMPERATURE_RANGE,
+    ATTR_TARGET_TEMP_HIGH: ClimateEntityFeature.TARGET_TEMPERATURE_RANGE,
+}
+
+# Name of each target in the saved data.
+SAVED_TARGETS = {
+    ATTR_TEMPERATURE: "target_temperature",
+    ATTR_TARGET_TEMP_LOW: "target_temperature_low",
+    ATTR_TARGET_TEMP_HIGH: "target_temperature_high",
+}
+
+# Modes the combined HEAT_COOL switches between.
+PHASES = (HVACMode.HEAT, HVACMode.COOL)
 
 
 @dataclass(frozen=True)
@@ -118,6 +140,10 @@ SETTLE_TIME = timedelta(seconds=12)
 # Remembered settings: memory key -> setting attribute -> value.
 type SettingsMemory = dict[str, dict[str, str]]
 
+# What the targets are sent for: the mode, and the phase of the combined
+# HEAT_COOL (None otherwise).
+type TargetKey = tuple[HVACMode, HVACMode | None]
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: AdaptativeClimateConfigEntry,
@@ -143,12 +169,14 @@ def _same_value(a: Any, b: Any) -> bool:
     return a == b
 
 
-def _parse_temperature(data: dict[str, Any]) -> float | None:
-    """Read the target temperature saved before a restart."""
-    value = data.get("target_temperature")
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    return float(value)
+def _parse_targets(data: dict[str, Any]) -> dict[str, float | None]:
+    """Read the targets saved before a restart, dropping bad values."""
+    targets: dict[str, float | None] = {}
+    for target, name in SAVED_TARGETS.items():
+        value = data.get(name)
+        valid = isinstance(value, (int, float)) and not isinstance(value, bool)
+        targets[target] = float(value) if valid else None
+    return targets
 
 
 def _same_temperature(a: Any, b: Any) -> bool:
@@ -156,6 +184,16 @@ def _same_temperature(a: Any, b: Any) -> bool:
     if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
         return False
     return math.isclose(a, b, abs_tol=1e-6)
+
+
+def _changed(a: Any, b: Any) -> bool:
+    """Return True when a target reading changed."""
+    return a != b and not _same_temperature(a, b)
+
+
+def _is_number(value: Any) -> bool:
+    """Return True for a number (not a boolean)."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 def _parse_memory(data: dict[str, Any]) -> SettingsMemory:
@@ -186,13 +224,18 @@ class AdaptativeClimateEntity(
     the source of that mode is in the HVAC mode of the same name. Otherwise
     it is off.
 
+    Without a heat_cool source, HEAT_COOL uses the heat and cool sources: it
+    runs one of them (its phase), chosen from the room temperature and the
+    low/high targets. That mode cannot be read from the sources, so the
+    entity keeps it (see _update_phase).
+
     Each mode remembers its fan and swing settings and sends them back to its
     source when the entity switches to it. The synchronized modes share one
     memory, which only keeps values that all their sources accept.
 
-    The target temperature belongs to this entity, not to the sources: it
-    is sent to the source of each mode the entity enters, rounded to the
-    step of that source and kept in its range (see _observe_temperature).
+    The targets belong to this entity, not to the sources: they are sent to
+    the source of each mode the entity enters, rounded to the step of that
+    source and kept in its range (see _observe_targets).
     """
 
     _attr_has_entity_name = True
@@ -202,45 +245,62 @@ class AdaptativeClimateEntity(
         super().__init__(coordinator)
         self._entry = coordinator.config_entry
         self._mode_sources = coordinator.mode_sources
+        self._combined = coordinator.combined_heat_cool
         self._attr_unique_id = self._entry.entry_id
         self._attr_name = self._entry.title
         # Mode restored by turn_on. Kept in memory only.
         self._last_on_mode: HVACMode | None = None
         # Fan and swing settings of each mode, kept across restarts.
         self._memory: SettingsMemory = {}
-        # Mode and settings of the active source at the last update, to
-        # tell a mode change from a setting change.
-        self._observed: tuple[HVACMode, dict[str, Any]] | None = None
+        # Target key and readings of the active source at the last update,
+        # to tell a mode change from a change within the mode.
+        self._observed: tuple[TargetKey, dict[str, Any]] | None = None
         # Mode being switched to by this entity, while it is in progress.
         self._switching_to: HVACMode | None = None
-        # Target temperature wanted by the user, kept across restarts. The
-        # sources receive it rounded and in their range, but it stays as is.
-        self._target_temperature: float | None = None
+        # Targets wanted by the user, kept across restarts. The sources
+        # receive them rounded and in their range, but they stay as they are.
+        self._targets: dict[str, float | None] = dict.fromkeys(TARGETS)
         # Settle time after entering a mode (see SETTLE_TIME): cancels its
         # timer, None outside of it.
         self._settle_cancel: CALLBACK_TYPE | None = None
-        # The target was sent to the source during the settle time, so the
+        # A target was sent to the source during the settle time, so the
         # source showing it confirms the mode.
         self._settle_sent = False
         # The source showed another target during the settle time.
         self._settle_received = False
+        # Combined HEAT_COOL: the mode its source runs in (heat or cool),
+        # None outside of it.
+        self._phase: HVACMode | None = None
+        # After this entity switches the phase, the sources may still show
+        # the previous one for a while: cancels the timer of that wait.
+        self._phase_wait_cancel: CALLBACK_TYPE | None = None
+        # The combined HEAT_COOL was on before a restart: it is restored once
+        # the heat and cool sources are usable (see _update_phase).
+        self._restore_phase = False
+        # The next state write is sent even when nothing changed (see
+        # async_set_temperature).
+        self._force_write = False
 
     async def async_added_to_hass(self) -> None:
-        """Restore the remembered settings."""
+        """Restore the remembered settings, the targets and the combined mode."""
         await super().async_added_to_hass()
         if (last := await self.async_get_last_extra_data()) is not None:
-            self._memory = _parse_memory(last.as_dict())
-            self._target_temperature = _parse_temperature(last.as_dict())
+            data = last.as_dict()
+            self._memory = _parse_memory(data)
+            self._targets = _parse_targets(data)
+            self._restore_phase = self._combined and data.get("heat_cool") is True
+        self._update_phase()
         self._observe_sources()
 
     async def async_will_remove_from_hass(self) -> None:
-        """Stop the settle timer."""
+        """Stop the timers."""
         self._end_settle()
+        self._end_phase_wait()
         await super().async_will_remove_from_hass()
 
     @property
     def extra_restore_state_data(self) -> RestoredExtraData:
-        """Save the remembered settings of the configured modes."""
+        """Save the remembered settings of the configured modes and the targets."""
         sync = self.coordinator.sync_modes
         keys = {str(mode) for mode in self._mode_sources if mode not in sync}
         if sync:
@@ -252,17 +312,23 @@ class AdaptativeClimateEntity(
                     for key, values in self._memory.items()
                     if key in keys and values
                 },
-                "target_temperature": self._target_temperature,
+                **{
+                    name: self._targets[target]
+                    for target, name in SAVED_TARGETS.items()
+                },
+                "heat_cool": self._phase is not None or self._restore_phase,
             }
         )
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Remember the last mode, the settings and the target, then update state."""
+        """Follow the sources, then update state."""
+        self._update_phase()
         mode = self._current_mode()
         if mode is not HVACMode.OFF:
             self._last_on_mode = mode
         self._observe_sources()
+        self._check_phase()
         super()._handle_coordinator_update()
 
     # Remembered settings
@@ -307,12 +373,11 @@ class AdaptativeClimateEntity(
 
     @callback
     def _observe_sources(self) -> None:
-        """Follow the active source: its settings and its target temperature.
+        """Follow the active source: its settings and its targets.
 
         Nothing is taken from the sources while the entity is off.
         """
-        if self._target_temperature is None:
-            self._target_temperature = self._initial_temperature()
+        self._init_targets()
 
         mode = self._current_mode()
         if mode is HVACMode.OFF:
@@ -320,18 +385,27 @@ class AdaptativeClimateEntity(
             self._end_settle()
             return
 
-        source = self._mode_sources[mode]
+        source_mode = self._source_mode(mode)
+        if self._running_mode() != source_mode:
+            # Combined HEAT_COOL: the source does not show the phase yet.
+            self._observed = None
+            self._end_settle()
+            return
+
+        source = self._mode_sources[source_mode]
+        key = self._target_key()
         values = {setting.attr: self._attr_from(source, setting.attr) for setting in SETTINGS}
-        values[ATTR_TEMPERATURE] = self._attr_from(source, ATTR_TEMPERATURE)
+        for target in TARGETS:
+            values[target] = self._attr_from(source, target)
         previous = self._observed
-        self._observed = (mode, values)
+        self._observed = (key, values)
         # While switching, the source may still show the previous mode.
         if self._switching_to is not None and mode != self._switching_to:
             return
 
-        before = None if previous is None or previous[0] != mode else previous[1]
-        self._observe_settings(mode, values, before)
-        self._observe_temperature(mode, source, values, before)
+        before = None if previous is None or previous[0] != key else previous[1]
+        self._observe_settings(source_mode, values, before)
+        self._observe_targets(key, source, values, before)
 
     @callback
     def _observe_settings(
@@ -359,51 +433,55 @@ class AdaptativeClimateEntity(
                 memory[setting.attr] = value
 
     @callback
-    def _observe_temperature(
+    def _observe_targets(
         self,
-        mode: HVACMode,
+        key: TargetKey,
         source: str,
         values: dict[str, Any],
         before: dict[str, Any] | None,
     ) -> None:
-        """Send the target to a source entering its mode, or take a change made on it.
+        """Send the targets to a source entering its mode, or take a change made on it.
 
         Entering a mode (by this entity or elsewhere) starts the settle time
-        and sends the target once the source shows the mode. During the
+        and sends the targets once the source shows the mode. During the
         settle time, the targets of the source are ignored: it may report
-        its own target for the mode, late. The source showing the target
-        sent to it ends the settle time. Otherwise, at its end, the target
-        is sent again if the source showed another target in the meantime.
-        If it showed nothing, nothing is sent.
+        its own targets for the mode, late. The source showing the targets
+        sent to it ends the settle time. Otherwise, at its end, the targets
+        are sent again if the source showed others in the meantime. If it
+        showed nothing, nothing is sent.
 
         Outside the settle time, a target changed on the source becomes the
         target of this entity, unless it is the value sent to it (rounded
         and in its range).
         """
         if before is None:
-            self._start_settle(mode)
-            self._schedule_send_temperature(mode)
+            self._start_settle(key)
+            self._schedule_send_targets(key)
             return
-        value = values[ATTR_TEMPERATURE]
-        applied = self._applied_temperature(source)
+        mapping = self._target_map()
+        changed = [attr for attr in mapping if _changed(values[attr], before[attr])]
         if self._settle_cancel is not None:
-            if self._settle_sent and _same_temperature(value, applied):
+            if self._settle_sent and all(
+                _same_temperature(values[attr], self._applied(target, source))
+                for attr, target in mapping.items()
+            ):
                 self._end_settle()
-            elif not _same_temperature(value, before[ATTR_TEMPERATURE]):
+            elif changed:
                 self._settle_received = True
             return
-        if not isinstance(value, (int, float)) or _same_temperature(
-            value, before[ATTR_TEMPERATURE]
-        ):
-            return
-        if _same_temperature(value, applied):
-            return
-        # The user took over from the source: it is kept as is, even outside
-        # the range or the limits of this entity.
-        self._target_temperature = float(value)
+        for attr in changed:
+            value = values[attr]
+            target = mapping[attr]
+            if not _is_number(value) or _same_temperature(
+                value, self._applied(target, source)
+            ):
+                continue
+            # The user took over from the source: it is kept as is, even
+            # outside the range or the limits of this entity.
+            self._targets[target] = float(value)
 
     @callback
-    def _start_settle(self, mode: HVACMode) -> None:
+    def _start_settle(self, key: TargetKey) -> None:
         """Start the settle time of a mode just entered."""
         self._end_settle()
 
@@ -413,7 +491,7 @@ class AdaptativeClimateEntity(
             received = self._settle_received
             self._end_settle()
             if received:
-                self._schedule_send_temperature(mode)
+                self._schedule_send_targets(key)
             self.async_write_ha_state()
 
         self._settle_cancel = async_call_later(self.hass, SETTLE_TIME, _settled)
@@ -428,78 +506,289 @@ class AdaptativeClimateEntity(
         self._settle_received = False
 
     @callback
-    def _schedule_send_temperature(self, mode: HVACMode) -> None:
-        """Send the target to the source of a mode, without waiting."""
+    def _schedule_send_targets(self, key: TargetKey) -> None:
+        """Send the targets to the active source, without waiting."""
         self._entry.async_create_task(
             self.hass,
-            self._async_send_temperature(mode),
-            f"{DOMAIN} temperature {self._mode_sources[mode]}",
+            self._async_send_targets(key),
+            f"{DOMAIN} temperature {self._active_source}",
         )
 
-    def _initial_temperature(self) -> float | None:
-        """Return a first target: the one of a source, else the middle of the range.
+    @callback
+    def _init_targets(self) -> None:
+        """Set the first targets, once a source is usable.
 
-        None while no source is usable yet.
+        The single target comes from a source, else the middle of the range.
+        The low/high targets come from a source that has both (the heat_cool
+        source first), else 1 degree around the single target.
         """
         if self._display_source is None:
-            return None
+            return
         active = self._active_source
         entity_ids = [active] if active else self.coordinator.source_entity_ids
-        for entity_id in entity_ids:
-            value = self._attr_from(entity_id, ATTR_TEMPERATURE)
-            if isinstance(value, (int, float)):
-                return float(value)
-        low, high = self._temperature_range()
-        return (low + high) / 2
+        if self._targets[ATTR_TEMPERATURE] is None:
+            low, high = self._temperature_range()
+            self._targets[ATTR_TEMPERATURE] = next(
+                (
+                    float(value)
+                    for entity_id in entity_ids
+                    if _is_number(value := self._attr_from(entity_id, ATTR_TEMPERATURE))
+                ),
+                (low + high) / 2,
+            )
+        if self._targets[ATTR_TARGET_TEMP_LOW] is None or (
+            self._targets[ATTR_TARGET_TEMP_HIGH] is None
+        ):
+            heat_cool = self._mode_sources.get(HVACMode.HEAT_COOL)
+            for entity_id in dict.fromkeys(
+                [*filter(None, [heat_cool]), *self.coordinator.source_entity_ids]
+            ):
+                low = self._attr_from(entity_id, ATTR_TARGET_TEMP_LOW)
+                high = self._attr_from(entity_id, ATTR_TARGET_TEMP_HIGH)
+                if _is_number(low) and _is_number(high) and low <= high:
+                    break
+            else:
+                target = self._targets[ATTR_TEMPERATURE]
+                low, high = target - 1, target + 1
+            self._targets[ATTR_TARGET_TEMP_LOW] = float(low)
+            self._targets[ATTR_TARGET_TEMP_HIGH] = float(high)
 
-    def _applied_temperature(self, entity_id: str | None) -> float | None:
-        """Return the target as a source gets it: rounded to its step, in its range.
+    def _applied(self, target: str, entity_id: str | None) -> float | None:
+        """Return a target as a source gets it (see _fit)."""
+        value = self._targets[target]
+        return None if value is None else self._fit(value, entity_id)
 
-        Without a source (entity off), the target is only kept in the range
+    def _fit(self, value: float, entity_id: str | None) -> float:
+        """Return a value as a source gets it: rounded to its step, in its range.
+
+        Without a source (entity off), the value is only kept in the range
         of the entity.
         """
-        target = self._target_temperature
-        if target is None:
-            return None
         if entity_id is None:
             low, high = self._temperature_range()
         else:
             low, high = self._limited_range([entity_id])
             step = self._attr_from(entity_id, ATTR_TARGET_TEMP_STEP)
             if isinstance(step, (int, float)) and step > 0:
-                target = round(math.floor(target / step + 0.5) * step, 6)
-        return min(max(target, low), high)
+                value = round(math.floor(value / step + 0.5) * step, 6)
+        return min(max(value, low), high)
 
-    async def _async_send_temperature(self, mode: HVACMode) -> None:
-        """Send the target to the source of a mode, if that mode is still on.
+    def _target_source(self, target: str) -> str | None:
+        """Return the only source a low/high target goes to, if any.
 
-        A source without a target (fan only) gets nothing, and the target is
+        The combined HEAT_COOL sends the low target to the heat source and
+        the high one to the cool source; a heat_cool source with low/high
+        targets gets both. The single target goes to several sources: None.
+        """
+        if target == ATTR_TEMPERATURE:
+            return None
+        if self._combined:
+            phase = HVACMode.HEAT if target == ATTR_TARGET_TEMP_LOW else HVACMode.COOL
+            return self._mode_sources[phase]
+        source = self._mode_sources.get(HVACMode.HEAT_COOL)
+        if ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in self._source_features(source):
+            return source
+        return None
+
+    def _target_key(self) -> TargetKey:
+        """Return what the targets are sent for: the mode and the combined phase."""
+        mode = self._current_mode()
+        return (mode, self._phase if mode is HVACMode.HEAT_COOL else None)
+
+    def _target_map(self) -> dict[str, str]:
+        """Return which target each target attribute of the active source gets.
+
+        The combined HEAT_COOL sends the low target to the heat source and
+        the high one to the cool source, as their single target. A heat_cool
+        source gets the low/high targets when it has them.
+        """
+        mode = self._current_mode()
+        if mode is HVACMode.HEAT_COOL:
+            if self._phase is HVACMode.HEAT:
+                return {ATTR_TEMPERATURE: ATTR_TARGET_TEMP_LOW}
+            if self._phase is HVACMode.COOL:
+                return {ATTR_TEMPERATURE: ATTR_TARGET_TEMP_HIGH}
+            features = self._source_features(self._active_source)
+            if ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in features:
+                return {
+                    ATTR_TARGET_TEMP_LOW: ATTR_TARGET_TEMP_LOW,
+                    ATTR_TARGET_TEMP_HIGH: ATTR_TARGET_TEMP_HIGH,
+                }
+        return {ATTR_TEMPERATURE: ATTR_TEMPERATURE}
+
+    async def _async_send_targets(self, key: TargetKey) -> None:
+        """Send the targets to the active source, if its mode is still on.
+
+        A source without these targets (fan only) gets nothing, and they are
         kept for the next mode. A source error is logged without failing.
         """
-        if self._current_mode() != mode:
-            return
-        entity_id = self._mode_sources[mode]
-        if ClimateEntityFeature.TARGET_TEMPERATURE not in self._source_features(entity_id):
-            return
-        applied = self._applied_temperature(entity_id)
-        if applied is None or _same_temperature(
-            self._attr_from(entity_id, ATTR_TEMPERATURE), applied
+        if (
+            key[0] is HVACMode.OFF
+            or self._target_key() != key
+            or self._running_mode() != self._source_mode(key[0])
         ):
             return
-        # Set first: the source may show the target before the call returns.
+        entity_id = self._active_source
+        mapping = self._target_map()
+        features = self._source_features(entity_id)
+        data: dict[str, float] = {}
+        for attr, target in mapping.items():
+            applied = self._applied(target, entity_id)
+            if TARGET_FEATURES[attr] in features and applied is not None:
+                data[attr] = applied
+        # Low and high targets go together.
+        if len(data) < len(mapping) or all(
+            _same_temperature(self._attr_from(entity_id, attr), value)
+            for attr, value in data.items()
+        ):
+            return
+        # Set first: the source may show the targets before the call returns.
         if self._settle_cancel is not None:
             self._settle_sent = True
         try:
             await self.hass.services.async_call(
                 CLIMATE_DOMAIN,
                 "set_temperature",
-                {ATTR_TEMPERATURE: applied, ATTR_ENTITY_ID: entity_id},
+                {**data, ATTR_ENTITY_ID: entity_id},
                 blocking=True,
             )
         except HomeAssistantError as err:
             _LOGGER.warning(
-                "Could not set the temperature %s on %s: %s", applied, entity_id, err
+                "Could not set %s on %s: %s",
+                ", ".join(f"{attr} {value}" for attr, value in data.items()),
+                entity_id,
+                err,
             )
+
+    # Combined HEAT_COOL
+
+    def _room_temperature(self) -> float | None:
+        """Return the room temperature: the sensor, else the display source."""
+        sensor = self.coordinator.temperature_sensor
+        state = (self.coordinator.data or {}).get(sensor) if sensor else None
+        if state is not None:
+            try:
+                value = float(state.state)
+            except ValueError:
+                pass
+            else:
+                if math.isfinite(value):
+                    unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+                    wanted = self.hass.config.units.temperature_unit
+                    if unit in TemperatureConverter.VALID_UNITS and unit != wanted:
+                        value = TemperatureConverter.convert(value, unit, wanted)
+                    return value
+        value = self._attr_from_display(ATTR_CURRENT_TEMPERATURE)
+        return float(value) if _is_number(value) else None
+
+    def _wanted_phase(self, current: HVACMode | None) -> HVACMode:
+        """Return the phase the combined HEAT_COOL should run in.
+
+        Below the low target: heat. Above the high target: cool. In between,
+        the current phase is kept; when entering (current is None), the phase
+        of the closest target. Without room temperature, the current phase,
+        else the heat or cool source already running, else heat.
+        """
+        temperature = self._room_temperature()
+        low = self._targets[ATTR_TARGET_TEMP_LOW]
+        high = self._targets[ATTR_TARGET_TEMP_HIGH]
+        if temperature is not None and low is not None and high is not None:
+            if temperature < low:
+                return HVACMode.HEAT
+            if temperature > high:
+                return HVACMode.COOL
+            if current is None:
+                return HVACMode.HEAT if temperature - low <= high - temperature else HVACMode.COOL
+        if current is not None:
+            return current
+        running = self._running_mode()
+        return running if running in PHASES else HVACMode.HEAT
+
+    @callback
+    def _update_phase(self) -> None:
+        """Leave the combined HEAT_COOL when its source left the phase elsewhere.
+
+        The source has the upper hand: another mode or off set on it ends
+        the combined mode. While the sources may still show the previous
+        phase (see _start_phase), this is not judged.
+
+        After a restart, the combined mode comes back with the phase its
+        source runs in, once the sources are usable.
+        """
+        if self._restore_phase:
+            running = self._running_mode()
+            if running in PHASES:
+                self._phase = running
+                self._restore_phase = False
+            elif self._mode_usable(HVACMode.HEAT_COOL):
+                # Both sources are usable and none runs: it was turned off.
+                self._restore_phase = False
+        if self._phase is None:
+            return
+        if self._running_mode() == self._phase:
+            self._end_phase_wait()
+            return
+        if self._phase_wait_cancel is not None or self._switching_to is not None:
+            return
+        self._phase = None
+
+    @callback
+    def _check_phase(self) -> None:
+        """Switch the combined HEAT_COOL to the phase the temperature asks for."""
+        if (
+            self._phase is None
+            or self._phase_wait_cancel is not None
+            or self._switching_to is not None
+        ):
+            return
+        phase = self._wanted_phase(self._phase)
+        if phase != self._phase:
+            self._start_phase(phase)
+            self._entry.async_create_task(
+                self.hass,
+                self._async_switch_phase(phase),
+                f"{DOMAIN} phase {phase}",
+            )
+
+    @callback
+    def _start_phase(self, phase: HVACMode) -> None:
+        """Set the phase and wait for the sources to show it."""
+        self._phase = phase
+        self._end_phase_wait()
+
+        @callback
+        def _waited(_now: datetime) -> None:
+            self._phase_wait_cancel = None
+            self._update_phase()
+            self._observe_sources()
+            self._check_phase()
+            self.async_write_ha_state()
+
+        self._phase_wait_cancel = async_call_later(self.hass, SETTLE_TIME, _waited)
+
+    @callback
+    def _end_phase_wait(self) -> None:
+        """Stop waiting for the sources to show the phase."""
+        if self._phase_wait_cancel is not None:
+            self._phase_wait_cancel()
+            self._phase_wait_cancel = None
+
+    @callback
+    def _leave_phase(self) -> None:
+        """Leave the combined HEAT_COOL."""
+        self._phase = None
+        self._end_phase_wait()
+
+    async def _async_switch_phase(self, phase: HVACMode) -> None:
+        """Run the source of a new phase, if the phase did not change since."""
+        if self._phase != phase:
+            return
+        try:
+            await self._async_activate(phase, HVACMode.HEAT_COOL)
+        except HomeAssistantError as err:
+            _LOGGER.warning("Could not switch %s to %s: %s", self.entity_id, phase, err)
+        self._observe_sources()
+        self.async_write_ha_state()
 
     async def _async_send_settings(self, mode: HVACMode, entity_id: str) -> None:
         """Send the remembered settings of a mode to its source.
@@ -554,7 +843,7 @@ class AdaptativeClimateEntity(
             return None
         return state
 
-    def _current_mode(self) -> HVACMode:
+    def _running_mode(self) -> HVACMode:
         """Return the mode whose source runs in that mode, else OFF.
 
         When several do, the source turned on last wins (it is about to turn
@@ -570,10 +859,34 @@ class AdaptativeClimateEntity(
                 return mode
         return running[0][0] if running else HVACMode.OFF
 
+    def _current_mode(self) -> HVACMode:
+        """Return the mode of this entity.
+
+        The mode the sources run in, or the combined HEAT_COOL when its source
+        runs in its phase. While the sources may still show the previous
+        phase, or off, it stays HEAT_COOL.
+        """
+        running = self._running_mode()
+        if self._phase is not None and (
+            running == self._phase
+            or (
+                (self._phase_wait_cancel is not None or self._switching_to is not None)
+                and running in {HVACMode.OFF, *PHASES}
+            )
+        ):
+            return HVACMode.HEAT_COOL
+        return running
+
+    def _source_mode(self, mode: HVACMode) -> HVACMode:
+        """Return the mode sent to the source: the phase for the combined HEAT_COOL."""
+        if mode is HVACMode.HEAT_COOL and self._phase is not None:
+            return self._phase
+        return mode
+
     @property
     def _active_source(self) -> str | None:
         """Return the source of the current mode (None when off)."""
-        return self._mode_sources.get(self._current_mode())
+        return self._mode_sources.get(self._source_mode(self._current_mode()))
 
     @property
     def _display_source(self) -> str | None:
@@ -595,7 +908,27 @@ class AdaptativeClimateEntity(
         """Read an attribute from the display source."""
         return self._attr_from(self._display_source, attr)
 
+    def _mode_entities(self, mode: HVACMode) -> list[str]:
+        """Return the sources a mode uses: heat and cool for the combined HEAT_COOL."""
+        if mode is HVACMode.HEAT_COOL and self._combined:
+            return [self._mode_sources[phase] for phase in PHASES]
+        return [self._mode_sources[mode]]
+
+    def _mode_usable(self, mode: HVACMode) -> bool:
+        """Return True when the sources of a mode are usable and offer it."""
+        modes = PHASES if mode is HVACMode.HEAT_COOL and self._combined else (mode,)
+        return all(
+            self._state(self._mode_sources[source_mode]) is not None
+            and source_mode not in self.coordinator.unsupported_modes
+            for source_mode in modes
+        )
+
     # Entity properties
+
+    @property
+    def force_update(self) -> bool:
+        """Return True to send the next state even when nothing changed."""
+        return self._force_write
 
     @property
     def available(self) -> bool:
@@ -613,12 +946,15 @@ class AdaptativeClimateEntity(
         """Return the features of the sources this entity implements.
 
         Temperature features are combined over every source, so they do not
-        change with the mode. Fan and swing (vertical and horizontal) come
-        from the source of the current mode, when it lists at least one option.
+        change with the mode. The combined HEAT_COOL adds the low/high
+        targets. Fan and swing (vertical and horizontal) come from the source
+        of the current mode, when it lists at least one option.
         """
         features = ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
         for entity_id in self.coordinator.source_entity_ids:
             features |= self._source_features(entity_id) & SOURCE_FEATURES
+        if self._combined:
+            features |= ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 
         active = self._active_source
         for setting in SETTINGS:
@@ -637,37 +973,58 @@ class AdaptativeClimateEntity(
 
     @property
     def native_current_temperature(self) -> float | None:
-        """Return the current temperature."""
-        return self._attr_from_display(ATTR_CURRENT_TEMPERATURE)
+        """Return the room temperature: the sensor, else the display source."""
+        return self._room_temperature()
+
+    def _shown_target(self, target: str) -> float | None:
+        """Return a target as shown by the entity.
+
+        A target the active source gets is read from it: it shows what is
+        applied, even a target set on it outside the limits. During the
+        settle time, or from a source without that target, the target of
+        this entity is shown, as the active source gets it.
+
+        In HEAT_COOL, the single target is not shown, and the target of the
+        other phase of the combined mode is shown as its source gets it.
+        Outside HEAT_COOL, the low/high targets are not shown.
+        """
+        mode = self._current_mode()
+        active = self._active_source
+        mapping = self._target_map()
+        for attr, mapped in mapping.items():
+            if mapped != target:
+                continue
+            value = self._attr_from(active, attr)
+            if (
+                self._settle_cancel is None
+                and TARGET_FEATURES[attr] in self._source_features(active)
+                and _is_number(value)
+            ):
+                return value
+            return self._applied(target, active)
+        if mode is HVACMode.HEAT_COOL:
+            if target == ATTR_TEMPERATURE or self._phase is None:
+                return None
+            other = HVACMode.COOL if self._phase is HVACMode.HEAT else HVACMode.HEAT
+            return self._applied(target, self._mode_sources[other])
+        if target == ATTR_TEMPERATURE:
+            return self._applied(target, active)
+        return None
 
     @property
     def native_target_temperature(self) -> float | None:
-        """Return the target of the active source, else the target of this entity.
-
-        The active source shows what is applied, even a target set on it
-        outside the limits. During the settle time, off, or with a source
-        without target (fan only), the target of this entity is shown, as
-        the active source gets it.
-        """
-        active = self._active_source
-        value = self._attr_from(active, ATTR_TEMPERATURE)
-        if (
-            self._settle_cancel is None
-            and ClimateEntityFeature.TARGET_TEMPERATURE in self._source_features(active)
-            and isinstance(value, (int, float))
-        ):
-            return value
-        return self._applied_temperature(active)
+        """Return the target temperature (see _shown_target)."""
+        return self._shown_target(ATTR_TEMPERATURE)
 
     @property
     def native_target_temperature_high(self) -> float | None:
-        """Return the high target temperature."""
-        return self._attr_from(self._active_source, ATTR_TARGET_TEMP_HIGH)
+        """Return the high target temperature (see _shown_target)."""
+        return self._shown_target(ATTR_TARGET_TEMP_HIGH)
 
     @property
     def native_target_temperature_low(self) -> float | None:
-        """Return the low target temperature."""
-        return self._attr_from(self._active_source, ATTR_TARGET_TEMP_LOW)
+        """Return the low target temperature (see _shown_target)."""
+        return self._shown_target(ATTR_TARGET_TEMP_LOW)
 
     if not hasattr(ClimateEntity, "native_temperature_unit"):
         # Home Assistant < 2026.11 only reads the names without "native_".
@@ -709,12 +1066,15 @@ class AdaptativeClimateEntity(
     def _temperature_range(self) -> tuple[float, float]:
         """Return the range of the entity.
 
-        On: the range of the active source. Off: the widest range of the
-        sources. Both narrowed by the configured limits.
+        On: the range of the sources of the current mode (heat and cool for
+        the combined HEAT_COOL). Off: the widest range of the sources. Both
+        narrowed by the configured limits.
         """
-        active = self._active_source
+        mode = self._current_mode()
         return self._limited_range(
-            [active] if active else self.coordinator.source_entity_ids
+            self.coordinator.source_entity_ids
+            if mode is HVACMode.OFF
+            else self._mode_entities(mode)
         )
 
     def _limited_range(self, entity_ids: list[str]) -> tuple[float, float]:
@@ -750,8 +1110,16 @@ class AdaptativeClimateEntity(
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
-        """Return OFF plus every mode that has a source configured."""
-        return [HVACMode.OFF, *self._mode_sources]
+        """Return OFF plus every mode that has a source, HEAT_COOL when combined."""
+        return [
+            HVACMode.OFF,
+            *(
+                mode
+                for mode in MODE_SOURCE_KEYS
+                if mode in self._mode_sources
+                or (mode is HVACMode.HEAT_COOL and self._combined)
+            ),
+        ]
 
     @property
     def hvac_action(self) -> HVACAction | None:
@@ -808,21 +1176,20 @@ class AdaptativeClimateEntity(
             # Modes still listed, but whose source cannot be used right now
             # (unavailable, or it does not offer the mode).
             "unavailable_modes": [
-                str(mode)
-                for mode, entity_id in self._mode_sources.items()
-                if self._state(entity_id) is None
-                or mode in self.coordinator.unsupported_modes
+                str(mode) for mode in self.hvac_modes[1:] if not self._mode_usable(mode)
             ],
         }
 
     # Commands
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        """Set the target temperature and send it to the source of the current mode.
+        """Set the targets and send them to the source of the current mode.
 
-        The target is kept even when off or when the source has none (fan
-        only): the next mode gets it. With a new mode, the source gets the
-        target once it shows that mode. Low/high targets go to the source as is.
+        A low/high target is kept rounded and in the range of the source it
+        goes to (see _target_source). The targets are kept even when off, or when the current mode does
+        not use them: the next mode gets them. With a new mode, the source
+        gets the targets once it shows that mode. In the combined HEAT_COOL,
+        new low/high targets may switch the phase.
         """
         hvac_mode = kwargs.get(ATTR_HVAC_MODE)
         if hvac_mode is not None and hvac_mode not in self.hvac_modes:
@@ -831,47 +1198,31 @@ class AdaptativeClimateEntity(
                 translation_key="unsupported_hvac_mode",
                 translation_placeholders={"hvac_mode": str(hvac_mode)},
             )
-        temperature = kwargs.get(ATTR_TEMPERATURE)
-        if temperature is not None:
-            self._target_temperature = float(temperature)
-        service_data = {
-            key: kwargs[key]
-            for key in (ATTR_TARGET_TEMP_LOW, ATTR_TARGET_TEMP_HIGH)
-            if key in kwargs
-        }
+        for target in TARGETS:
+            if kwargs.get(target) is None:
+                continue
+            value = float(kwargs[target])
+            # A low/high target only goes to one source: it is kept as that
+            # source gets it, so the phase switches where the source works.
+            # The single target is kept as is, for every source.
+            source = self._target_source(target)
+            if source is not None and self._state(source) is not None:
+                value = self._fit(value, source)
+            self._targets[target] = value
 
         if hvac_mode is not None and HVACMode(hvac_mode) != self._current_mode():
             await self.async_set_hvac_mode(HVACMode(hvac_mode))
-            if hvac_mode == HVACMode.OFF:
-                self.async_write_ha_state()
-                return
-            source = self._mode_sources[HVACMode(hvac_mode)]
-        elif self._current_mode() is HVACMode.OFF:
-            if service_data:
-                self._require_active_source()
+        elif self._current_mode() is not HVACMode.OFF:
+            self._check_phase()
+            await self._async_send_targets(self._target_key())
+        # A target the source cannot take (out of its range) leaves the state
+        # as it was. It is sent anyway, so the frontend drops the value it
+        # shows and shows the target applied again.
+        self._force_write = True
+        try:
             self.async_write_ha_state()
-            return
-        else:
-            source = self._mode_sources[self._current_mode()]
-            applied = self._applied_temperature(source)
-            if (
-                temperature is not None
-                and applied is not None
-                and ClimateEntityFeature.TARGET_TEMPERATURE
-                in self._source_features(source)
-            ):
-                service_data[ATTR_TEMPERATURE] = applied
-
-        if service_data:
-            # Set last: the call must always go to the source entity.
-            service_data[ATTR_ENTITY_ID] = source
-            await self.hass.services.async_call(
-                CLIMATE_DOMAIN,
-                "set_temperature",
-                service_data,
-                blocking=True,
-            )
-        self.async_write_ha_state()
+        finally:
+            self._force_write = False
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set the fan mode of the active source.
@@ -906,48 +1257,77 @@ class AdaptativeClimateEntity(
         The remembered fan and swing settings of the mode are then sent to
         its source. Home Assistant has already checked that hvac_mode is in
         hvac_modes.
+        The combined HEAT_COOL runs the heat or cool source (see _wanted_phase).
         A mode whose source is unavailable is refused before anything is
         turned off: Home Assistant would skip the call to that source silently.
         So is a mode its source does not offer: the source would reject it.
+        The combined HEAT_COOL needs both of its sources.
         """
-        target = self._mode_sources.get(hvac_mode)
-        if target is not None and self._state(target) is None:
+        if hvac_mode is not HVACMode.OFF:
+            for source_mode in (
+                PHASES if hvac_mode is HVACMode.HEAT_COOL and self._combined else (hvac_mode,)
+            ):
+                self._check_source(hvac_mode, source_mode)
+
+        if hvac_mode is HVACMode.HEAT_COOL and self._combined:
+            phase = self._wanted_phase(None)
+            self._start_phase(phase)
+            await self._async_activate(phase, HVACMode.HEAT_COOL)
+        else:
+            self._leave_phase()
+            if hvac_mode is HVACMode.OFF:
+                await self.coordinator.async_turn_off_other_sources(None)
+            else:
+                await self._async_activate(hvac_mode, hvac_mode)
+        if hvac_mode is not HVACMode.OFF:
+            self._last_on_mode = hvac_mode
+        # A source already in its mode sends no update: the new targets
+        # are sent from here.
+        self._update_phase()
+        self._observe_sources()
+        self.async_write_ha_state()
+
+    def _check_source(self, hvac_mode: HVACMode, source_mode: HVACMode) -> None:
+        """Refuse a mode whose source is unavailable or does not offer its mode."""
+        entity_id = self._mode_sources[source_mode]
+        placeholders = {"hvac_mode": str(hvac_mode), "entity_id": entity_id}
+        if self._state(entity_id) is None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="source_unavailable",
-                translation_placeholders={
-                    "hvac_mode": str(hvac_mode),
-                    "entity_id": target,
-                },
+                translation_placeholders=placeholders,
             )
-        if target is not None and hvac_mode in self.coordinator.unsupported_modes:
+        if source_mode in self.coordinator.unsupported_modes:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="source_mode_not_supported",
-                translation_placeholders={
-                    "hvac_mode": str(hvac_mode),
-                    "entity_id": target,
-                },
+                translation_placeholders=placeholders,
             )
-        await self.coordinator.async_turn_off_other_sources(target)
 
-        if target is not None:
-            self._switching_to = hvac_mode
-            try:
-                await self._async_source_set_hvac_mode(target, hvac_mode)
-                self._last_on_mode = hvac_mode
-                await self._async_send_settings(hvac_mode, target)
-            finally:
-                self._switching_to = None
+    async def _async_activate(self, source_mode: HVACMode, mode: HVACMode) -> None:
+        """Run the source of a mode, after turning the other sources off.
+
+        source_mode is sent to the source; mode is the mode of this entity
+        (HEAT_COOL for a phase of the combined mode).
+        """
+        entity_id = self._mode_sources[source_mode]
+        self._switching_to = mode
+        try:
+            await self.coordinator.async_turn_off_other_sources(entity_id)
+            await self._async_source_set_hvac_mode(entity_id, source_mode)
+            await self._async_send_settings(source_mode, entity_id)
+        finally:
+            self._switching_to = None
 
     async def async_turn_on(self) -> None:
         """Turn on in the last used mode, else the first configured mode."""
         if self._current_mode() is not HVACMode.OFF:
             return
 
+        modes = self.hvac_modes[1:]
         mode = self._last_on_mode
-        if mode not in self._mode_sources:
-            mode = next(iter(self._mode_sources), None)
+        if mode not in modes:
+            mode = next(iter(modes), None)
         if mode is not None:
             await self.async_set_hvac_mode(mode)
 

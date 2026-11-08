@@ -10,10 +10,11 @@ views:
   - type: grid
     cards:
     - type: heading
-      heading: Pièce
+      heading: Capteur
     - type: entities
       entities:
-      - input_number.temperature_courante_manuel
+      - input_number.temperature_capteur_manuel
+      - input_boolean.dispo_capteur_manuel
       - entity: script.reset_sources_test_manuel
         name: Tout remettre à zéro
       grid_options:
@@ -35,6 +36,7 @@ views:
       state_color: true
       entities:
       - input_select.mode_heat_manuel
+      - input_number.temperature_heat_manuel
       - input_number.consigne_heat_manuel
       - input_select.fan_heat_manuel
       - input_select.swing_heat_manuel
@@ -62,6 +64,7 @@ views:
       state_color: true
       entities:
       - input_select.mode_cool_manuel
+      - input_number.temperature_cool_manuel
       - input_number.consigne_cool_manuel
       - input_select.fan_cool_manuel
       - input_select.swing_cool_manuel
@@ -89,6 +92,7 @@ views:
       state_color: true
       entities:
       - input_select.mode_dry_manuel
+      - input_number.temperature_dry_manuel
       - input_number.consigne_dry_manuel
       - input_select.fan_dry_manuel
       - input_select.swing_dry_manuel
@@ -116,6 +120,7 @@ views:
       state_color: true
       entities:
       - input_select.mode_fan_only_manuel
+      - input_number.temperature_fan_only_manuel
       - input_number.consigne_fan_only_manuel
       - input_select.fan_fan_only_manuel
       - input_select.swing_fan_only_manuel
@@ -143,6 +148,7 @@ views:
       state_color: true
       entities:
       - input_select.mode_auto_manuel
+      - input_number.temperature_auto_manuel
       - input_number.consigne_auto_manuel
       - input_select.fan_auto_manuel
       - input_select.swing_auto_manuel
@@ -170,6 +176,7 @@ views:
       state_color: true
       entities:
       - input_select.mode_all_manuel
+      - input_number.temperature_all_manuel
       - input_number.consigne_all_manuel
       - input_number.consigne_all_basse_manuel
       - input_number.consigne_all_haute_manuel
@@ -224,8 +231,23 @@ views:
         name: Source active
       - entity: climate.adaptative_manuel
         type: attribute
+        attribute: current_temperature
+        name: Température
+        suffix: °C
+      - entity: climate.adaptative_manuel
+        type: attribute
         attribute: temperature
         name: Consigne
+        suffix: °C
+      - entity: climate.adaptative_manuel
+        type: attribute
+        attribute: target_temp_low
+        name: Consigne basse
+        suffix: °C
+      - entity: climate.adaptative_manuel
+        type: attribute
+        attribute: target_temp_high
+        name: Consigne haute
         suffix: °C
       - entity: climate.adaptative_manuel
         type: attribute
@@ -265,18 +287,19 @@ views:
     - type: markdown
       content: |
         {% set active = state_attr('climate.adaptative_manuel', 'active_entity_id') %}
-        | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
-        |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
+        | Source | Mode | Temp. | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+        |:--|:--|--:|--:|--:|--:|:--|:--|:--|:--|:-:|
         {% for label, e in [('HEAT', 'climate.heat_virtuel_manuel'), ('COOL', 'climate.cool_virtuel_manuel'), ('DRY', 'climate.dry_virtuel_manuel'), ('FAN_ONLY', 'climate.fan_only_virtuel_manuel'), ('AUTO', 'climate.auto_virtuel_manuel'), ('ALL', 'climate.all_virtuel_manuel')] %}
-        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+        | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'current_temperature') }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
         {% endfor %}
 
-        Pièce : **{{ states('input_number.temperature_courante_manuel') }} °C**
+        Capteur : **{{ states('sensor.capteur_piece_manuel') }} °C**
       grid_options:
         columns: full
     - type: entities
       entities:
-      - input_number.temperature_courante_manuel
+      - input_number.temperature_capteur_manuel
+      - input_boolean.dispo_capteur_manuel
       - entity: script.reset_sources_test_manuel
         name: Tout remettre à zéro
       grid_options:

@@ -10,7 +10,8 @@
 # (input_boolean.fan_actif_<mode>, swing_actif_<mode>,
 # swing_horizontal_actif_<mode>): when off, the source lists no option, like a
 # device without them.
-# All sources read the same room temperature (input_number.temperature_courante_multi).
+# Each source reads its own room temperature (input_number.temperature_<mode>_multi),
+# so the dashboard shows which source the entity reads.
 # hvac_action is computed from the mode and the room vs target temperature.
 #
 # Option names differ between sources, to test the case-insensitive sync:
@@ -20,6 +21,17 @@
 # Each source has its own temperature range (heat 5-30, cool 16-32, dry 18-30,
 # fan_only 10-35, auto 10-30, all 8-32), so ranges differ between modes.
 template:
+  # Room temperature sensor, for the temperature_sensor option. It has its own
+  # value (input_number.temperature_capteur_multi), apart from the room
+  # temperature the sources read, to tell them apart.
+  - sensor:
+      - name: Capteur pièce (multi)
+        default_entity_id: sensor.capteur_piece_multi
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: "{{ is_state('input_boolean.dispo_capteur_multi', 'on') }}"
+        state: "{{ states('input_number.temperature_capteur_multi') }}"
   - climate:
       - name: HEAT Virtuel (multi)
         default_entity_id: climate.heat_virtuel_multi
@@ -27,11 +39,11 @@ template:
         min_temperature: 5
         max_temperature: 30
         availability: "{{ is_state('input_boolean.dispo_heat_multi', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
+        current_temperature: "{{ states('input_number.temperature_heat_multi') }}"
         target_temperature: "{{ states('input_number.consigne_heat_multi') }}"
         hvac_mode: "{{ states('input_select.mode_heat_multi') }}"
         hvac_action: >
-          {% set t = states('input_number.temperature_courante_multi') | float(0) %}
+          {% set t = states('input_number.temperature_heat_multi') | float(0) %}
           {% set c = states('input_number.consigne_heat_multi') | float(0) %}
           {% if is_state('input_select.mode_heat_multi', 'off') %}off
           {% elif t < c %}heating{% else %}idle{% endif %}
@@ -92,11 +104,11 @@ template:
         # 1 °C step (the others have none): the target sent to it is rounded.
         target_temperature_step: 1
         availability: "{{ is_state('input_boolean.dispo_cool_multi', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
+        current_temperature: "{{ states('input_number.temperature_cool_multi') }}"
         target_temperature: "{{ states('input_number.consigne_cool_multi') }}"
         hvac_mode: "{{ states('input_select.mode_cool_multi') }}"
         hvac_action: >
-          {% set t = states('input_number.temperature_courante_multi') | float(0) %}
+          {% set t = states('input_number.temperature_cool_multi') | float(0) %}
           {% set c = states('input_number.consigne_cool_multi') | float(0) %}
           {% if is_state('input_select.mode_cool_multi', 'off') %}off
           {% elif t > c %}cooling{% else %}idle{% endif %}
@@ -155,7 +167,7 @@ template:
         min_temperature: 18
         max_temperature: 30
         availability: "{{ is_state('input_boolean.dispo_dry_multi', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
+        current_temperature: "{{ states('input_number.temperature_dry_multi') }}"
         target_temperature: "{{ states('input_number.consigne_dry_multi') }}"
         hvac_mode: "{{ states('input_select.mode_dry_multi') }}"
         hvac_action: >
@@ -215,7 +227,7 @@ template:
         min_temperature: 10
         max_temperature: 35
         availability: "{{ is_state('input_boolean.dispo_fan_only_multi', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
+        current_temperature: "{{ states('input_number.temperature_fan_only_multi') }}"
         target_temperature: "{{ states('input_number.consigne_fan_only_multi') }}"
         hvac_mode: "{{ states('input_select.mode_fan_only_multi') }}"
         hvac_action: >
@@ -275,11 +287,11 @@ template:
         min_temperature: 10
         max_temperature: 30
         availability: "{{ is_state('input_boolean.dispo_auto_multi', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_multi') }}"
+        current_temperature: "{{ states('input_number.temperature_auto_multi') }}"
         target_temperature: "{{ states('input_number.consigne_auto_multi') }}"
         hvac_mode: "{{ states('input_select.mode_auto_multi') }}"
         hvac_action: >
-          {% set t = states('input_number.temperature_courante_multi') | float(0) %}
+          {% set t = states('input_number.temperature_auto_multi') | float(0) %}
           {% set c = states('input_number.consigne_auto_multi') | float(0) %}
           {% if is_state('input_select.mode_auto_multi', 'off') %}off
           {% elif t < c %}heating{% elif t > c %}cooling{% else %}idle{% endif %}
@@ -395,13 +407,53 @@ input_select:
     options: ["off", "on", "left", "center", "right", "wide"]
 
 input_number:
-  temperature_courante_multi:
-    name: Température de la pièce
+  temperature_capteur_multi:
+    name: Température du capteur
     min: 0
     max: 50
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
+    icon: mdi:thermometer
+  temperature_heat_multi:
+    name: Température HEAT
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  temperature_cool_multi:
+    name: Température COOL
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  temperature_dry_multi:
+    name: Température DRY
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  temperature_fan_only_multi:
+    name: Température FAN_ONLY
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  temperature_auto_multi:
+    name: Température AUTO
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
     icon: mdi:home-thermometer
   consigne_heat_multi:
     name: Consigne HEAT
@@ -409,7 +461,7 @@ input_number:
     max: 30
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_cool_multi:
     name: Consigne COOL
@@ -417,7 +469,7 @@ input_number:
     max: 32
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_dry_multi:
     name: Consigne DRY
@@ -425,7 +477,7 @@ input_number:
     max: 30
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_fan_only_multi:
     name: Consigne FAN_ONLY
@@ -433,7 +485,7 @@ input_number:
     max: 35
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_auto_multi:
     name: Consigne AUTO
@@ -441,10 +493,14 @@ input_number:
     max: 30
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
 
 input_boolean:
+  dispo_capteur_multi:
+    name: Capteur disponible
+    initial: true
+    icon: mdi:thermometer-off
   dispo_heat_multi:
     name: HEAT disponible
     initial: true
@@ -617,7 +673,11 @@ script:
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.temperature_courante_multi
+            - input_number.temperature_heat_multi
+            - input_number.temperature_cool_multi
+            - input_number.temperature_dry_multi
+            - input_number.temperature_fan_only_multi
+            - input_number.temperature_auto_multi
         data:
           value: 20
       - action: input_number.set_value
@@ -625,13 +685,13 @@ script:
           entity_id:
             - input_number.consigne_heat_multi
         data:
-          value: 21
+          value: 20
       - action: input_number.set_value
         target:
           entity_id:
             - input_number.consigne_cool_multi
         data:
-          value: 24
+          value: 20
       - action: input_number.set_value
         target:
           entity_id:
@@ -639,4 +699,14 @@ script:
             - input_number.consigne_fan_only_multi
             - input_number.consigne_auto_multi
         data:
-          value: 22
+          value: 20
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.dispo_capteur_multi
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.temperature_capteur_multi
+        data:
+          value: 20

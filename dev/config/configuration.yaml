@@ -54,6 +54,13 @@ adaptative_climate:
     fan_only_entity: climate.fan_only_virtuel_mono
   - name: Adaptative AUTO
     auto_entity: climate.auto_virtuel_mono
+  - name: Adaptative HEAT_COOL
+    heat_cool_entity: climate.heat_cool_virtuel_mono
+  # heat_cool without its own source: switches between a radiator and an AC,
+  # with the room temperature of the sources (no sensor).
+  - name: Adaptative COMBINE
+    heat_entity: climate.radiateur_virtuel_mono
+    cool_entity: climate.clim_virtuel_mono
 
   # Case 2: every mode, one single-mode source per mode.
   - name: Adaptative MULTI
@@ -62,6 +69,9 @@ adaptative_climate:
     dry_entity: climate.dry_virtuel_multi
     fan_only_entity: climate.fan_only_virtuel_multi
     auto_entity: climate.auto_virtuel_multi
+    # No heat_cool source: heat_cool switches between heat and cool, with
+    # the room temperature of this sensor.
+    temperature_sensor: sensor.capteur_piece_multi
     # Heat, cool and dry share their fan and swing settings.
     sync_modes: [heat, cool, dry]
 
@@ -69,6 +79,7 @@ adaptative_climate:
   - name: Adaptative ALL
     heat_entity: climate.all_virtuel_unique
     cool_entity: climate.all_virtuel_unique
+    heat_cool_entity: climate.all_virtuel_unique
     dry_entity: climate.all_virtuel_unique
     fan_only_entity: climate.all_virtuel_unique
     auto_entity: climate.all_virtuel_unique

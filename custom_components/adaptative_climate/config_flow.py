@@ -27,6 +27,7 @@ from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_TEMP,
     CONF_SYNC_MODES,
+    CONF_TEMPERATURE_SENSOR,
     DEFAULT_NAME,
     DOMAIN,
     MODE_SOURCE_KEYS,
@@ -44,6 +45,13 @@ CLIMATE_SELECTOR = EntitySelector(EntitySelectorConfig(domain="climate"))
 # One optional source per mode. A mode without a source is not shown.
 SOURCES_SCHEMA: dict[vol.Marker, Any] = {
     vol.Optional(key): CLIMATE_SELECTOR for key in MODE_SOURCE_KEYS.values()
+}
+
+# Optional room temperature sensor, used by the combined heat_cool mode.
+SENSOR_SCHEMA: dict[vol.Marker, Any] = {
+    vol.Optional(CONF_TEMPERATURE_SENSOR): EntitySelector(
+        EntitySelectorConfig(domain="sensor", device_class="temperature")
+    ),
 }
 
 # Optional limits, empty by default: the range then follows the sources.
@@ -68,12 +76,15 @@ CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
         **SOURCES_SCHEMA,
+        **SENSOR_SCHEMA,
         **SYNC_SCHEMA,
         **TEMPERATURE_SCHEMA,
     }
 )
 
-OPTIONS_SCHEMA = vol.Schema({**SOURCES_SCHEMA, **SYNC_SCHEMA, **TEMPERATURE_SCHEMA})
+OPTIONS_SCHEMA = vol.Schema(
+    {**SOURCES_SCHEMA, **SENSOR_SCHEMA, **SYNC_SCHEMA, **TEMPERATURE_SCHEMA}
+)
 
 
 class AdaptativeClimateConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

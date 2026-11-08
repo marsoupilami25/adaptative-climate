@@ -10,7 +10,8 @@
 # (input_boolean.fan_actif_<mode>, swing_actif_<mode>,
 # swing_horizontal_actif_<mode>): when off, the source lists no option, like a
 # device without them.
-# All sources read the same room temperature (input_number.temperature_courante_manuel).
+# Each source reads its own room temperature (input_number.temperature_<mode>_manuel),
+# so the dashboard shows which source the entity reads.
 # hvac_action is computed from the mode and the room vs target temperature.
 #
 # Option names differ between sources, to test the case-insensitive sync:
@@ -20,6 +21,17 @@
 # Each source has its own temperature range (heat 5-30, cool 16-32, dry 18-30,
 # fan_only 10-35, auto 10-30, all 8-32), so ranges differ between modes.
 template:
+  # Room temperature sensor, for the temperature_sensor option. It has its own
+  # value (input_number.temperature_capteur_manuel), apart from the room
+  # temperature the sources read, to tell them apart.
+  - sensor:
+      - name: Capteur pièce (manuel)
+        default_entity_id: sensor.capteur_piece_manuel
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: "{{ is_state('input_boolean.dispo_capteur_manuel', 'on') }}"
+        state: "{{ states('input_number.temperature_capteur_manuel') }}"
   - climate:
       - name: HEAT Virtuel (manuel)
         default_entity_id: climate.heat_virtuel_manuel
@@ -27,11 +39,11 @@ template:
         min_temperature: 5
         max_temperature: 30
         availability: "{{ is_state('input_boolean.dispo_heat_manuel', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_manuel') }}"
+        current_temperature: "{{ states('input_number.temperature_heat_manuel') }}"
         target_temperature: "{{ states('input_number.consigne_heat_manuel') }}"
         hvac_mode: "{{ states('input_select.mode_heat_manuel') }}"
         hvac_action: >
-          {% set t = states('input_number.temperature_courante_manuel') | float(0) %}
+          {% set t = states('input_number.temperature_heat_manuel') | float(0) %}
           {% set c = states('input_number.consigne_heat_manuel') | float(0) %}
           {% if is_state('input_select.mode_heat_manuel', 'off') %}off
           {% elif t < c %}heating{% else %}idle{% endif %}
@@ -90,11 +102,11 @@ template:
         min_temperature: 16
         max_temperature: 32
         availability: "{{ is_state('input_boolean.dispo_cool_manuel', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_manuel') }}"
+        current_temperature: "{{ states('input_number.temperature_cool_manuel') }}"
         target_temperature: "{{ states('input_number.consigne_cool_manuel') }}"
         hvac_mode: "{{ states('input_select.mode_cool_manuel') }}"
         hvac_action: >
-          {% set t = states('input_number.temperature_courante_manuel') | float(0) %}
+          {% set t = states('input_number.temperature_cool_manuel') | float(0) %}
           {% set c = states('input_number.consigne_cool_manuel') | float(0) %}
           {% if is_state('input_select.mode_cool_manuel', 'off') %}off
           {% elif t > c %}cooling{% else %}idle{% endif %}
@@ -153,7 +165,7 @@ template:
         min_temperature: 18
         max_temperature: 30
         availability: "{{ is_state('input_boolean.dispo_dry_manuel', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_manuel') }}"
+        current_temperature: "{{ states('input_number.temperature_dry_manuel') }}"
         target_temperature: "{{ states('input_number.consigne_dry_manuel') }}"
         hvac_mode: "{{ states('input_select.mode_dry_manuel') }}"
         hvac_action: >
@@ -213,7 +225,7 @@ template:
         min_temperature: 10
         max_temperature: 35
         availability: "{{ is_state('input_boolean.dispo_fan_only_manuel', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_manuel') }}"
+        current_temperature: "{{ states('input_number.temperature_fan_only_manuel') }}"
         target_temperature: "{{ states('input_number.consigne_fan_only_manuel') }}"
         hvac_mode: "{{ states('input_select.mode_fan_only_manuel') }}"
         hvac_action: >
@@ -273,11 +285,11 @@ template:
         min_temperature: 10
         max_temperature: 30
         availability: "{{ is_state('input_boolean.dispo_auto_manuel', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_manuel') }}"
+        current_temperature: "{{ states('input_number.temperature_auto_manuel') }}"
         target_temperature: "{{ states('input_number.consigne_auto_manuel') }}"
         hvac_mode: "{{ states('input_select.mode_auto_manuel') }}"
         hvac_action: >
-          {% set t = states('input_number.temperature_courante_manuel') | float(0) %}
+          {% set t = states('input_number.temperature_auto_manuel') | float(0) %}
           {% set c = states('input_number.consigne_auto_manuel') | float(0) %}
           {% if is_state('input_select.mode_auto_manuel', 'off') %}off
           {% elif t < c %}heating{% elif t > c %}cooling{% else %}idle{% endif %}
@@ -336,14 +348,14 @@ template:
         min_temperature: 8
         max_temperature: 32
         availability: "{{ is_state('input_boolean.dispo_all_manuel', 'on') }}"
-        current_temperature: "{{ states('input_number.temperature_courante_manuel') }}"
+        current_temperature: "{{ states('input_number.temperature_all_manuel') }}"
         target_temperature: "{{ states('input_number.consigne_all_manuel') }}"
         target_temperature_low: "{{ states('input_number.consigne_all_basse_manuel') }}"
         target_temperature_high: "{{ states('input_number.consigne_all_haute_manuel') }}"
         hvac_mode: "{{ states('input_select.mode_all_manuel') }}"
         hvac_action: >
           {% set m = states('input_select.mode_all_manuel') %}
-          {% set t = states('input_number.temperature_courante_manuel') | float(0) %}
+          {% set t = states('input_number.temperature_all_manuel') | float(0) %}
           {% set c = states('input_number.consigne_all_manuel') | float(0) %}
           {% set lo = states('input_number.consigne_all_basse_manuel') | float(0) %}
           {% set hi = states('input_number.consigne_all_haute_manuel') | float(0) %}
@@ -496,13 +508,61 @@ input_select:
     options: ["off", "on", "left", "center", "right", "wide"]
 
 input_number:
-  temperature_courante_manuel:
-    name: Température de la pièce
+  temperature_capteur_manuel:
+    name: Température du capteur
     min: 0
     max: 50
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
+    icon: mdi:thermometer
+  temperature_heat_manuel:
+    name: Température HEAT
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  temperature_cool_manuel:
+    name: Température COOL
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  temperature_dry_manuel:
+    name: Température DRY
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  temperature_fan_only_manuel:
+    name: Température FAN_ONLY
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  temperature_auto_manuel:
+    name: Température AUTO
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  temperature_all_manuel:
+    name: Température ALL
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
     icon: mdi:home-thermometer
   consigne_heat_manuel:
     name: Consigne HEAT
@@ -510,7 +570,7 @@ input_number:
     max: 30
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_cool_manuel:
     name: Consigne COOL
@@ -518,7 +578,7 @@ input_number:
     max: 32
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_dry_manuel:
     name: Consigne DRY
@@ -526,7 +586,7 @@ input_number:
     max: 30
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_fan_only_manuel:
     name: Consigne FAN_ONLY
@@ -534,7 +594,7 @@ input_number:
     max: 35
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_auto_manuel:
     name: Consigne AUTO
@@ -542,7 +602,7 @@ input_number:
     max: 30
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_all_manuel:
     name: Consigne ALL
@@ -550,7 +610,7 @@ input_number:
     max: 32
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_all_basse_manuel:
     name: Consigne ALL basse
@@ -558,7 +618,7 @@ input_number:
     max: 32
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
   consigne_all_haute_manuel:
     name: Consigne ALL haute
@@ -566,10 +626,14 @@ input_number:
     max: 32
     step: 0.5
     unit_of_measurement: "°C"
-    mode: box
+    mode: slider
     icon: mdi:thermometer-check
 
 input_boolean:
+  dispo_capteur_manuel:
+    name: Capteur disponible
+    initial: true
+    icon: mdi:thermometer-off
   dispo_heat_manuel:
     name: HEAT disponible
     initial: true
@@ -740,7 +804,12 @@ script:
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.temperature_courante_manuel
+            - input_number.temperature_heat_manuel
+            - input_number.temperature_cool_manuel
+            - input_number.temperature_dry_manuel
+            - input_number.temperature_fan_only_manuel
+            - input_number.temperature_auto_manuel
+            - input_number.temperature_all_manuel
         data:
           value: 20
       - action: input_number.set_value
@@ -748,13 +817,13 @@ script:
           entity_id:
             - input_number.consigne_heat_manuel
         data:
-          value: 21
+          value: 20
       - action: input_number.set_value
         target:
           entity_id:
             - input_number.consigne_cool_manuel
         data:
-          value: 24
+          value: 20
       - action: input_number.set_value
         target:
           entity_id:
@@ -763,7 +832,7 @@ script:
             - input_number.consigne_auto_manuel
             - input_number.consigne_all_manuel
         data:
-          value: 22
+          value: 20
       - action: input_number.set_value
         target:
           entity_id:
@@ -776,3 +845,13 @@ script:
             - input_number.consigne_all_haute_manuel
         data:
           value: 25
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.dispo_capteur_manuel
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.temperature_capteur_manuel
+        data:
+          value: 20

@@ -3,11 +3,12 @@
 # Views with scenarios use the sidebar layout: scenarios on the right, controls in the main area.
 title: Tests multi-sources
 views:
-- title: Pilotage
+- title: Base et mémoire
   path: pilotage
   type: sidebar
   cards:
-  - type: grid
+  - &pilotage
+    type: grid
     columns: 2
     square: false
     cards:
@@ -34,9 +35,28 @@ views:
           name: Source active
         - entity: climate.adaptative_multi
           type: attribute
+          attribute: current_temperature
+          name: Température
+          suffix: °C
+        - entity: climate.adaptative_multi
+          type: attribute
           attribute: temperature
           name: Consigne
           suffix: °C
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+          suffix: °C
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+          suffix: °C
+        - entity: climate.adaptative_multi
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
         - entity: climate.adaptative_multi
           type: attribute
           attribute: fan_mode
@@ -76,16 +96,22 @@ views:
 
           {% endif %}
           {% set active = state_attr('climate.adaptative_multi', 'active_entity_id') %}
-          | Source | Mode | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
-          |:--|:--|--:|--:|--:|:--|:--|:--|:--|:-:|
+          | Source | Mode | Temp. | Consigne | Min | Max | Fan | Swing | Swing H | Action | |
+          |:--|:--|--:|--:|--:|--:|:--|:--|:--|:--|:-:|
           {% for label, e in [('HEAT', 'climate.heat_virtuel_multi'), ('COOL', 'climate.cool_virtuel_multi'), ('DRY', 'climate.dry_virtuel_multi'), ('FAN_ONLY', 'climate.fan_only_virtuel_multi'), ('AUTO', 'climate.auto_virtuel_multi')] %}
-          | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+          | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'current_temperature') }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'swing_mode') }} | {{ state_attr(e, 'swing_horizontal_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
           {% endfor %}
 
-          Pièce : **{{ states('input_number.temperature_courante_multi') }} °C**
+          Capteur : **{{ states('sensor.capteur_piece_multi') }} °C** · Adaptative MULTI lit : **{{ state_attr('climate.adaptative_multi', 'current_temperature') }} °C**
       - type: entities
         entities:
-        - input_number.temperature_courante_multi
+        - input_number.temperature_heat_multi
+        - input_number.temperature_cool_multi
+        - input_number.temperature_dry_multi
+        - input_number.temperature_fan_only_multi
+        - input_number.temperature_auto_multi
+        - input_number.temperature_capteur_multi
+        - input_boolean.dispo_capteur_multi
         - entity: script.reset_sources_test_multi
           name: Tout remettre à zéro
         - entity: script.sources_indisponibles_multi
@@ -94,13 +120,15 @@ views:
           name: Toutes les sources disponibles
   - type: markdown
     content: |
-      ## Scénarios
+      ## Scénarios (1/3) : base et mémoire des réglages
 
       Partir de **Tout remettre à zéro**.
 
+      ### Base
+
       1. **Changement de mode** : passer en *heat*, puis en *cool*. HEAT Virtuel repasse à *off* avant que COOL Virtuel passe à *cool*.
       2. **Consigne** : en *cool*, changer la consigne. Seule *Consigne COOL* bouge.
-      3. **Changement externe** : allumer HEAT Virtuel depuis sa carte (vue Sources). Adaptative MULTI passe en *heat* et *Consigne HEAT* prend la consigne d'Adaptative MULTI.
+      3. **Changement externe** : éteint, régler Adaptative MULTI à 23. Allumer HEAT Virtuel depuis sa carte (vue Sources). Adaptative MULTI passe en *heat* et *Consigne HEAT* passe de 20 à 23.
       4. **Deuxième source allumée** : HEAT Virtuel allumé (scénario 3), allumer aussi COOL Virtuel à la main. HEAT Virtuel s'éteint et Adaptative MULTI passe en *cool* : la dernière source allumée l'emporte.
       5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
       6. **Source indisponible** : couper *HEAT disponible*. *heat* n'est plus détecté ; l'entité reste disponible tant qu'une autre source l'est. **Toutes les sources indisponibles** : l'entité devient indisponible ; **Toutes les sources disponibles** les rétablit.
@@ -115,31 +143,79 @@ views:
       DRY en *MAJUSCULES* sans *medium*, les autres en minuscules.
       **Tout remettre à zéro** n'efface pas la mémoire : elle appartient à Adaptative MULTI.
 
-      10. **Mémoire par mode** : en *fan_only*, fan *high*. En *auto*, fan *low*. Repasser en *fan_only* : *Fan FAN_ONLY* revient à *high* ; puis en *auto* : *Fan AUTO* revient à *low*.
-      11. **Changement pendant l'arrêt** : éteindre, mettre *Fan FAN_ONLY* à *auto* (vue Sources), passer en *fan_only* : le fan revient à *high*.
-      12. **Synchronisation et casse** : en *cool*, fan *high*. Passer en *heat* : *Fan HEAT* passe à *High*. Passer en *dry* : *Fan DRY* passe à *HIGH*.
-      13. **Valeur propre à une source** : en *heat*, la liste propose *Turbo*. Le choisir : HEAT Virtuel passe en *Turbo*. Passer en *cool* : le fan revient à *high*, *Turbo* n'est pas retenu. Même chose avec *Medium* (absent de DRY).
-      14. **Changement sur la source** : en *cool*, mettre *Fan COOL* à *low* depuis la vue Sources. Passer en *heat* : *Fan HEAT* passe à *Low*.
-      15. **Swing synchronisé** : en *heat*, swing *On* et swing horizontal *Left*. Passer en *cool*, puis en *dry* : *on* et *left* partout.
-      16. **Après un redémarrage** : en *cool*, fan *high*, puis éteindre et mettre *Fan HEAT* à *Auto* (vue Sources). Redémarrer Home Assistant, passer en *heat* : *Fan HEAT* passe à *High*.
+      1. **Mémoire par mode** : en *fan_only*, fan *high*. En *auto*, fan *low*. Repasser en *fan_only* : *Fan FAN_ONLY* revient à *high* ; puis en *auto* : *Fan AUTO* revient à *low*.
+      2. **Changement pendant l'arrêt** : éteindre, mettre *Fan FAN_ONLY* à *auto* (vue Sources), passer en *fan_only* : le fan revient à *high*.
+      3. **Synchronisation et casse** : en *cool*, fan *high*. Passer en *heat* : *Fan HEAT* passe à *High*. Passer en *dry* : *Fan DRY* passe à *HIGH*.
+      4. **Valeur propre à une source** : en *heat*, la liste propose *Turbo*. Le choisir : HEAT Virtuel passe en *Turbo*. Passer en *cool* : le fan revient à *high*, *Turbo* n'est pas retenu. Même chose avec *Medium* (absent de DRY).
+      5. **Changement sur la source** : en *cool*, mettre *Fan COOL* à *low* depuis la vue Sources. Passer en *heat* : *Fan HEAT* passe à *Low*.
+      6. **Swing synchronisé** : en *heat*, swing *On* et swing horizontal *Left*. Passer en *cool*, puis en *dry* : *on* et *left* partout.
+      7. **Après un redémarrage** : en *cool*, fan *high*, puis éteindre et mettre *Fan HEAT* à *Auto* (vue Sources). Redémarrer Home Assistant, passer en *heat* : *Fan HEAT* passe à *High*.
+    view_layout:
+      position: sidebar
+- title: Consigne
+  path: consigne
+  type: sidebar
+  cards:
+  - *pilotage
+  - type: markdown
+    content: |
+      ## Scénarios (2/3) : consigne
+
+      Partir de **Tout remettre à zéro**.
 
       ### Consigne
 
       La consigne appartient à Adaptative MULTI : chaque source la reçoit en entrant dans son mode.
       Sources : HEAT 5–30 °C, COOL 16–32 °C au pas de 1 °C, DRY 18–30 °C.
-      **Tout remettre à zéro** remet les consignes des sources (HEAT 21, COOL 24, les autres 22), pas celle d'Adaptative MULTI.
+      **Tout remettre à zéro** remet les consignes des sources à 20 °C, pas celle d'Adaptative MULTI.
 
-      17. **Changement de mode** : en *heat*, consigne 23. Passer en *cool* : *Consigne COOL* passe de 24 à 23. Passer en *dry* : *Consigne DRY* passe à 23.
-      18. **Source allumée ailleurs** : éteindre, mettre *Consigne HEAT* à 26 (vue Sources) : Adaptative MULTI ne bouge pas. Allumer HEAT Virtuel depuis sa carte : *Consigne HEAT* revient à 23.
-      19. **Changement sur la source** : en *heat*, attendre 12 s, puis mettre *Consigne HEAT* à 19 (vue Sources). Adaptative MULTI affiche 19. Passer en *cool* : *Consigne COOL* passe à 19.
-      20. **Consigne tardive de la source** : éteint, régler Adaptative MULTI à 24 (la consigne de COOL Virtuel après la remise à zéro), passer en *cool* : rien n'est envoyé, la source est déjà à 24. Dans les 12 s, mettre *Consigne COOL* à 27 (comme un appareil qui renvoie sa propre consigne après le mode) : Adaptative MULTI affiche toujours 24. Au bout des 12 s, *Consigne COOL* revient à 24. Ensuite, mettre *Consigne COOL* à 26 : Adaptative MULTI suit.
-      21. **Consigne confirmée** : en *heat*, consigne 23, puis passer en *dry* : *Consigne DRY* passe à 23, ce qui confirme le mode. Tout de suite après, mettre *Consigne DRY* à 25 : Adaptative MULTI suit sans attendre 12 s.
-      22. **Bornes** : en *heat*, consigne 8. Passer en *cool* : *Consigne COOL* passe à 16 (son minimum) et Adaptative MULTI affiche 16. Repasser en *heat* : *Consigne HEAT* revient à 8. Même chose par le haut : en *cool*, consigne 32 ; en *dry*, 30 ; de retour en *cool*, 32.
-      23. **Arrondi** : en *heat*, consigne 21,5. Passer en *cool* : *Consigne COOL* passe à 22 (pas de 1 °C). Repasser en *heat* : *Consigne HEAT* revient à 21,5.
-      24. **Consigne réglée éteint** : éteindre, régler la consigne d'Adaptative MULTI à 20. Aucune source ne bouge. Passer en *heat* : *Consigne HEAT* passe à 20.
-      25. **Après un redémarrage** : en *cool*, consigne 25, puis éteindre. Redémarrer Home Assistant, passer en *heat* : *Consigne HEAT* passe à 25.
+      1. **Changement de mode** : en *heat*, consigne 23. Passer en *cool* : *Consigne COOL* passe de 20 à 23. Passer en *dry* : *Consigne DRY* passe à 23.
+      2. **Source allumée ailleurs** : éteindre, mettre *Consigne HEAT* à 26 (vue Sources) : Adaptative MULTI ne bouge pas. Allumer HEAT Virtuel depuis sa carte : *Consigne HEAT* revient à 23.
+      3. **Changement sur la source** : en *heat*, attendre 12 s, puis mettre *Consigne HEAT* à 19 (vue Sources). Adaptative MULTI affiche 19. Passer en *cool* : *Consigne COOL* passe à 19.
+      4. **Consigne tardive de la source** : éteint, régler Adaptative MULTI à 20 (la consigne de COOL Virtuel après la remise à zéro), passer en *cool* : rien n'est envoyé, la source est déjà à 20. Dans les 12 s, mettre *Consigne COOL* à 27 (comme un appareil qui renvoie sa propre consigne après le mode) : Adaptative MULTI affiche toujours 20. Au bout des 12 s, *Consigne COOL* revient à 20. Ensuite, mettre *Consigne COOL* à 26 : Adaptative MULTI suit.
+      5. **Consigne confirmée** : en *heat*, consigne 23, puis passer en *dry* : *Consigne DRY* passe à 23, ce qui confirme le mode. Tout de suite après, mettre *Consigne DRY* à 25 : Adaptative MULTI suit sans attendre 12 s.
+      6. **Bornes** : en *heat*, consigne 8. Passer en *cool* : *Consigne COOL* passe à 16 (son minimum) et Adaptative MULTI affiche 16. Repasser en *heat* : *Consigne HEAT* revient à 8. Même chose par le haut : en *cool*, consigne 32 ; en *dry*, 30 ; de retour en *cool*, 32.
+      7. **Arrondi** : en *heat*, consigne 21,5. Passer en *cool* : *Consigne COOL* passe à 22 (pas de 1 °C). Repasser en *heat* : *Consigne HEAT* revient à 21,5.
+      8. **Consigne réglée éteint** : éteindre, régler la consigne d'Adaptative MULTI à 18. Aucune source ne bouge. Passer en *heat* : *Consigne HEAT* passe de 20 à 18.
+      9. **Après un redémarrage** : en *cool*, consigne 25, puis éteindre. Redémarrer Home Assistant, passer en *heat* : *Consigne HEAT* passe à 25.
     view_layout:
       position: sidebar
+- title: heat_cool
+  path: heat-cool
+  type: sidebar
+  cards:
+  - *pilotage
+  - type: markdown
+    content: |
+      ## Scénarios (3/3) : heat_cool avec HEAT et COOL
+
+      Partir de **Tout remettre à zéro**.
+
+      ### heat_cool avec HEAT et COOL
+
+      Pas de source *heat_cool* : Adaptative MULTI allume HEAT Virtuel ou COOL Virtuel selon
+      *Température du capteur*. Sous la consigne basse, HEAT chauffe vers la consigne basse ;
+      au-dessus de la haute, COOL refroidit vers la consigne haute ; entre les deux, la source
+      allumée est gardée. Sans capteur, c'est la température de la source active qui compte.
+      La plage appartient à Adaptative MULTI et n'est affichée qu'en *heat_cool*.
+
+      1. **Entrée** : capteur à 15, passer en *heat_cool* : HEAT Virtuel passe en *heat*. Régler la plage à 19–25 : *Consigne HEAT* passe à 19. Adaptative MULTI affiche *heat_cool*, source active HEAT, Température 15 (le capteur).
+      2. **Bascule vers COOL** : suite du 1, capteur à 26 : HEAT Virtuel s'éteint, COOL Virtuel passe en *cool* et *Consigne COOL* à 25 (la consigne haute). Adaptative MULTI reste en *heat_cool*, source active COOL.
+      3. **Entre les consignes** : suite du 2, capteur à 22 : COOL Virtuel reste allumé. Capteur à 18 : retour sur HEAT Virtuel, *Consigne HEAT* à 19.
+      4. **Départ au plus proche** : éteindre, plage 19–25 gardée. Capteur à 24, passer en *heat_cool* : COOL Virtuel s'allume (24 est plus près de 25). Éteindre, capteur à 20, passer en *heat_cool* : HEAT Virtuel s'allume.
+      5. **Plage qui bascule** : en *heat_cool* sur HEAT Virtuel (capteur à 18), régler la plage à 15–17 : bascule sur COOL Virtuel, *Consigne COOL* à 17.
+      6. **Bornes** : en *heat_cool*, Min/Max couvrent HEAT et COOL : 5–32 °C. Sur COOL Virtuel (capteur à 30), plage 10–14 : *Consigne COOL* passe à 16 (son minimum) et la consigne haute d'Adaptative MULTI devient 16, même en remettant 14 une deuxième fois : elle ne sert qu'à COOL. Capteur à 5 : bascule sur HEAT Virtuel. Capteur à 15 : HEAT reste allumé (15 est entre 10 et 16). Capteur à 17 : bascule sur COOL Virtuel.
+      7. **Changement sur la source** : en *heat_cool* sur HEAT Virtuel, attendre 12 s, puis mettre *Consigne HEAT* à 20 (vue Sources) : la consigne basse d'Adaptative MULTI passe à 20.
+      8. **Source éteinte ailleurs** : en *heat_cool* sur HEAT Virtuel, éteindre HEAT Virtuel depuis sa carte (vue Sources) : Adaptative MULTI passe à *off*. Capteur à 30 : rien ne s'allume.
+      9. **Autre mode allumé ailleurs** : en *heat_cool* sur HEAT Virtuel, allumer COOL Virtuel depuis sa carte : HEAT Virtuel s'éteint, Adaptative MULTI passe en *cool* (plus en *heat_cool*). Capteur à 15 : COOL Virtuel reste allumé.
+      10. **Capteur indisponible** : chaque source a sa propre température (*Température HEAT*, *COOL*...), toutes à 20. Éteint, couper *Capteur disponible* : Adaptative MULTI lit la première source disponible, HEAT Virtuel. *Température HEAT* à 15 : il affiche 15 ; *Température COOL* à 30 : rien ne change. Passer en *heat_cool* (plage 19–25) : HEAT Virtuel s'allume (15 < 19). *Température HEAT* à 26 : bascule sur COOL Virtuel ; Adaptative MULTI lit maintenant *Température COOL* (30) et reste sur COOL. Rallumer le capteur (20) : il reprend la main, COOL reste allumé (20 est entre 19 et 25).
+      11. **Source indisponible** : couper *COOL disponible* : *heat_cool* apparaît dans *Modes indisponibles*, et le choisir est refusé avec un message, sans rien éteindre.
+      12. **Consigne simple à part** : en *heat*, consigne 23. Capteur à 15, passer en *heat_cool* (plage 19–25) : *Consigne HEAT* passe à 19. Repasser en *heat* : *Consigne HEAT* revient à 23.
+      13. **Marche / arrêt** : en *heat_cool*, éteindre puis rallumer : *heat_cool* revient.
+      14. **Après un redémarrage** : en *heat_cool* sur HEAT Virtuel, plage 19–25. Redémarrer Home Assistant : Adaptative MULTI est toujours en *heat_cool*, avec la plage 19–25.
+    view_layout:
+      position: sidebar
+
 - title: Sources
   path: sources
   type: sections
@@ -156,6 +232,7 @@ views:
     - type: entities
       entities:
       - input_select.mode_heat_multi
+      - input_number.temperature_heat_multi
       - input_number.consigne_heat_multi
       - input_select.fan_heat_multi
       - input_select.swing_heat_multi
@@ -177,6 +254,7 @@ views:
     - type: entities
       entities:
       - input_select.mode_cool_multi
+      - input_number.temperature_cool_multi
       - input_number.consigne_cool_multi
       - input_select.fan_cool_multi
       - input_select.swing_cool_multi
@@ -198,6 +276,7 @@ views:
     - type: entities
       entities:
       - input_select.mode_dry_multi
+      - input_number.temperature_dry_multi
       - input_number.consigne_dry_multi
       - input_select.fan_dry_multi
       - input_select.swing_dry_multi
@@ -219,6 +298,7 @@ views:
     - type: entities
       entities:
       - input_select.mode_fan_only_multi
+      - input_number.temperature_fan_only_multi
       - input_number.consigne_fan_only_multi
       - input_select.fan_fan_only_multi
       - input_select.swing_fan_only_multi
@@ -240,6 +320,7 @@ views:
     - type: entities
       entities:
       - input_select.mode_auto_multi
+      - input_number.temperature_auto_multi
       - input_number.consigne_auto_multi
       - input_select.fan_auto_multi
       - input_select.swing_auto_multi

@@ -70,7 +70,12 @@ async def test_import_creates_entry(hass: HomeAssistant) -> None:
 
     state = hass.states.get(ENTITY_ID)
     assert state.state == HVACMode.OFF
-    assert state.attributes["hvac_modes"] == [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL]
+    assert state.attributes["hvac_modes"] == [
+        HVACMode.OFF,
+        HVACMode.HEAT,
+        HVACMode.COOL,
+        HVACMode.HEAT_COOL,
+    ]
 
 
 async def test_import_sync_modes(hass: HomeAssistant) -> None:

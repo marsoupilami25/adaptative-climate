@@ -115,11 +115,15 @@ views:
       2. **Modes proposés** : seuls *off* et *heat* sont proposés.
       3. **Consigne** : changer la consigne d'Adaptative HEAT. *Consigne HEAT* suit.
       4. **Changement externe** : Adaptative HEAT éteint, mettre *Consigne HEAT* à une autre valeur (Adaptative HEAT ne bouge pas), puis régler HEAT Virtuel sur *heat* depuis sa carte. Adaptative HEAT suit et *Consigne HEAT* revient à la consigne d'Adaptative HEAT.
-      5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
+      5. **Action** : allumer Adaptative HEAT, consigne 20 (la pièce est à 20) : *idle*. Pièce à 18 : *heating* ; pièce à 22 : *idle*.
       6. **Source indisponible** : couper *HEAT disponible*. Adaptative HEAT devient indisponible.
       7. **Fan et swing** : allumer Adaptative HEAT, puis changer son fan, son swing et son swing horizontal. *Fan HEAT*, *Swing HEAT* et *Swing horizontal HEAT* suivent.
       8. **Fan/swing absents** : couper *Fan HEAT actif*. Le fan disparaît d'Adaptative HEAT, le swing reste ; le rallumer, il revient. Idem avec *Swing HEAT actif* et *Swing horizontal HEAT actif*. Éteint, Adaptative HEAT n'affiche ni fan ni swing.
-      9. **Bornes** : HEAT Virtuel va de 5 à 30 °C, mais Adaptative HEAT a `max_temp: 25` : Min/Max affichent 5–25 °C. Une consigne de 28 °C est refusée.
+      9. **Bornes** : HEAT Virtuel va de 5 à 30 °C, mais Adaptative HEAT a `max_temp: 25`.
+         - Min/Max d'Adaptative HEAT affichent 5–25 °C, et son thermostat ne monte pas au-delà de 25.
+         - Allumer Adaptative HEAT. Dans *Outils de développement > Actions*, en mode YAML, lancer :
+           `action: climate.set_temperature`, `target: {entity_id: climate.adaptative_heat}`, `data: {temperature: 28}`.
+           Home Assistant refuse avec une erreur (plage acceptée 5 à 25). *Consigne HEAT* et la consigne d'Adaptative HEAT ne bougent pas.
       10. **Consigne au-delà de la borne sur la source** : allumer Adaptative HEAT, attendre 12 s, puis mettre *Consigne HEAT* à 28. La source a la main : *Consigne HEAT* reste à 28 et Adaptative HEAT affiche 28.
     view_layout:
       position: sidebar
@@ -235,7 +239,7 @@ views:
       2. **Modes proposés** : seuls *off* et *cool* sont proposés.
       3. **Consigne** : changer la consigne d'Adaptative COOL. *Consigne COOL* suit.
       4. **Changement externe** : Adaptative COOL éteint, mettre *Consigne COOL* à une autre valeur (Adaptative COOL ne bouge pas), puis régler COOL Virtuel sur *cool* depuis sa carte. Adaptative COOL suit et *Consigne COOL* revient à la consigne d'Adaptative COOL.
-      5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
+      5. **Action** : allumer Adaptative COOL, consigne 20 (la pièce est à 20) : *idle*. Pièce à 22 : *cooling* ; pièce à 18 : *idle*.
       6. **Source indisponible** : couper *COOL disponible*. Adaptative COOL devient indisponible.
       7. **Fan et swing** : allumer Adaptative COOL, puis changer son fan, son swing et son swing horizontal. *Fan COOL*, *Swing COOL* et *Swing horizontal COOL* suivent.
       8. **Fan/swing absents** : couper *Fan COOL actif*. Le fan disparaît d'Adaptative COOL, le swing reste ; le rallumer, il revient. Idem avec *Swing COOL actif* et *Swing horizontal COOL actif*. Éteint, Adaptative COOL n'affiche ni fan ni swing.
@@ -353,7 +357,7 @@ views:
       2. **Modes proposés** : seuls *off* et *dry* sont proposés.
       3. **Consigne** : changer la consigne d'Adaptative DRY. *Consigne DRY* suit.
       4. **Changement externe** : Adaptative DRY éteint, mettre *Consigne DRY* à une autre valeur (Adaptative DRY ne bouge pas), puis régler DRY Virtuel sur *dry* depuis sa carte. Adaptative DRY suit et *Consigne DRY* revient à la consigne d'Adaptative DRY.
-      5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
+      5. **Action** : allumer Adaptative DRY : *drying*, quelle que soit la température de la pièce.
       6. **Source indisponible** : couper *DRY disponible*. Adaptative DRY devient indisponible.
       7. **Fan et swing** : allumer Adaptative DRY, puis changer son fan, son swing et son swing horizontal. *Fan DRY*, *Swing DRY* et *Swing horizontal DRY* suivent.
       8. **Fan/swing absents** : couper *Fan DRY actif*. Le fan disparaît d'Adaptative DRY, le swing reste ; le rallumer, il revient. Idem avec *Swing DRY actif* et *Swing horizontal DRY actif*. Éteint, Adaptative DRY n'affiche ni fan ni swing.
@@ -471,7 +475,7 @@ views:
       2. **Modes proposés** : seuls *off* et *fan_only* sont proposés.
       3. **Consigne** : changer la consigne d'Adaptative FAN_ONLY. *Consigne FAN_ONLY* suit.
       4. **Changement externe** : Adaptative FAN_ONLY éteint, mettre *Consigne FAN_ONLY* à une autre valeur (Adaptative FAN_ONLY ne bouge pas), puis régler FAN_ONLY Virtuel sur *fan_only* depuis sa carte. Adaptative FAN_ONLY suit et *Consigne FAN_ONLY* revient à la consigne d'Adaptative FAN_ONLY.
-      5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
+      5. **Action** : allumer Adaptative FAN_ONLY : *fan*, quelle que soit la température de la pièce.
       6. **Source indisponible** : couper *FAN_ONLY disponible*. Adaptative FAN_ONLY devient indisponible.
       7. **Fan et swing** : allumer Adaptative FAN_ONLY, puis changer son fan, son swing et son swing horizontal. *Fan FAN_ONLY*, *Swing FAN_ONLY* et *Swing horizontal FAN_ONLY* suivent.
       8. **Fan/swing absents** : couper *Fan FAN_ONLY actif*. Le fan disparaît d'Adaptative FAN_ONLY, le swing reste ; le rallumer, il revient. Idem avec *Swing FAN_ONLY actif* et *Swing horizontal FAN_ONLY actif*. Éteint, Adaptative FAN_ONLY n'affiche ni fan ni swing.
@@ -589,9 +593,252 @@ views:
       2. **Modes proposés** : seuls *off* et *auto* sont proposés.
       3. **Consigne** : changer la consigne d'Adaptative AUTO. *Consigne AUTO* suit.
       4. **Changement externe** : Adaptative AUTO éteint, mettre *Consigne AUTO* à une autre valeur (Adaptative AUTO ne bouge pas), puis régler AUTO Virtuel sur *auto* depuis sa carte. Adaptative AUTO suit et *Consigne AUTO* revient à la consigne d'Adaptative AUTO.
-      5. **Action** : faire varier la température de la pièce autour de la consigne et suivre l'action.
+      5. **Action** : allumer Adaptative AUTO, consigne 20 (la pièce est à 20) : *idle*. Pièce à 18 : *heating* ; pièce à 22 : *cooling*.
       6. **Source indisponible** : couper *AUTO disponible*. Adaptative AUTO devient indisponible.
       7. **Fan et swing** : allumer Adaptative AUTO, puis changer son fan, son swing et son swing horizontal. *Fan AUTO*, *Swing AUTO* et *Swing horizontal AUTO* suivent.
       8. **Fan/swing absents** : couper *Fan AUTO actif*. Le fan disparaît d'Adaptative AUTO, le swing reste ; le rallumer, il revient. Idem avec *Swing AUTO actif* et *Swing horizontal AUTO actif*. Éteint, Adaptative AUTO n'affiche ni fan ni swing.
+    view_layout:
+      position: sidebar
+- title: HEAT_COOL
+  path: heat-cool
+  type: sidebar
+  cards:
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Adaptative HEAT_COOL
+      - type: thermostat
+        entity: climate.adaptative_heat_cool
+        features:
+        - type: climate-hvac-modes
+      - type: entities
+        entities:
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+          suffix: °C
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+          suffix: °C
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: min_temp
+          name: Min
+          suffix: °C
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: max_temp
+          name: Max
+          suffix: °C
+      - type: tile
+        entity: climate.adaptative_heat_cool
+        name: Marche / arrêt
+        icon_tap_action:
+          action: toggle
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Source HEAT_COOL Virtuel
+      - type: thermostat
+        entity: climate.heat_cool_virtuel_mono
+      - type: entities
+        entities:
+        - input_select.mode_heat_cool_mono
+        - input_number.consigne_heat_cool_basse_mono
+        - input_number.consigne_heat_cool_haute_mono
+        - input_boolean.dispo_heat_cool_mono
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: État
+      - type: markdown
+        content: |
+          {% if states.climate.adaptative_heat_cool is none %}
+          > ⚠️ **`climate.adaptative_heat_cool` introuvable.** Vérifier la section `adaptative_climate:` de
+          > `dev/config/configuration.yaml` et les journaux, puis redémarrer.
+
+          {% endif %}
+          {% set active = state_attr('climate.adaptative_heat_cool', 'active_entity_id') %}
+          | Source | Mode | Basse | Haute | Min | Max | Action | |
+          |:--|:--|--:|--:|--:|--:|:--|:-:|
+          {% for label, e in [('HEAT_COOL', 'climate.heat_cool_virtuel_mono')] %}
+          | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'target_temp_low') }} | {{ state_attr(e, 'target_temp_high') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+          {% endfor %}
+
+          Pièce : **{{ states('input_number.temperature_courante_mono') }} °C**
+      - type: entities
+        entities:
+        - input_number.temperature_courante_mono
+        - entity: script.reset_sources_test_mono
+          name: Tout remettre à zéro
+  - type: markdown
+    content: |
+      ## Scénarios
+
+      Partir de **Tout remettre à zéro** (HEAT_COOL Virtuel à 19–25 °C).
+      HEAT_COOL Virtuel n'a qu'une plage (basse–haute), pas de consigne simple.
+
+      1. **Marche / arrêt** : allumer Adaptative HEAT_COOL. HEAT_COOL Virtuel passe en *heat_cool* ; éteindre, il repasse à *off*.
+      2. **Modes proposés** : seuls *off* et *heat_cool* sont proposés. Allumé, le thermostat montre une plage.
+      3. **Plage** : régler la plage d'Adaptative HEAT_COOL à 20–24. *Consigne HEAT_COOL basse* et *haute* suivent.
+      4. **Changement externe** : Adaptative HEAT_COOL éteint, mettre *Consigne HEAT_COOL basse* à 17 (Adaptative HEAT_COOL ne bouge pas), puis régler HEAT_COOL Virtuel sur *heat_cool* depuis sa carte. Adaptative HEAT_COOL suit et la consigne basse revient à 20.
+      5. **Changement sur la source** : allumé, attendre 12 s, puis mettre *Consigne HEAT_COOL haute* à 26. Adaptative HEAT_COOL affiche 20–26.
+      6. **Plage changée juste après le mode** : éteindre puis rallumer : la source a déjà la plage, rien ne confirme le mode. Dans les 12 s, mettre *Consigne HEAT_COOL basse* à 15 : Adaptative HEAT_COOL affiche toujours sa plage. Au bout des 12 s, la consigne basse y revient.
+      7. **Action** : allumé, plage 19–25 (la pièce est à 20) : *idle*. Pièce à 18 : *heating* ; pièce à 26 : *cooling*.
+      8. **Bornes** : Min/Max affichent 10–30 °C, ceux de la source.
+      9. **Source indisponible** : couper *HEAT_COOL disponible*. Adaptative HEAT_COOL devient indisponible.
+      10. **Après un redémarrage** : allumé, plage 21–23, puis **Tout remettre à zéro** (source à 19–25). Redémarrer Home Assistant, allumer : la source passe à 21–23.
+    view_layout:
+      position: sidebar
+- title: HEAT+COOL
+  path: heat-plus-cool
+  type: sidebar
+  cards:
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Adaptative COMBINE
+      - type: thermostat
+        entity: climate.adaptative_combine
+        features:
+        - type: climate-hvac-modes
+        - type: climate-fan-modes
+      - type: entities
+        entities:
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: current_temperature
+          name: Température
+          suffix: °C
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: temperature
+          name: Consigne
+          suffix: °C
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+          suffix: °C
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+          suffix: °C
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: fan_mode
+          name: Fan
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: min_temp
+          name: Min
+          suffix: °C
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: max_temp
+          name: Max
+          suffix: °C
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+      - type: tile
+        entity: climate.adaptative_combine
+        name: Marche / arrêt
+        icon_tap_action:
+          action: toggle
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Sources RADIATEUR et CLIM Virtuel
+      - type: thermostat
+        entity: climate.radiateur_virtuel_mono
+      - type: thermostat
+        entity: climate.clim_virtuel_mono
+      - type: entities
+        entities:
+        - input_select.mode_radiateur_mono
+        - input_number.temperature_radiateur_mono
+        - input_number.consigne_radiateur_mono
+        - input_boolean.dispo_radiateur_mono
+        - input_select.mode_clim_mono
+        - input_number.temperature_clim_mono
+        - input_number.consigne_clim_mono
+        - input_select.fan_clim_mono
+        - input_boolean.dispo_clim_mono
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: État
+      - type: markdown
+        content: |
+          {% if states.climate.adaptative_combine is none %}
+          > ⚠️ **`climate.adaptative_combine` introuvable.** Vérifier la section `adaptative_climate:` de
+          > `dev/config/configuration.yaml` et les journaux, puis redémarrer.
+
+          {% endif %}
+          {% set active = state_attr('climate.adaptative_combine', 'active_entity_id') %}
+          | Source | Mode | Temp. | Consigne | Min | Max | Fan | Action | |
+          |:--|:--|--:|--:|--:|--:|:--|:--|:-:|
+          {% for label, e in [('RADIATEUR', 'climate.radiateur_virtuel_mono'), ('CLIM', 'climate.clim_virtuel_mono')] %}
+          | {{ label }} | {{ states(e) }} | {{ state_attr(e, 'current_temperature') }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} | {{ state_attr(e, 'fan_mode') }} | {{ state_attr(e, 'hvac_action') }} | {{ '◀' if e == active else '' }} |
+          {% endfor %}
+
+          Adaptative COMBINE lit : **{{ state_attr('climate.adaptative_combine', 'current_temperature') }} °C**
+      - type: entities
+        entities:
+        - input_number.temperature_radiateur_mono
+        - input_number.temperature_clim_mono
+        - entity: script.reset_sources_test_mono
+          name: Tout remettre à zéro
+  - type: markdown
+    content: |
+      ## Scénarios
+
+      Partir de **Tout remettre à zéro** (consignes et températures de RADIATEUR et CLIM à 20 °C ; CLIM au pas de 1 °C).
+      Pas de source *heat_cool* : Adaptative COMBINE allume RADIATEUR Virtuel ou CLIM Virtuel.
+      Consigne basse vers RADIATEUR, haute vers CLIM ; entre les deux, la source allumée est gardée.
+      Pas de capteur : chaque source a sa température (*Température RADIATEUR*, *Température CLIM*).
+      Adaptative COMBINE lit celle de la source active ; éteint, celle de RADIATEUR (la première source).
+
+      1. **Modes proposés** : *off*, *heat*, *cool* et *heat_cool*.
+      2. **Entrée** : *Température RADIATEUR* à 15, passer en *heat_cool* : RADIATEUR passe en *heat*. Régler la plage à 19–25 : *Consigne RADIATEUR* passe à 19. Adaptative COMBINE affiche *heat_cool*, source active RADIATEUR, Température 15.
+      3. **Bascules** : *Température CLIM* à 30 : rien ne change, CLIM n'est pas active. *Température CLIM* à 22, puis *Température RADIATEUR* à 26 : RADIATEUR s'éteint, CLIM passe en *cool*, *Consigne CLIM* à 25 ; Adaptative COMBINE reste en *heat_cool* et lit maintenant 22. Remettre *Température RADIATEUR* à 20. *Température CLIM* à 18 : retour sur RADIATEUR, qui lit 20 (entre les deux) et reste allumé.
+      4. **Départ au plus proche** : éteindre (plage 19–25 gardée), *Température CLIM* à 22. *Température RADIATEUR* à 24, passer en *heat_cool* : CLIM s'allume (24, lu sur RADIATEUR, est plus près de 25). Éteindre, *Température RADIATEUR* à 20, passer en *heat_cool* : RADIATEUR s'allume.
+      5. **Arrondi et bornes** : Min/Max en *heat_cool* : 5–32 °C. Sur RADIATEUR (*Température RADIATEUR* à 18, *Température CLIM* à 22), plage 19–24,5, puis *Température RADIATEUR* à 26 : bascule sur CLIM, *Consigne CLIM* à 25 (pas de 1 °C). Plage 10–14 : *Consigne CLIM* passe à 16 (son minimum), Adaptative COMBINE affiche 10–16.
+      6. **Changement sur la source** : sur RADIATEUR, attendre 12 s, puis mettre *Consigne RADIATEUR* à 20 : la consigne basse d'Adaptative COMBINE passe à 20.
+      7. **Source éteinte ailleurs** : sur RADIATEUR, l'éteindre depuis sa carte : Adaptative COMBINE passe à *off*. *Température RADIATEUR* à 30 : rien ne s'allume.
+      8. **Autre mode allumé ailleurs** : sur RADIATEUR, allumer CLIM depuis sa carte : RADIATEUR s'éteint, Adaptative COMBINE passe en *cool* (plus en *heat_cool*). *Température CLIM* à 15 : CLIM reste allumée.
+      9. **Source indisponible** : couper *CLIM disponible* : *heat_cool* apparaît dans *Modes indisponibles*, et le choisir est refusé, sans rien éteindre.
+      10. **Consigne simple et fan** : en *cool*, consigne 23 et fan *high*. *Température RADIATEUR* à 15, *Température CLIM* à 22, passer en *heat_cool* : *Consigne RADIATEUR* prend la consigne basse. *Température RADIATEUR* à 30 : CLIM reprend le fan *high* et la consigne haute. Repasser en *cool* : *Consigne CLIM* revient à 23.
+      11. **Marche / arrêt et redémarrage** : en *heat_cool*, éteindre puis rallumer : *heat_cool* revient. Redémarrer Home Assistant en *heat_cool* : il y est toujours, avec sa plage.
     view_layout:
       position: sidebar

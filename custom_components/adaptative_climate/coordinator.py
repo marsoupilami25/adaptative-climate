@@ -28,7 +28,14 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import DOMAIN, entry_settings, mode_sources, sync_modes
+from .const import (
+    CONF_TEMPERATURE_SENSOR,
+    DOMAIN,
+    combined_heat_cool,
+    entry_settings,
+    mode_sources,
+    sync_modes,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,8 +81,18 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         self.mode_sources: dict[HVACMode, str] = mode_sources(settings)
         # Modes sharing their fan and swing settings (each has a source).
         self.sync_modes: set[HVACMode] = sync_modes(settings)
+        # HEAT_COOL switches between the heat and cool sources.
+        self.combined_heat_cool: bool = combined_heat_cool(settings)
         # Each source once, in mode order (a source can serve several modes).
         self.source_entity_ids: list[str] = list(dict.fromkeys(self.mode_sources.values()))
+        # Optional sensor giving the room temperature.
+        self.temperature_sensor: str | None = settings.get(CONF_TEMPERATURE_SENSOR) or None
+        # Entities whose states are followed: the sources, then the sensor.
+        self.tracked_entity_ids: list[str] = list(
+            dict.fromkeys(
+                [*self.source_entity_ids, *filter(None, [self.temperature_sensor])]
+            )
+        )
         self._unsub_state_change: CALLBACK_TYPE | None = None
         # Source most recently switched to a running mode. Modes are
         # exclusive: it wins over the other sources.
@@ -85,11 +102,11 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         self.unsupported_modes: set[HVACMode] = set()
 
     def async_start(self) -> None:
-        """Check the source modes, then listen for source entity state changes."""
+        """Check the source modes, then listen for source and sensor state changes."""
         self._async_check_modes()
         self._unsub_state_change = async_track_state_change_event(
             self.hass,
-            self.source_entity_ids,
+            self.tracked_entity_ids,
             self._async_source_state_changed,
         )
 
@@ -147,10 +164,10 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         self.unsupported_modes = unsupported
 
     async def _async_update_data(self) -> SourceStates:
-        """Fetch the state of every source entity."""
+        """Fetch the state of every source entity and of the sensor."""
         return {
             entity_id: self.hass.states.get(entity_id)
-            for entity_id in self.source_entity_ids
+            for entity_id in self.tracked_entity_ids
         }
 
     async def async_turn_off_other_sources(self, keep: str | None) -> None:
@@ -171,7 +188,7 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
 
     @callback
     def _async_source_state_changed(self, event: Event[EventStateChangedData]) -> None:
-        """Handle a source entity state update.
+        """Handle a source or sensor state update.
 
         A source switched to a new running mode (by this integration or
         elsewhere) becomes the active one and the other sources are turned off.
@@ -180,7 +197,7 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         old_state = event.data["old_state"]
         new_state = event.data["new_state"]
 
-        switched_on = is_running(new_state) and (
+        switched_on = entity_id in self.source_entity_ids and is_running(new_state) and (
             old_state is None or old_state.state != new_state.state
         )
         if switched_on:

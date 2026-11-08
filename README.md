@@ -38,6 +38,7 @@ adaptative_climate:
     heat_entity: climate.heater
     cool_entity: climate.air_conditioner
     dry_entity: climate.air_conditioner
+    temperature_sensor: sensor.living_room_temperature   # optional, see "Heat/cool mode"
     sync_modes: [cool, dry]   # optional, see "Fan and swing settings"
     max_temp: 23   # optional, see "Temperature range"
 ```
@@ -49,12 +50,13 @@ imported entries have no options in the UI. Entries created from the UI
 are not affected.
 
 The integration creates one `climate` entity. Each of its modes (heat, cool,
-auto, dry, fan only) uses a source `climate` entity, set in the configuration.
-The same source can serve several modes. A mode without a source is not shown.
+heat/cool, auto, dry, fan only) uses a source `climate` entity, set in the
+configuration (`heat_cool_entity` for heat/cool). The same source can serve
+several modes. A mode without a source is not shown, except heat/cool (see
+"Heat/cool mode").
 
 Switching to a mode sets its source to the HVAC mode of the same name, after
 turning off the source of the previous mode when it is a different entity.
-The `heat_cool` mode is not supported yet.
 
 A source must offer the modes it serves. The configuration checks it, except
 for a source that is still starting or unavailable, so it is checked again
@@ -121,15 +123,54 @@ set while off, or in a mode whose source has none (fan only), is kept for
 the next mode. The target is kept across restarts; the first one comes from
 a source, else the middle of the range.
 
-Low/high targets (`target_temp_low`/`target_temp_high`) are only sent to the
-active source for now; they will be handled like the target with `heat_cool`.
+The low/high targets (`target_temp_low`/`target_temp_high`) of the heat/cool
+mode are handled the same way: kept by the entity and across restarts, taken
+from the source after a change made on it, with the same settle time. They
+are shown in heat/cool only, the single target in the other modes. Each is
+kept while the other is used.
+
+Unlike the single target, each of them only goes to one source (see
+"Heat/cool mode"), so it is kept as that source gets it: rounded to its step
+and in its range. A high target of 14 °C for an AC whose minimum is 16 °C
+is 16 °C, also to decide when to switch to it.
+
+### Heat/cool mode
+
+With a `heat_cool_entity`, the heat/cool mode works like the other modes: its
+source gets the low/high targets (or the single target if it has no low/high
+targets).
+
+Without one, but with heat and cool sources, the heat/cool mode uses them:
+it runs one of them at a time, chosen from the room temperature.
+
+- Below the low target, the heat source heats to the low target.
+- Above the high target, the cool source cools to the high target.
+- In between, the running source is kept. When entering the mode, the source
+  of the closest target starts. Without room temperature, the heat or cool
+  source already running is kept, else heat starts.
+
+A heat pump set as both heat and cool source switches its own mode. Fan and
+swing settings are those remembered for heat and for cool. The mode needs
+both sources: it is refused when one of them is unavailable or does not
+offer its mode.
+
+The room temperature comes from `temperature_sensor` when set (converted to
+the unit of Home Assistant), else from the source in use. The entity shows
+it in every mode.
+
+The source has the upper hand: when a source is turned off or set to
+another mode elsewhere (remote control, app), the entity leaves heat/cool
+and follows the source. After switching source itself, the entity waits up
+to 12 seconds for the source to show its new mode before judging it.
 
 ### Temperature range
 
 The minimum and maximum temperatures follow the sources: those of the
 source of the current mode, or the widest range of the sources when the
 entity is off. A radiator at 5-30 °C and an AC at 16-32 °C give 5-30 °C
-in heat mode and 16-32 °C in cool mode.
+in heat mode and 16-32 °C in cool mode. The heat/cool mode using the heat
+and cool sources has the widest range of both (5-32 °C); each target is
+still limited to the range of the source it goes to.
 
 `min_temp` and `max_temp` are optional limits, empty by default. They can
 only narrow the range of the source, never widen it: `max_temp: 23` keeps

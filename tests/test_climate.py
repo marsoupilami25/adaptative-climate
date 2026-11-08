@@ -80,10 +80,12 @@ async def test_initial_state(hass: HomeAssistant) -> None:
     """With every source off, the entity is off and lists the configured modes."""
     state = hass.states.get(ENTITY_ID)
     assert state.state == HVACMode.OFF
+    # heat_cool uses the heat and cool sources.
     assert state.attributes["hvac_modes"] == [
         HVACMode.OFF,
         HVACMode.HEAT,
         HVACMode.COOL,
+        HVACMode.HEAT_COOL,
         HVACMode.DRY,
     ]
     assert state.attributes[ATTR_HVAC_ACTION] == HVACAction.OFF
@@ -220,8 +222,10 @@ async def test_set_temperature_forwards_to_active_source(
 
 
 @pytest.mark.usefixtures("init_integration")
-async def test_set_temperature_range(hass: HomeAssistant, ac: FakeClimate) -> None:
-    """Low/high targets are forwarded as well."""
+async def test_set_temperature_range_outside_heat_cool(
+    hass: HomeAssistant, ac: FakeClimate
+) -> None:
+    """Low/high targets are kept for heat_cool, not sent to a cool source."""
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
     ac.calls.clear()
 
@@ -229,26 +233,23 @@ async def test_set_temperature_range(hass: HomeAssistant, ac: FakeClimate) -> No
         hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=25.0
     )
 
-    assert ac.calls == [
-        (
-            "set_temperature",
-            {
-                ATTR_TARGET_TEMP_LOW: 20.0,
-                ATTR_TARGET_TEMP_HIGH: 25.0,
-                ATTR_ENTITY_ID: [AC],
-            },
-        )
-    ]
+    assert ac.calls == []
+    attributes = hass.states.get(ENTITY_ID).attributes
+    assert attributes[ATTR_TARGET_TEMP_LOW] is None
+    assert attributes[ATTR_TARGET_TEMP_HIGH] is None
 
 
 @pytest.mark.usefixtures("init_integration")
 async def test_set_temperature_range_when_off(hass: HomeAssistant) -> None:
-    """Low/high targets while off are refused with a clear message."""
-    with pytest.raises(ServiceValidationError) as err:
-        await _call(
-            hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=25.0
-        )
-    assert err.value.translation_key == "no_active_mode"
+    """Low/high targets while off are kept for heat_cool."""
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=18.0, target_temp_high=25.0
+    )
+
+    entity = hass.data[CLIMATE_DOMAIN].get_entity(ENTITY_ID)
+    saved = entity.extra_restore_state_data.as_dict()
+    assert saved["target_temperature_low"] == 18.0
+    assert saved["target_temperature_high"] == 25.0
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -393,7 +394,10 @@ def _features(hass: HomeAssistant) -> int:
 
 @pytest.mark.usefixtures("init_integration")
 async def test_supported_features(hass: HomeAssistant) -> None:
-    """When off, features combine the sources, without fan or swing."""
+    """When off, features combine the sources, without fan or swing.
+
+    heat_cool (heat and cool sources) needs the low/high targets.
+    """
     assert _features(hass) == BASE_FEATURES
     attributes = hass.states.get(ENTITY_ID).attributes
     assert ATTR_FAN_MODES not in attributes
@@ -509,7 +513,12 @@ async def test_unavailable_source_mode_still_listed(hass: HomeAssistant) -> None
 
     state = hass.states.get(ENTITY_ID)
     assert HVACMode.COOL in state.attributes["hvac_modes"]
-    assert state.attributes["unavailable_modes"] == [HVACMode.COOL, HVACMode.DRY]
+    # heat_cool needs the AC too.
+    assert state.attributes["unavailable_modes"] == [
+        HVACMode.COOL,
+        HVACMode.HEAT_COOL,
+        HVACMode.DRY,
+    ]
 
 
 @pytest.mark.usefixtures("init_integration")
