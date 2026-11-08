@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from typing import Any
 
@@ -462,6 +463,96 @@ async def test_combined_takeover_on_source(
     assert _saved(hass)["target_temperature_high"] == 25.0
 
 
+@pytest.mark.usefixtures("combined")
+async def test_combined_inverted_targets_keep_phase(hass: HomeAssistant) -> None:
+    """Low above high (a source took over): between them, the phase is kept."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    entity = hass.data[CLIMATE_DOMAIN].get_entity(ENTITY_ID)
+    entity._targets[ATTR_TARGET_TEMP_LOW] = 25.0
+    entity._targets[ATTR_TARGET_TEMP_HIGH] = 23.0
+
+    await _set_room(hass, "24")
+    assert _attrs(hass)["active_entity_id"] == HEATER
+
+    await _set_room(hass, "26")
+    assert _attrs(hass)["active_entity_id"] == AC
+
+    await _set_room(hass, "24")
+    assert _attrs(hass)["active_entity_id"] == AC
+
+
+@pytest.mark.usefixtures("combined")
+async def test_combined_set_again_keeps_phase(hass: HomeAssistant) -> None:
+    """Asking heat_cool again keeps the phase between the targets."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    await _set_room(hass, "26")
+    await _set_room(hass, "21")
+    assert _attrs(hass)["active_entity_id"] == AC
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    assert _attrs(hass)["active_entity_id"] == AC
+    assert _state(hass, HEATER) == HVACMode.OFF
+
+
+@pytest.mark.usefixtures("combined")
+async def test_combined_mode_asked_during_phase_switch(
+    hass: HomeAssistant, ac: FakeClimate
+) -> None:
+    """A mode asked while the phase switches waits for it, then wins."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+
+    release = asyncio.Event()
+    set_mode = ac.async_set_hvac_mode
+
+    async def slow(hvac_mode: HVACMode) -> None:
+        await release.wait()
+        await set_mode(hvac_mode)
+
+    ac.async_set_hvac_mode = slow
+    # The room asks for cool: the switch waits on the AC.
+    hass.states.async_set(
+        SENSOR, "30", {"unit_of_measurement": "°C", "device_class": "temperature"}
+    )
+    for _ in range(20):
+        await asyncio.sleep(0)
+    asked = hass.async_create_task(
+        hass.services.async_call(
+            CLIMATE_DOMAIN,
+            SERVICE_SET_HVAC_MODE,
+            {ATTR_ENTITY_ID: ENTITY_ID, "hvac_mode": HVACMode.HEAT},
+            blocking=True,
+        )
+    )
+    for _ in range(20):
+        await asyncio.sleep(0)
+    release.set()
+    await asked
+    await hass.async_block_till_done()
+
+    assert _state(hass) == HVACMode.HEAT
+    assert _state(hass, HEATER) == HVACMode.HEAT
+    assert _state(hass, AC) == HVACMode.OFF
+
+
+async def test_combined_restored_targets_keep_gap(
+    hass: HomeAssistant, sources: None, combined_entry: MockConfigEntry
+) -> None:
+    """Restored targets too close (or inverted) get the gap back."""
+    mock_restore_cache_with_extra_data(
+        hass,
+        (
+            (
+                State(ENTITY_ID, HVACMode.OFF),
+                {"target_temperature_low": 22.0, "target_temperature_high": 21.0},
+            ),
+        ),
+    )
+    await _setup(hass, combined_entry)
+
+    assert _saved(hass)["target_temperature_low"] == 22.0
+    assert _saved(hass)["target_temperature_high"] == 23.0
+
+
 async def test_combined_slow_source(
     hass: HomeAssistant,
     sources: None,
@@ -877,27 +968,48 @@ async def test_gap_limited_by_the_source_range(hass: HomeAssistant) -> None:
     assert _saved(hass)["target_temperature_high"] == 32.0
 
 
-async def test_no_gap_by_default(
+async def test_initial_targets_keep_gap(hass: HomeAssistant, sources: None) -> None:
+    """The first targets taken from the sources get the configured gap."""
+    await _setup(
+        hass,
+        MockConfigEntry(
+            domain=DOMAIN,
+            title="Living room",
+            data={
+                CONF_NAME: "Living room",
+                CONF_HEAT_ENTITY: HEATER,
+                CONF_COOL_ENTITY: AC,
+                CONF_MIN_GAP: 5.0,
+            },
+        ),
+    )
+
+    # The heater shows 20, the AC 24: the high target moves.
+    assert _saved(hass)["target_temperature_low"] == 20.0
+    assert _saved(hass)["target_temperature_high"] == 25.0
+
+
+async def test_min_gap_by_default(
     hass: HomeAssistant, sources: None, combined_entry: MockConfigEntry
 ) -> None:
-    """Without a gap, the low target may equal the high one, not exceed it."""
+    """Without a configured gap, the low target stays 1 degree below the high one."""
     await _setup(hass, combined_entry)
 
     await _call(hass, SERVICE_SET_TEMPERATURE, target_temp_low=22.0, target_temp_high=22.0)
     assert _saved(hass)["target_temperature_low"] == 22.0
-    assert _saved(hass)["target_temperature_high"] == 22.0
+    assert _saved(hass)["target_temperature_high"] == 23.0
 
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
     assert _saved(hass)["target_temperature_low"] == 23.0
-    assert _saved(hass)["target_temperature_high"] == 23.0
+    assert _saved(hass)["target_temperature_high"] == 24.0
 
 
 @pytest.mark.usefixtures("gap")
-async def test_gap_not_enforced_on_source_takeover(
+async def test_gap_kept_on_source_takeover(
     hass: HomeAssistant, heater: FakeClimate, freezer: FrozenDateTimeFactory
 ) -> None:
-    """A change made on the source wins, even inside the gap."""
+    """A change made on the source wins: the other target moves to keep the gap."""
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
     await _wait(hass, freezer, 13)
 
@@ -906,4 +1018,4 @@ async def test_gap_not_enforced_on_source_takeover(
     await hass.async_block_till_done()
 
     assert _saved(hass)["target_temperature_low"] == 24.0
-    assert _saved(hass)["target_temperature_high"] == 25.0
+    assert _saved(hass)["target_temperature_high"] == 26.0

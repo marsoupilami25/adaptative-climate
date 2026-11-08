@@ -147,33 +147,33 @@ async def test_source_already_at_target_not_called(
 async def test_heating_setpoint_pushes_cooling_one(
     hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
 ) -> None:
-    """The heating setpoint never goes above the cooling one."""
+    """The heating setpoint stays 1 degree (default gap) below the cooling one."""
     await _mode(hass, HVACMode.HEAT)
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=28.0)
 
     assert _sent(heater) == [28.0]
     assert _saved(hass, LOW) == 28.0
-    assert _saved(hass, HIGH) == 28.0
+    assert _saved(hass, HIGH) == 29.0
 
     await _mode(hass, HVACMode.COOL)
-    assert _sent(ac) == [28.0]
-    assert _target(hass) == 28.0
+    assert _sent(ac) == [29.0]
+    assert _target(hass) == 29.0
 
 
 @pytest.mark.usefixtures("init_integration")
 async def test_cooling_setpoint_pulls_heating_one(
     hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
 ) -> None:
-    """The cooling setpoint never goes below the heating one."""
+    """The cooling setpoint stays 1 degree (default gap) above the heating one."""
     await _mode(hass, HVACMode.COOL)
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=18.0)
 
     assert _sent(ac) == [18.0]
     assert _saved(hass, HIGH) == 18.0
-    assert _saved(hass, LOW) == 18.0
+    assert _saved(hass, LOW) == 17.0
 
     await _mode(hass, HVACMode.HEAT)
-    assert _sent(heater) == [18.0]
+    assert _sent(heater) == [17.0]
 
 
 async def test_target_kept_in_configured_limits(

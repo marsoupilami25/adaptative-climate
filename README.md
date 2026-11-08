@@ -115,13 +115,13 @@ them, and a source turned on elsewhere (remote control, app) gets its own
 setpoint too. It is sent once the source shows its new mode, so a device
 that first shows its own target for that mode gets the entity target instead.
 
-The low target stays at least `min_gap` below the high one (empty or 0: it
-may equal it, not exceed it). Setting one moves the other: a heating setpoint
-raised above the cooling one pulls it up, a cooling setpoint lowered below
+The low target stays at least `min_gap` below the high one (1 degree at
+least, also the default). Setting one moves the other: a heating setpoint
+raised near the cooling one pushes it up, a cooling setpoint lowered near
 the heating one pulls it down. In a `target_temp_low`/`target_temp_high`
 call, the high target moves. When the source of the other target cannot
-follow (range), the target just set gives way. A change made on a source is
-not checked: the source has the upper hand.
+follow (range), the target just set gives way. A change made on a source has
+the upper hand: it is kept, and only the other target moves.
 
 Each source gets the target rounded to its step and kept in its range (and
 in the `min_temp`/`max_temp` limits). A setpoint that only goes to one

@@ -31,6 +31,7 @@ from .const import (
     CONF_TEMPERATURE_SENSOR,
     DEFAULT_NAME,
     DOMAIN,
+    MIN_GAP,
     MODE_SOURCE_KEYS,
     entry_settings,
 )
@@ -42,7 +43,7 @@ TEMPERATURE_SELECTOR = NumberSelector(
 )
 
 GAP_SELECTOR = NumberSelector(
-    NumberSelectorConfig(min=0, max=10, step=0.5, mode=NumberSelectorMode.BOX),
+    NumberSelectorConfig(min=MIN_GAP, max=10, step=0.5, mode=NumberSelectorMode.BOX),
 )
 
 CLIMATE_SELECTOR = EntitySelector(EntitySelectorConfig(domain="climate"))

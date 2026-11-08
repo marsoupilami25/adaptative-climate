@@ -21,6 +21,7 @@ from .const import (
     CONF_SYNC_MODES,
     CONF_TEMPERATURE_SENSOR,
     DOMAIN,
+    MIN_GAP,
     MODE_SOURCE_KEYS,
 )
 from .coordinator import AdaptativeClimateConfigEntry, AdaptativeClimateCoordinator
@@ -60,7 +61,7 @@ ENTRY_SCHEMA = vol.All(
             vol.Optional(CONF_TEMPERATURE_SENSOR): cv.entity_domain("sensor"),
             vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
             vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
-            vol.Optional(CONF_MIN_GAP): vol.All(vol.Coerce(float), vol.Range(min=0)),
+            vol.Optional(CONF_MIN_GAP): vol.All(vol.Coerce(float), vol.Range(min=MIN_GAP)),
             vol.Optional(CONF_SYNC_MODES): vol.All(
                 cv.ensure_list, [vol.In([str(mode) for mode in MODE_SOURCE_KEYS])]
             ),

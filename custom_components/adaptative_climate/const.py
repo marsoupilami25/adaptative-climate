@@ -17,6 +17,9 @@ CONF_MAX_TEMP: Final = "max_temp"
 
 # Optional minimum gap between the low (heating) and high (cooling) targets.
 CONF_MIN_GAP: Final = "min_gap"
+# Smallest gap, also the default: the combined HEAT_COOL keeps its phase
+# between the two targets, so they must not meet.
+MIN_GAP: Final = 1.0
 
 CONF_HEAT_ENTITY: Final = "heat_entity"
 CONF_COOL_ENTITY: Final = "cool_entity"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
@@ -56,6 +57,7 @@ from .const import (
     CONF_MIN_GAP,
     CONF_MIN_TEMP,
     DOMAIN,
+    MIN_GAP,
     MODE_SOURCE_KEYS,
     entry_settings,
 )
@@ -183,8 +185,7 @@ def _parse_targets(data: dict[str, Any]) -> dict[str, float | None]:
     targets: dict[str, float | None] = {}
     for target, name in SAVED_TARGETS.items():
         value = data.get(name)
-        valid = isinstance(value, (int, float)) and not isinstance(value, bool)
-        targets[target] = float(value) if valid else None
+        targets[target] = float(value) if _is_number(value) else None
     return targets
 
 
@@ -269,6 +270,9 @@ class AdaptativeClimateEntity(
         self._observed: tuple[TargetKey, dict[str, Any]] | None = None
         # Mode being switched to by this entity, while it is in progress.
         self._switching_to: HVACMode | None = None
+        # One mode change at a time: a phase switch running in the background
+        # and a mode asked by the user would mix their source calls.
+        self._mode_lock = asyncio.Lock()
         # Targets wanted by the user, kept across restarts. The sources
         # receive them rounded and in their range, but they stay as they are.
         self._targets: dict[str, float | None] = dict.fromkeys(TARGETS)
@@ -300,6 +304,7 @@ class AdaptativeClimateEntity(
             data = last.as_dict()
             self._memory = _parse_memory(data)
             self._targets = _parse_targets(data)
+            self._apply_gap([ATTR_TARGET_TEMP_LOW])
             self._restore_phase = self._combined and data.get("heat_cool") is True
         self._update_phase()
         self._observe_sources()
@@ -481,6 +486,7 @@ class AdaptativeClimateEntity(
             elif changed:
                 self._settle_received = True
             return
+        taken: list[str] = []
         for attr in changed:
             value = values[attr]
             target = mapping[attr]
@@ -489,8 +495,11 @@ class AdaptativeClimateEntity(
             ):
                 continue
             # The user took over from the source: it is kept as is, even
-            # outside the range or the limits of this entity.
+            # outside the range or the limits of this entity. The other
+            # target moves to keep the gap.
             self._targets[target] = float(value)
+            taken.append(target)
+        self._apply_gap(taken, give_way=False)
 
     @callback
     def _start_settle(self, key: TargetKey) -> None:
@@ -534,7 +543,7 @@ class AdaptativeClimateEntity(
         The low target (heating setpoint) comes from the heat source, the high
         one from the cool source. A heat_cool source with low/high targets
         comes first; without any source, they are 1 degree around the single
-        target.
+        target. They then keep the gap (see _apply_gap).
         """
         if self._display_source is None:
             return
@@ -559,6 +568,7 @@ class AdaptativeClimateEntity(
         own = self._source_pair([heat_cool] if heat_cool else [])
         other = self._source_pair(self.coordinator.source_entity_ids)
         single = self._targets[ATTR_TEMPERATURE]
+        filled: list[str] = []
         for index, (target, mode, fallback) in enumerate(
             (
                 (ATTR_TARGET_TEMP_LOW, HVACMode.HEAT, single - 1),
@@ -573,6 +583,8 @@ class AdaptativeClimateEntity(
             elif not _is_number(value):
                 value = other[index] if other is not None else fallback
             self._targets[target] = float(value)
+            filled.append(target)
+        self._apply_gap(filled)
 
     def _source_pair(self, entity_ids: list[str]) -> tuple[float, float] | None:
         """Return the low/high targets of the first source that has both."""
@@ -722,14 +734,20 @@ class AdaptativeClimateEntity(
         the current phase is kept; when entering (current is None), the phase
         of the closest target. Without room temperature, the current phase,
         else the heat or cool source already running, else heat.
+
+        The low target can end up above the high one (a source took over and
+        the other source could not follow): between them, both apply, so the
+        current phase is kept too, not switched back and forth.
         """
         temperature = self._room_temperature()
         low = self._targets[ATTR_TARGET_TEMP_LOW]
         high = self._targets[ATTR_TARGET_TEMP_HIGH]
         if temperature is not None and low is not None and high is not None:
-            if temperature < low:
+            below = temperature < low
+            above = temperature > high
+            if below and not above:
                 return HVACMode.HEAT
-            if temperature > high:
+            if above and not below:
                 return HVACMode.COOL
             if current is None:
                 return HVACMode.HEAT if temperature - low <= high - temperature else HVACMode.COOL
@@ -814,13 +832,19 @@ class AdaptativeClimateEntity(
         self._end_phase_wait()
 
     async def _async_switch_phase(self, phase: HVACMode) -> None:
-        """Run the source of a new phase, if the phase did not change since."""
-        if self._phase != phase:
-            return
-        try:
-            await self._async_activate(phase, HVACMode.HEAT_COOL)
-        except HomeAssistantError as err:
-            _LOGGER.warning("Could not switch %s to %s: %s", self.entity_id, phase, err)
+        """Run the source of a new phase, if the phase did not change since.
+
+        It waits for a mode change in progress, which may change the phase.
+        """
+        async with self._mode_lock:
+            if self._phase != phase:
+                return
+            try:
+                await self._async_activate(phase, HVACMode.HEAT_COOL)
+            except HomeAssistantError as err:
+                _LOGGER.warning(
+                    "Could not switch %s to %s: %s", self.entity_id, phase, err
+                )
         self._observe_sources()
         self.async_write_ha_state()
 
@@ -942,19 +966,20 @@ class AdaptativeClimateEntity(
         """Read an attribute from the display source."""
         return self._attr_from(self._display_source, attr)
 
+    def _source_modes(self, mode: HVACMode) -> tuple[HVACMode, ...]:
+        """Return the source modes a mode uses: heat and cool for the combined HEAT_COOL."""
+        return PHASES if mode is HVACMode.HEAT_COOL and self._combined else (mode,)
+
     def _mode_entities(self, mode: HVACMode) -> list[str]:
-        """Return the sources a mode uses: heat and cool for the combined HEAT_COOL."""
-        if mode is HVACMode.HEAT_COOL and self._combined:
-            return [self._mode_sources[phase] for phase in PHASES]
-        return [self._mode_sources[mode]]
+        """Return the sources a mode uses."""
+        return [self._mode_sources[source_mode] for source_mode in self._source_modes(mode)]
 
     def _mode_usable(self, mode: HVACMode) -> bool:
         """Return True when the sources of a mode are usable and offer it."""
-        modes = PHASES if mode is HVACMode.HEAT_COOL and self._combined else (mode,)
         return all(
             self._state(self._mode_sources[source_mode]) is not None
             and source_mode not in self.coordinator.unsupported_modes
-            for source_mode in modes
+            for source_mode in self._source_modes(mode)
         )
 
     # Entity properties
@@ -1304,15 +1329,20 @@ class AdaptativeClimateEntity(
             or _same_temperature(low, high - gap)
         )
 
-    def _apply_gap(self, changed: list[str]) -> None:
+    def _min_gap(self) -> float:
+        """Return the gap kept between the low and high targets (MIN_GAP at least)."""
+        return max(float(entry_settings(self._entry).get(CONF_MIN_GAP) or 0), MIN_GAP)
+
+    def _apply_gap(self, changed: list[str], *, give_way: bool = True) -> None:
         """Keep the low target the configured gap below the high one.
 
         The target just set stays; the other one moves. If its source cannot
-        follow (range), the target just set moves back as far as needed. When
+        follow (range), the target just set moves back as far as needed,
+        unless give_way is False (a change made on a source is kept). When
         both were set, the high target moves.
         """
         low_high = {ATTR_TARGET_TEMP_LOW, ATTR_TARGET_TEMP_HIGH}
-        gap = float(entry_settings(self._entry).get(CONF_MIN_GAP) or 0)
+        gap = self._min_gap()
         if not low_high & set(changed) or self._gap_respected(gap):
             return
         pivot = (
@@ -1325,7 +1355,8 @@ class AdaptativeClimateEntity(
             if pivot == ATTR_TARGET_TEMP_LOW
             else ATTR_TARGET_TEMP_LOW
         )
-        for moved, fixed in ((other, pivot), (pivot, other)):
+        moves = ((other, pivot), (pivot, other)) if give_way else ((other, pivot),)
+        for moved, fixed in moves:
             sign = 1 if moved == ATTR_TARGET_TEMP_HIGH else -1
             self._targets[moved] = self._keep(
                 moved, self._targets[fixed] + sign * gap
@@ -1373,21 +1404,22 @@ class AdaptativeClimateEntity(
         The combined HEAT_COOL needs both of its sources.
         """
         if hvac_mode is not HVACMode.OFF:
-            for source_mode in (
-                PHASES if hvac_mode is HVACMode.HEAT_COOL and self._combined else (hvac_mode,)
-            ):
+            for source_mode in self._source_modes(hvac_mode):
                 self._check_source(hvac_mode, source_mode)
 
-        if hvac_mode is HVACMode.HEAT_COOL and self._combined:
-            phase = self._wanted_phase(None)
-            self._start_phase(phase)
-            await self._async_activate(phase, HVACMode.HEAT_COOL)
-        else:
-            self._leave_phase()
-            if hvac_mode is HVACMode.OFF:
-                await self.coordinator.async_turn_off_other_sources(None)
+        async with self._mode_lock:
+            if hvac_mode is HVACMode.HEAT_COOL and self._combined:
+                # Already in the combined mode: its phase is kept between the
+                # targets, as in _check_phase.
+                phase = self._wanted_phase(self._phase)
+                self._start_phase(phase)
+                await self._async_activate(phase, HVACMode.HEAT_COOL)
             else:
-                await self._async_activate(hvac_mode, hvac_mode)
+                self._leave_phase()
+                if hvac_mode is HVACMode.OFF:
+                    await self.coordinator.async_turn_off_other_sources(None)
+                else:
+                    await self._async_activate(hvac_mode, hvac_mode)
         if hvac_mode is not HVACMode.OFF:
             self._last_on_mode = hvac_mode
         # A source already in its mode sends no update: the new targets
