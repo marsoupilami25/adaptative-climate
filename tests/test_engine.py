@@ -282,7 +282,7 @@ def test_single_target_profile() -> None:
     assert profile.source_mode(HVACMode.HEAT) is HVACMode.OFF
     assert profile.shown_target(TEMP, mapping) == TEMP
     assert profile.shown_target(LOW, mapping) is None
-    assert profile.target_source(LOW) is None
+    assert profile.target_mode(LOW) is None
     assert profile.features == ClimateEntityFeature(0)
 
 
@@ -294,7 +294,7 @@ def test_fan_only_profile() -> None:
     assert profile.source_mode(None) is HVACMode.FAN_ONLY
     for attr in (TEMP, LOW, HIGH):
         assert profile.shown_target(attr, mapping) is None
-    assert profile.target_source(LOW) is None
+    assert profile.target_mode(LOW) is None
 
 
 def test_dry_profile() -> None:
@@ -321,15 +321,15 @@ def test_auto_profile() -> None:
     assert profile.shown_target(TEMP, mapping) is None
     assert profile.shown_target(LOW, mapping) == LOW
     assert profile.shown_target(HIGH, mapping) == HIGH
-    assert profile.target_source(LOW) == "climate.a"
-    assert profile.target_source(TEMP) is None
+    assert profile.target_mode(LOW) is HVACMode.AUTO
+    assert profile.target_mode(TEMP) is None
 
     profile = AutoProfile(HVACMode.AUTO, _sources(TARGET, auto="climate.a"))
     mapping = profile.target_map(None)
     assert mapping == {TEMP: TEMP}
     assert profile.shown_target(TEMP, mapping) == TEMP
     assert profile.shown_target(LOW, mapping) is None
-    assert profile.target_source(LOW) is None
+    assert profile.target_mode(LOW) is None
 
     profile = AutoProfile(HVACMode.AUTO, _sources(0, auto="climate.a"))
     mapping = profile.target_map(None)
@@ -355,14 +355,14 @@ def test_range_heat_cool_profile() -> None:
     assert mapping == {LOW: LOW, HIGH: HIGH}
     assert profile.shown_target(TEMP, mapping) is None
     assert profile.shown_target(LOW, mapping) == LOW
-    assert profile.target_source(HIGH) == "climate.hc"
+    assert profile.target_mode(HIGH) is HVACMode.HEAT_COOL
 
     profile = RangeHeatCoolProfile(HVACMode.HEAT_COOL, _sources(0, heat_cool="climate.hc"))
     mapping = profile.target_map(None)
     assert mapping == {TEMP: TEMP}
     assert profile.shown_target(TEMP, mapping) == TEMP
     assert profile.shown_target(HIGH, mapping) is None
-    assert profile.target_source(HIGH) is None
+    assert profile.target_mode(HIGH) is None
 
 
 def test_combined_heat_cool_profile() -> None:
@@ -380,8 +380,8 @@ def test_combined_heat_cool_profile() -> None:
     assert profile.shown_target(TEMP, mapping) is None
     assert profile.shown_target(HIGH, mapping) == HIGH
     assert profile.shown_target(TEMP, {TEMP: TEMP}) == TEMP
-    assert profile.target_source(LOW) == "climate.h"
-    assert profile.target_source(HIGH) == "climate.c"
+    assert profile.target_mode(LOW) is HVACMode.HEAT
+    assert profile.target_mode(HIGH) is HVACMode.COOL
 
 
 # Timer and CombinedPhase

@@ -9,7 +9,7 @@ testing the mode itself. A profile answers:
 - target_map: which target each target attribute of the source gets,
   as {source attribute: target}.
 - shown_target: which target the entity shows in a target attribute.
-- target_source: the only source a low/high target goes to, if any.
+- target_mode: the only source mode a low/high target goes to, if any.
 - features: what the mode adds to the entity, whatever its sources offer.
 
 Profiles:
@@ -82,8 +82,8 @@ class ModeProfile:
         """
         return ATTR_TEMPERATURE if attr == ATTR_TEMPERATURE else None
 
-    def target_source(self, target: str) -> str | None:
-        """Return the only source a low/high target goes to, if any."""
+    def target_mode(self, target: str) -> HVACMode | None:
+        """Return the only source mode a low/high target goes to, if any."""
         return None
 
 
@@ -131,10 +131,10 @@ class SourceTargetsProfile(ModeProfile):
         """Show the targets the source gets."""
         return attr if attr in self._targets() else None
 
-    def target_source(self, target: str) -> str | None:
+    def target_mode(self, target: str) -> HVACMode | None:
         """Low/high go to the source, when it gets them."""
         if target != ATTR_TEMPERATURE and target in self._targets():
-            return self._sources.mode_sources[self.mode]
+            return self.mode
         return None
 
 
@@ -193,9 +193,9 @@ class RangeHeatCoolProfile(ModeProfile):
         """Show the targets the source gets."""
         return attr if attr in mapping.values() else None
 
-    def target_source(self, target: str) -> str | None:
+    def target_mode(self, target: str) -> HVACMode | None:
         """Both low/high targets go to the source, when it has them."""
-        return self._sources.mode_sources[self.mode] if self._has_range() else None
+        return self.mode if self._has_range() else None
 
 
 class CombinedHeatCoolProfile(ModeProfile):
@@ -228,10 +228,9 @@ class CombinedHeatCoolProfile(ModeProfile):
             return attr if attr in mapping.values() else None
         return attr
 
-    def target_source(self, target: str) -> str | None:
+    def target_mode(self, target: str) -> HVACMode | None:
         """The low target goes to the heat source, the high one to the cool source."""
-        phase = HVACMode.HEAT if target == ATTR_TARGET_TEMP_LOW else HVACMode.COOL
-        return self._sources.mode_sources[phase]
+        return HVACMode.HEAT if target == ATTR_TARGET_TEMP_LOW else HVACMode.COOL
 
 
 def build_profiles(sources: Sources, combined: bool) -> dict[HVACMode, ModeProfile]:

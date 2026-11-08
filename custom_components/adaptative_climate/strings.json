@@ -7,25 +7,53 @@
         "data": {
           "name": "Name",
           "heat_entity": "Heat mode climate entity",
+          "heat_offset": "Heat mode temperature offset",
+          "heat_external_sensor": "Heat mode external sensor",
           "cool_entity": "Cool mode climate entity",
+          "cool_offset": "Cool mode temperature offset",
+          "cool_external_sensor": "Cool mode external sensor",
           "heat_cool_entity": "Heat/cool mode climate entity",
+          "heat_cool_offset": "Heat/cool mode temperature offset",
+          "heat_cool_external_sensor": "Heat/cool mode external sensor",
           "auto_entity": "Auto mode climate entity",
+          "auto_offset": "Auto mode temperature offset",
+          "auto_external_sensor": "Auto mode external sensor",
           "dry_entity": "Dry mode climate entity",
+          "dry_offset": "Dry mode temperature offset",
+          "dry_external_sensor": "Dry mode external sensor",
           "fan_only_entity": "Fan only mode climate entity",
+          "fan_only_offset": "Fan only mode temperature offset",
+          "fan_only_external_sensor": "Fan only mode external sensor",
           "temperature_sensor": "Temperature sensor",
           "sync_modes": "Synchronized modes",
           "min_temp": "Minimum temperature",
           "max_temp": "Maximum temperature",
           "min_gap": "Minimum gap between heating and cooling targets",
-          "min_phase_duration": "Minimum time in heating or cooling before switching (heat/cool)"
+          "min_phase_duration": "Minimum time in heating or cooling before switching (heat/cool)",
+          "monitoring_gap": "Monitoring: largest gap between temperatures",
+          "monitoring_duration": "Monitoring: duration before a problem"
         },
         "data_description": {
+          "heat_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "heat_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
+          "cool_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "cool_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
+          "heat_cool_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "heat_cool_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
+          "auto_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "auto_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
+          "dry_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "dry_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
+          "fan_only_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "fan_only_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
           "temperature_sensor": "Optional. Room temperature shown by the entity. Without a heat/cool mode climate entity, the heat/cool mode switches between the heat and cool climate entities using it. Leave empty to use the temperature of the climate entities.",
           "sync_modes": "Optional. These modes share their fan and swing settings. A mode without a climate entity is ignored.",
           "min_temp": "Optional. Leave empty to follow the minimum of the climate entity in use. Can only raise it.",
           "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it.",
           "min_gap": "Minimum gap between heating and cooling targets",
-          "min_phase_duration": "Optional, in minutes (10 by default). Without a heat/cool mode climate entity, the heat/cool mode stays this long in heating or cooling before switching to the other one by itself. 0: switch at once. A change of the targets switches at once."
+          "min_phase_duration": "Optional, in minutes (10 by default). Without a heat/cool mode climate entity, the heat/cool mode stays this long in heating or cooling before switching to the other one by itself. 0: switch at once. A change of the targets switches at once.",
+          "monitoring_gap": "Optional, 2 by default. The monitoring sensor turns on when the room sensor and a climate entity, or two climate entities, read temperatures further apart than this (each one minus the offset of its mode).",
+          "monitoring_duration": "Optional, in minutes (15 by default). A gap is a problem once it lasted this long. 0: at once."
         }
       }
     },
@@ -33,7 +61,8 @@
       "min_max_invalid": "The minimum temperature must be lower than the maximum temperature.",
       "self_reference": "An Adaptative Climate entity cannot be used as a source.",
       "no_source": "Choose a climate entity for at least one mode.",
-      "mode_not_supported": "The selected climate entity does not support this mode."
+      "mode_not_supported": "The selected climate entity does not support this mode.",
+      "external_sensor_without_sensor": "An external sensor needs the temperature sensor."
     },
     "abort": {
       "already_configured": "This entry is already configured.",
@@ -46,25 +75,53 @@
         "title": "Adaptative Climate options",
         "data": {
           "heat_entity": "Heat mode climate entity",
+          "heat_offset": "Heat mode temperature offset",
+          "heat_external_sensor": "Heat mode external sensor",
           "cool_entity": "Cool mode climate entity",
+          "cool_offset": "Cool mode temperature offset",
+          "cool_external_sensor": "Cool mode external sensor",
           "heat_cool_entity": "Heat/cool mode climate entity",
+          "heat_cool_offset": "Heat/cool mode temperature offset",
+          "heat_cool_external_sensor": "Heat/cool mode external sensor",
           "auto_entity": "Auto mode climate entity",
+          "auto_offset": "Auto mode temperature offset",
+          "auto_external_sensor": "Auto mode external sensor",
           "dry_entity": "Dry mode climate entity",
+          "dry_offset": "Dry mode temperature offset",
+          "dry_external_sensor": "Dry mode external sensor",
           "fan_only_entity": "Fan only mode climate entity",
+          "fan_only_offset": "Fan only mode temperature offset",
+          "fan_only_external_sensor": "Fan only mode external sensor",
           "temperature_sensor": "Temperature sensor",
           "sync_modes": "Synchronized modes",
           "min_temp": "Minimum temperature",
           "max_temp": "Maximum temperature",
           "min_gap": "Minimum gap between heating and cooling targets",
-          "min_phase_duration": "Minimum time in heating or cooling before switching (heat/cool)"
+          "min_phase_duration": "Minimum time in heating or cooling before switching (heat/cool)",
+          "monitoring_gap": "Monitoring: largest gap between temperatures",
+          "monitoring_duration": "Monitoring: duration before a problem"
         },
         "data_description": {
+          "heat_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "heat_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
+          "cool_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "cool_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
+          "heat_cool_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "heat_cool_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
+          "auto_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "auto_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
+          "dry_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "dry_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
+          "fan_only_offset": "Optional, 0 by default. How much warmer than the room the climate entity of this mode reads (negative: colder). It gets the target plus this offset, and its target and temperature minus this offset are shown.",
+          "fan_only_external_sensor": "Optional. A number or input_number entity the climate entity of this mode regulates with (external temperature of a TRV, probe). It gets the temperature of the temperature sensor, which is then required; the offset of this mode is ignored.",
           "temperature_sensor": "Optional. Room temperature shown by the entity. Without a heat/cool mode climate entity, the heat/cool mode switches between the heat and cool climate entities using it. Leave empty to use the temperature of the climate entities.",
           "sync_modes": "Optional. These modes share their fan and swing settings. A mode without a climate entity is ignored.",
           "min_temp": "Optional. Leave empty to follow the minimum of the climate entity in use. Can only raise it.",
           "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it.",
           "min_gap": "Minimum gap between heating and cooling targets",
-          "min_phase_duration": "Optional, in minutes (10 by default). Without a heat/cool mode climate entity, the heat/cool mode stays this long in heating or cooling before switching to the other one by itself. 0: switch at once. A change of the targets switches at once."
+          "min_phase_duration": "Optional, in minutes (10 by default). Without a heat/cool mode climate entity, the heat/cool mode stays this long in heating or cooling before switching to the other one by itself. 0: switch at once. A change of the targets switches at once.",
+          "monitoring_gap": "Optional, 2 by default. The monitoring sensor turns on when the room sensor and a climate entity, or two climate entities, read temperatures further apart than this (each one minus the offset of its mode).",
+          "monitoring_duration": "Optional, in minutes (15 by default). A gap is a problem once it lasted this long. 0: at once."
         }
       }
     },
@@ -72,7 +129,8 @@
       "min_max_invalid": "The minimum temperature must be lower than the maximum temperature.",
       "no_source": "Choose a climate entity for at least one mode.",
       "self_reference": "An Adaptative Climate entity cannot be used as a source.",
-      "mode_not_supported": "The selected climate entity does not support this mode."
+      "mode_not_supported": "The selected climate entity does not support this mode.",
+      "external_sensor_without_sensor": "An external sensor needs the temperature sensor."
     }
   },
   "exceptions": {

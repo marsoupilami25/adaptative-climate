@@ -112,6 +112,45 @@ async def test_user_flow_min_gap(hass: HomeAssistant) -> None:
     assert result["data"][CONF_MIN_GAP] == 1.5
 
 
+async def test_user_flow_offsets(hass: HomeAssistant) -> None:
+    """The temperature offset of each mode is saved."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_NAME: "Living room",
+            CONF_HEAT_ENTITY: HEATER,
+            "heat_offset": 2,
+            CONF_COOL_ENTITY: AC,
+            "cool_offset": -1.5,
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["heat_offset"] == 2
+    assert result["data"]["cool_offset"] == -1.5
+
+
+async def test_user_flow_monitoring(hass: HomeAssistant) -> None:
+    """The monitoring gap and duration are saved."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_NAME: "Living room",
+            CONF_HEAT_ENTITY: HEATER,
+            "monitoring_gap": 3,
+            "monitoring_duration": 0,
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["monitoring_gap"] == 3
+    assert result["data"]["monitoring_duration"] == 0
+
+
 async def test_user_flow_min_phase_duration(hass: HomeAssistant) -> None:
     """The minimum phase duration of the combined heat_cool is saved."""
     result = await hass.config_entries.flow.async_init(

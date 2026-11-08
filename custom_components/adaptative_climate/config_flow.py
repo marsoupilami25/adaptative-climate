@@ -28,11 +28,16 @@ from .const import (
     CONF_MIN_GAP,
     CONF_MIN_PHASE_DURATION,
     CONF_MIN_TEMP,
+    CONF_MONITORING_DURATION,
+    CONF_MONITORING_GAP,
     CONF_SYNC_MODES,
     CONF_TEMPERATURE_SENSOR,
     DEFAULT_NAME,
     DOMAIN,
+    MAX_OFFSET,
     MIN_GAP,
+    MODE_EXTERNAL_SENSOR_KEYS,
+    MODE_OFFSET_KEYS,
     MODE_SOURCE_KEYS,
     entry_settings,
 )
@@ -54,11 +59,42 @@ DURATION_SELECTOR = NumberSelector(
     ),
 )
 
+# How much warmer than the room a source reads (negative: colder).
+OFFSET_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=-MAX_OFFSET, max=MAX_OFFSET, step=0.5, mode=NumberSelectorMode.BOX
+    ),
+)
+
+# Largest gap between readings before the monitoring sees a problem.
+MONITORING_GAP_SELECTOR = NumberSelector(
+    NumberSelectorConfig(min=0.5, max=10, step=0.5, mode=NumberSelectorMode.BOX),
+)
+
+# Minutes a gap lasts before it is a problem; 0: at once.
+MONITORING_DURATION_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=0, max=240, step=1, unit_of_measurement="min", mode=NumberSelectorMode.BOX
+    ),
+)
+
 CLIMATE_SELECTOR = EntitySelector(EntitySelectorConfig(domain="climate"))
 
-# One optional source per mode. A mode without a source is not shown.
+# Entity a source regulates with, which gets the room temperature.
+EXTERNAL_SENSOR_SELECTOR = EntitySelector(
+    EntitySelectorConfig(domain=["number", "input_number"])
+)
+
+# One optional source per mode, each followed by its optional offset and
+# external sensor. A mode without a source is not shown.
 SOURCES_SCHEMA: dict[vol.Marker, Any] = {
-    vol.Optional(key): CLIMATE_SELECTOR for key in MODE_SOURCE_KEYS.values()
+    marker: selector
+    for mode, key in MODE_SOURCE_KEYS.items()
+    for marker, selector in (
+        (vol.Optional(key), CLIMATE_SELECTOR),
+        (vol.Optional(MODE_OFFSET_KEYS[mode]), OFFSET_SELECTOR),
+        (vol.Optional(MODE_EXTERNAL_SENSOR_KEYS[mode]), EXTERNAL_SENSOR_SELECTOR),
+    )
 }
 
 # Optional room temperature sensor, used by the combined heat_cool mode.
@@ -74,6 +110,12 @@ TEMPERATURE_SCHEMA: dict[vol.Marker, Any] = {
     vol.Optional(CONF_MAX_TEMP): TEMPERATURE_SELECTOR,
     vol.Optional(CONF_MIN_GAP): GAP_SELECTOR,
     vol.Optional(CONF_MIN_PHASE_DURATION): DURATION_SELECTOR,
+}
+
+# Monitoring of the readings (binary sensor).
+MONITORING_SCHEMA: dict[vol.Marker, Any] = {
+    vol.Optional(CONF_MONITORING_GAP): MONITORING_GAP_SELECTOR,
+    vol.Optional(CONF_MONITORING_DURATION): MONITORING_DURATION_SELECTOR,
 }
 
 # Modes sharing their fan and swing settings. A mode without a source is ignored.
@@ -95,11 +137,18 @@ CONFIG_SCHEMA = vol.Schema(
         **SENSOR_SCHEMA,
         **SYNC_SCHEMA,
         **TEMPERATURE_SCHEMA,
+        **MONITORING_SCHEMA,
     }
 )
 
 OPTIONS_SCHEMA = vol.Schema(
-    {**SOURCES_SCHEMA, **SENSOR_SCHEMA, **SYNC_SCHEMA, **TEMPERATURE_SCHEMA}
+    {
+        **SOURCES_SCHEMA,
+        **SENSOR_SCHEMA,
+        **SYNC_SCHEMA,
+        **TEMPERATURE_SCHEMA,
+        **MONITORING_SCHEMA,
+    }
 )
 
 
@@ -234,6 +283,12 @@ def _validate_input(hass: HomeAssistant, user_input: dict[str, Any]) -> dict[str
 
     if configured == 0:
         errors["base"] = "no_source"
+
+    # An external sensor gets the temperature of the room sensor.
+    if not user_input.get(CONF_TEMPERATURE_SENSOR):
+        for key in MODE_EXTERNAL_SENSOR_KEYS.values():
+            if user_input.get(key):
+                errors[key] = "external_sensor_without_sensor"
 
     min_temp = user_input.get(CONF_MIN_TEMP)
     max_temp = user_input.get(CONF_MAX_TEMP)

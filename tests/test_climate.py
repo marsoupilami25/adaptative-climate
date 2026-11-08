@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from pytest_homeassistant_custom_component.common import (
@@ -40,6 +41,7 @@ from homeassistant.const import (
     ATTR_SUPPORTED_FEATURES,
     ATTR_TEMPERATURE,
     STATE_UNAVAILABLE,
+    Platform,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
@@ -69,10 +71,15 @@ async def test_entities(
     hass: HomeAssistant,
     entity_registry: er.EntityRegistry,
     snapshot: SnapshotAssertion,
-    init_integration: MockConfigEntry,
+    sources: None,
+    mock_config_entry: MockConfigEntry,
 ) -> None:
     """The registry entry and state match the snapshot."""
-    await snapshot_platform(hass, entity_registry, snapshot, init_integration.entry_id)
+    mock_config_entry.add_to_hass(hass)
+    with patch("custom_components.adaptative_climate.PLATFORMS", [Platform.CLIMATE]):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+    await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry.entry_id)
 
 
 @pytest.mark.usefixtures("init_integration")

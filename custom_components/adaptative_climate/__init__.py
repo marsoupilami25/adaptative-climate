@@ -19,21 +19,35 @@ from .const import (
     CONF_MIN_GAP,
     CONF_MIN_PHASE_DURATION,
     CONF_MIN_TEMP,
+    CONF_MONITORING_DURATION,
+    CONF_MONITORING_GAP,
     CONF_SYNC_MODES,
     CONF_TEMPERATURE_SENSOR,
     DOMAIN,
+    MAX_OFFSET,
     MIN_GAP,
+    MODE_EXTERNAL_SENSOR_KEYS,
+    MODE_OFFSET_KEYS,
     MODE_SOURCE_KEYS,
 )
 from .coordinator import AdaptativeClimateConfigEntry, AdaptativeClimateCoordinator
+from .engine.external_sensor import ExternalSensorWriter
+from .engine.sources import Sources
 
-PLATFORMS: list[Platform] = [Platform.CLIMATE]
+PLATFORMS: list[Platform] = [Platform.CLIMATE, Platform.BINARY_SENSOR]
 
 
 def _check_entry(conf: dict[str, Any]) -> dict[str, Any]:
-    """Check what the schema alone cannot: one source at least, min below max."""
+    """Check what the schema alone cannot.
+
+    One source at least, a room sensor for the external sensors, min below max.
+    """
     if not any(conf.get(key) for key in MODE_SOURCE_KEYS.values()):
         raise vol.Invalid("Set a climate entity for at least one mode")
+    if not conf.get(CONF_TEMPERATURE_SENSOR):
+        for key in MODE_EXTERNAL_SENSOR_KEYS.values():
+            if conf.get(key):
+                raise vol.Invalid(f"{key} needs {CONF_TEMPERATURE_SENSOR}")
     min_temp = conf.get(CONF_MIN_TEMP)
     max_temp = conf.get(CONF_MAX_TEMP)
     if min_temp is not None and max_temp is not None and min_temp >= max_temp:
@@ -59,11 +73,27 @@ ENTRY_SCHEMA = vol.All(
                 vol.Optional(key): cv.entity_domain(CLIMATE_DOMAIN)
                 for key in MODE_SOURCE_KEYS.values()
             },
+            **{
+                vol.Optional(key): vol.All(
+                    vol.Coerce(float), vol.Range(min=-MAX_OFFSET, max=MAX_OFFSET)
+                )
+                for key in MODE_OFFSET_KEYS.values()
+            },
+            **{
+                vol.Optional(key): cv.entity_domain(["number", "input_number"])
+                for key in MODE_EXTERNAL_SENSOR_KEYS.values()
+            },
             vol.Optional(CONF_TEMPERATURE_SENSOR): cv.entity_domain("sensor"),
             vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
             vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
             vol.Optional(CONF_MIN_GAP): vol.All(vol.Coerce(float), vol.Range(min=MIN_GAP)),
             vol.Optional(CONF_MIN_PHASE_DURATION): vol.All(
+                vol.Coerce(float), vol.Range(min=0)
+            ),
+            vol.Optional(CONF_MONITORING_GAP): vol.All(
+                vol.Coerce(float), vol.Range(min=0, min_included=False)
+            ),
+            vol.Optional(CONF_MONITORING_DURATION): vol.All(
                 vol.Coerce(float), vol.Range(min=0)
             ),
             vol.Optional(CONF_SYNC_MODES): vol.All(
@@ -110,6 +140,13 @@ async def async_setup_entry(
     await coordinator.async_config_entry_first_refresh()
     coordinator.async_start()
     entry.runtime_data = coordinator
+
+    # The sources with an external sensor get the room temperature.
+    if coordinator.temperature_sensor:
+        writer = ExternalSensorWriter(coordinator, Sources(coordinator))
+        if writer.targets:
+            writer.start()
+            entry.async_on_unload(writer.stop)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))

@@ -6,15 +6,17 @@ sources each time.
 - current: the mode a source runs in, or HEAT_COOL when the combined
   phase runs. While waiting for the phase, or switching, it stays
   HEAT_COOL even if the sources still show off or the other phase.
-- source_mode, active_source, display_source: what is sent to the
-  source, the source of the current mode, the source read for display
-  (the active one, else the first usable one).
+- source_mode, active_mode / active_source, display_mode /
+  display_source: what is sent to the source, the source mode of the
+  current mode and its source, the one read for display (the active one,
+  else the first usable one).
 - modes, profile, entities, usable, check, next_mode: the modes offered,
   their profile and sources, whether they can be used (check refuses with
   a translated error), and the mode turn_on goes to.
 - temperature_range, fit: the range of the entity (sources of the
-  current mode, all of them when off, narrowed by the limits), and a
-  value as a source gets it (only kept in that range without a source).
+  current mode, all of them when off, minus their offset, narrowed by the
+  limits), and a value as the source of a mode gets it (only kept in that
+  range without a source mode).
 - async_activate: turns the other sources off, sets the mode of the
   source, sends back its remembered settings. switching_to is set
   meanwhile. async_turn_off turns every source off.
@@ -115,24 +117,29 @@ class ModeTracker:
         """Return the mode sent to the source: the phase for the combined HEAT_COOL."""
         return self.profile(mode).source_mode(self._phase.phase)
 
+    def active_mode(self) -> HVACMode | None:
+        """Return the source mode of the current mode (None when off)."""
+        mode = self.source_mode(self.current())
+        return mode if mode in self._sources.mode_sources else None
+
     def active_source(self) -> str | None:
         """Return the source of the current mode (None when off)."""
         return self._sources.mode_sources.get(self.source_mode(self.current()))
 
-    def display_source(self) -> str | None:
-        """Return the source used for readings: the active one, else the first usable one."""
-        active = self.active_source()
+    def display_mode(self) -> HVACMode | None:
+        """Return the source mode used for readings: the active one, else the first usable one."""
+        active = self.active_mode()
         if active is not None:
             return active
-        for entity_id in self._sources.entity_ids:
+        for mode, entity_id in self._sources.mode_sources.items():
             if self._sources.state(entity_id) is not None:
-                return entity_id
+                return mode
         return None
 
-    def entities(self, mode: HVACMode) -> list[str]:
-        """Return the sources a mode uses."""
-        mode_sources = self._sources.mode_sources
-        return [mode_sources[source_mode] for source_mode in self.profile(mode).source_modes()]
+    def display_source(self) -> str | None:
+        """Return the source used for readings: the active one, else the first usable one."""
+        mode = self.display_mode()
+        return None if mode is None else self._sources.mode_sources[mode]
 
     def usable(self, mode: HVACMode) -> bool:
         """Return True when the sources of a mode are usable and offer it."""
@@ -175,22 +182,24 @@ class ModeTracker:
         """Return the range of the entity.
 
         On: the range of the sources of the current mode (heat and cool for
-        the combined HEAT_COOL). Off: the widest range of the sources. Both
-        narrowed by the configured limits.
+        the combined HEAT_COOL). Off: the widest range of the sources. Each
+        source minus its offset, narrowed by the configured limits.
         """
         mode = self.current()
         return self._sources.limited_range(
-            self._sources.entity_ids if mode is HVACMode.OFF else self.entities(mode)
+            list(self._sources.mode_sources)
+            if mode is HVACMode.OFF
+            else list(self.profile(mode).source_modes())
         )
 
-    def fit(self, value: float, entity_id: str | None) -> float:
-        """Return a value as a source gets it: rounded to its step, in its range.
+    def fit(self, value: float, mode: HVACMode | None) -> float:
+        """Return a value as the source of a mode gets it (see Sources.fit).
 
-        Without a source (entity off), the value is only kept in the range
-        of the entity.
+        Without a source mode (entity off), the value is only kept in the
+        range of the entity.
         """
-        if entity_id is not None:
-            return self._sources.fit(value, entity_id)
+        if mode is not None:
+            return self._sources.fit(value, mode)
         low, high = self.temperature_range()
         return min(max(value, low), high)
 

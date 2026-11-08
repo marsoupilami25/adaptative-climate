@@ -149,6 +149,37 @@ async def test_import_min_phase_duration(hass: HomeAssistant) -> None:
     assert entry.data == {**YAML_ENTRY, CONF_MIN_PHASE_DURATION: 0.0}
 
 
+async def test_import_offsets(hass: HomeAssistant) -> None:
+    """The temperature offset of each mode is a number, either way."""
+    conf = {**YAML_ENTRY, "heat_offset": 2, "cool_offset": "-1.5"}
+    assert await _setup(hass, {DOMAIN: [conf]})
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.data == {**YAML_ENTRY, "heat_offset": 2.0, "cool_offset": -1.5}
+
+
+async def test_import_monitoring(hass: HomeAssistant) -> None:
+    """The monitoring gap and duration are numbers."""
+    conf = {**YAML_ENTRY, "monitoring_gap": 3, "monitoring_duration": 0}
+    assert await _setup(hass, {DOMAIN: [conf]})
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.data == {**YAML_ENTRY, "monitoring_gap": 3.0, "monitoring_duration": 0.0}
+
+
+async def test_import_external_sensor(hass: HomeAssistant) -> None:
+    """An external sensor is a number or input_number, with the room sensor."""
+    conf = {
+        **YAML_ENTRY,
+        "temperature_sensor": "sensor.room",
+        "heat_external_sensor": "number.trv_external",
+    }
+    assert await _setup(hass, {DOMAIN: [conf]})
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.data == conf
+
+
 async def test_import_reloads_loaded_entry(hass: HomeAssistant) -> None:
     """Re-importing a changed entry while it runs reloads it."""
     assert await _setup(hass, {DOMAIN: [YAML_ENTRY]})
@@ -230,6 +261,23 @@ async def test_ui_entries_kept(
         pytest.param({**YAML_ENTRY, CONF_MIN_GAP: -1}, id="negative_gap"),
         pytest.param(
             {**YAML_ENTRY, CONF_MIN_PHASE_DURATION: -1}, id="negative_phase_duration"
+        ),
+        pytest.param({**YAML_ENTRY, "heat_offset": 11}, id="offset_too_large"),
+        pytest.param({**YAML_ENTRY, "monitoring_gap": 0}, id="zero_monitoring_gap"),
+        pytest.param(
+            {**YAML_ENTRY, "heat_external_sensor": "input_number.trv"},
+            id="external_sensor_without_sensor",
+        ),
+        pytest.param(
+            {
+                **YAML_ENTRY,
+                "temperature_sensor": "sensor.room",
+                "heat_external_sensor": "sensor.trv",
+            },
+            id="external_sensor_not_number",
+        ),
+        pytest.param(
+            {**YAML_ENTRY, "monitoring_duration": -1}, id="negative_monitoring_duration"
         ),
         pytest.param({**YAML_ENTRY, CONF_HEAT_ENTITY: "sensor.heater"}, id="not_climate"),
         pytest.param({CONF_HEAT_ENTITY: HEATER}, id="no_name"),

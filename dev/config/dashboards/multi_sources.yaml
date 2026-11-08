@@ -224,6 +224,59 @@ views:
     view_layout:
       position: sidebar
 
+- title: Monitoring
+  path: monitoring
+  type: sidebar
+  badges:
+  - type: entity
+    entity: binary_sensor.adaptative_multi_monitoring
+    show_name: true
+    visibility:
+    - condition: state
+      entity: binary_sensor.adaptative_multi_monitoring
+      state: "on"
+  cards:
+  - *pilotage
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Monitoring
+    - type: tile
+      entity: binary_sensor.adaptative_multi_monitoring
+    - type: markdown
+      content: |
+        {% set m = 'binary_sensor.adaptative_multi_monitoring' %}
+        {% if states[m] is none %}
+        > ⚠️ **`{{ m }}` introuvable.** Vérifier la section `adaptative_climate:` et redémarrer.
+        {% else %}
+        État : **{{ states(m) }}** · écart max : {{ state_attr(m, 'max_gap') }} °C
+
+        | Type | Écart | Capteur | Sources |
+        |:--|--:|--:|:--|
+        {% for p in state_attr(m, 'problems') or [] %}
+        | {{ p.type }} | {{ p.gap }} | {{ p.sensor_temperature if p.sensor_temperature is defined else '' }} | {% for s in p.sources %}{{ s.entity_id }} ({{ s.modes | join(',') }}) : {{ s.temperature }}{{ ' · ' if not loop.last else '' }}{% endfor %} |
+        {% endfor %}
+        {% endif %}
+  - type: markdown
+    content: |
+      ## Scénarios : monitoring
+
+      Partir de **Tout remettre à zéro** (capteur et sources à 20 °C).
+      *Monitoring* (`binary_sensor.adaptative_multi_monitoring`) compare le capteur à chaque source,
+      et les sources entre elles. Un écart de plus de 2 °C est un problème après 1 min
+      (`monitoring_duration: 1`). Le badge en haut n'apparaît qu'en cas de problème.
+      Les températures des sources se règlent dans la carte État (*Température HEAT*...).
+
+      1. **Écart d'une source** : *Température HEAT* à 23 : rien pendant 1 min, puis *Monitoring* passe à *Problème*. Problèmes : *sensor* pour HEAT (3), et *sources* entre HEAT et chacune des quatre autres (3).
+      2. **Retour** : *Température HEAT* à 21 : *Monitoring* repasse aussitôt à *OK*, plus de problème.
+      3. **Seuil** : *Température HEAT* à 22 : écart de 2, pas un problème, même après 1 min.
+      4. **Capteur** : *Température HEAT* à 20, *Température du capteur* à 17 : après 1 min, cinq problèmes *sensor* (un par source, écart 3), aucun *sources*.
+      5. **Écart interrompu** : capteur à 20. Capteur à 17, puis à 20 avant la minute, puis à 17 : il faut encore 1 min complète avant le problème.
+      6. **Capteur indisponible** : suite du 5, couper *Capteur disponible* : plus de problème (les sources sont d'accord). Rallumer le capteur.
+      7. **Source indisponible** : capteur à 20, *Température COOL* à 25, attendre le problème. Couper *COOL disponible* (vue Sources) : plus de problème. La rallumer : 1 min avant le problème.
+    view_layout:
+      position: sidebar
+
 - title: Sources
   path: sources
   type: sections

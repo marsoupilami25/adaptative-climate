@@ -3,9 +3,14 @@
 TargetSync uses the TargetStore and the profiles to:
 
 - Route: key (mode and phase), mapping (which target each attribute of
-  the active source gets), target_source, applied (a target as a source
-  gets it), keep (a low/high target that goes to one source is kept as
-  that source gets it).
+  the active source gets), target_mode, applied (a target as the source
+  of a mode gets it: plus its offset, rounded, in its range), keep (a
+  low/high target that goes to one source is kept as that source gets
+  it).
+- Offsets: the targets are those of the room. A source gets them plus
+  its offset, and a target read from it (taken or shown) is minus its
+  offset, so a target changed on the source still becomes the target of
+  the entity, without drift.
 - Set: set (targets asked by the user; the single target is low in heat,
   high in cool), apply_gap (with the configured gap), init (first
   targets from the sources once one is usable).
@@ -103,36 +108,42 @@ class TargetSync:
         """Return which target each target attribute of the active source gets."""
         return self._modes.profile(self._modes.current()).target_map(self._phase.phase)
 
-    def target_source(self, target: str) -> str | None:
-        """Return the only source a low/high target goes to, if any.
+    def target_mode(self, target: str) -> HVACMode | None:
+        """Return the only source mode a low/high target goes to, if any.
 
         Low/high go to the source of HEAT_COOL and to that of auto, when it
-        has them. Several sources, or the single target: None.
+        has them. Several sources (or one source with two offsets), or the
+        single target: None.
         """
         if target == ATTR_TEMPERATURE:
             return None
         found = {
-            source
-            for mode in (HVACMode.HEAT_COOL, HVACMode.AUTO)
-            if (source := self._modes.profile(mode).target_source(target)) is not None
+            (self._sources.mode_sources[mode], self._sources.offset(mode)): mode
+            for profile_mode in (HVACMode.HEAT_COOL, HVACMode.AUTO)
+            if (mode := self._modes.profile(profile_mode).target_mode(target)) is not None
         }
-        return found.pop() if len(found) == 1 else None
+        return next(iter(found.values())) if len(found) == 1 else None
 
-    def applied(self, target: str, entity_id: str | None) -> float | None:
-        """Return a target as a source gets it."""
+    def applied(self, target: str, mode: HVACMode | None) -> float | None:
+        """Return a target as the source of a mode gets it (plus its offset)."""
         value = self._store[target]
-        return None if value is None else self._modes.fit(value, entity_id)
+        return None if value is None else self._modes.fit(value, mode)
+
+    def _applied_room(self, target: str, mode: HVACMode | None) -> float | None:
+        """Return a target as the source of a mode gets it, minus its offset."""
+        value = self.applied(target, mode)
+        return None if value is None else value - self._sources.offset(mode)
 
     def keep(self, target: str, value: float) -> float:
         """Return a value to keep for a target.
 
-        A target that only goes to one source (see target_source) is kept as
-        that source gets it, so the phase switches where the source works.
-        Otherwise it is kept as is, for every source.
+        A target that only goes to one source (see target_mode) is kept as
+        that source gets it (minus its offset), so the phase switches where
+        the source works. Otherwise it is kept as is, for every source.
         """
-        source = self.target_source(target)
-        if source is not None and self._sources.state(source) is not None:
-            return self._modes.fit(value, source)
+        mode = self.target_mode(target)
+        if mode is not None and self._sources.state(self._sources.mode_sources[mode]) is not None:
+            return self._modes.fit(value, mode) - self._sources.offset(mode)
         return value
 
     # Setting the targets
@@ -166,30 +177,36 @@ class TargetSync:
         The low target (heating setpoint) comes from the heat source, the high
         one from the cool source. A heat_cool source with low/high targets
         comes first; without any source, they are 1 degree around the single
-        target. They then keep the gap.
+        target. They then keep the gap. Targets read from a source are
+        minus its offset.
         """
         if self._modes.display_source() is None:
             return
         sources = self._sources
-        active = self._modes.active_source()
-        entity_ids = [active] if active else sources.entity_ids
+        active = self._modes.active_mode()
+        modes = [active] if active else list(sources.mode_sources)
         single = self._store[ATTR_TEMPERATURE]
         if single is None:
             low, high = self._modes.temperature_range()
             single = next(
                 (
-                    float(value)
-                    for entity_id in entity_ids
-                    if is_number(value := sources.attr(entity_id, ATTR_TEMPERATURE))
+                    value
+                    for mode in modes
+                    if (
+                        value := sources.from_source(
+                            sources.attr(sources.mode_sources[mode], ATTR_TEMPERATURE),
+                            mode,
+                        )
+                    )
+                    is not None
                 ),
                 (low + high) / 2,
             )
             self._store[ATTR_TEMPERATURE] = single
         if self._store.has_range():
             return
-        heat_cool = sources.mode_sources.get(HVACMode.HEAT_COOL)
-        own = sources.pair([heat_cool] if heat_cool else [])
-        other = sources.pair(sources.entity_ids)
+        own = sources.pair([HVACMode.HEAT_COOL])
+        other = sources.pair(list(sources.mode_sources))
         filled: list[str] = []
         for index, (target, mode, fallback) in enumerate(
             (
@@ -199,10 +216,12 @@ class TargetSync:
         ):
             if self._store[target] is not None:
                 continue
-            value = sources.attr(sources.mode_sources.get(mode), ATTR_TEMPERATURE)
+            value = sources.from_source(
+                sources.attr(sources.mode_sources.get(mode), ATTR_TEMPERATURE), mode
+            )
             if own is not None:
                 value = own[index]
-            elif not is_number(value):
+            elif value is None:
                 value = other[index] if other is not None else fallback
             self._store[target] = float(value)
             filled.append(target)
@@ -214,7 +233,7 @@ class TargetSync:
     def observe(
         self,
         key: TargetKey,
-        source: str,
+        source_mode: HVACMode,
         values: dict[str, Any],
         before: dict[str, Any] | None,
         *,
@@ -235,14 +254,15 @@ class TargetSync:
         showed nothing, nothing is sent.
 
         Outside the settle time, a target changed on the source becomes the
-        target of this entity, unless it is the value sent to it (rounded
-        and in its range).
+        target of this entity (minus the offset of source_mode, the mode the
+        source runs in), unless it is the value sent to it (rounded and in
+        its range).
         """
         mapping = self.mapping()
         if before is None:
             if not requested:
                 self.end_settle()
-                self._take(source, values, list(mapping))
+                self._take(source_mode, values, list(mapping))
                 return
             self._start_settle(key)
             self.schedule_send(key)
@@ -250,29 +270,34 @@ class TargetSync:
         changes = [attr for attr in mapping if changed(values[attr], before[attr])]
         if self.settling:
             if self._settle_sent and all(
-                same_temperature(values[attr], self.applied(target, source))
+                same_temperature(values[attr], self.applied(target, source_mode))
                 for attr, target in mapping.items()
             ):
                 self.end_settle()
             elif changes:
                 self._settle_received = True
             return
-        self._take(source, values, changes)
+        self._take(source_mode, values, changes)
 
     @callback
-    def _take(self, source: str, values: dict[str, Any], attrs: list[str]) -> None:
-        """Take target attributes shown by the active source as the targets."""
+    def _take(self, source_mode: HVACMode, values: dict[str, Any], attrs: list[str]) -> None:
+        """Take target attributes shown by the active source as the targets.
+
+        Minus the offset of its mode: the targets are those of the room.
+        """
         mapping = self.mapping()
         taken: list[str] = []
         for attr in attrs:
             value = values[attr]
             target = mapping[attr]
-            if not is_number(value) or same_temperature(value, self.applied(target, source)):
+            if not is_number(value) or same_temperature(
+                value, self.applied(target, source_mode)
+            ):
                 continue
             # The user took over from the source: it is kept as is, even
             # outside the range or the limits of this entity. The other
             # target moves to keep the gap.
-            self._store[target] = float(value)
+            self._store[target] = float(value) - self._sources.offset(source_mode)
             taken.append(target)
         self.apply_gap(taken, give_way=False)
 
@@ -313,7 +338,8 @@ class TargetSync:
         """Send the targets to the active source, if its mode is still on.
 
         A source without these targets, fan only, or dry or auto on a source
-        without target, gets nothing, and they are kept for the next mode. A source error is logged without failing.
+        without target, gets nothing, and they are kept for the next mode. A
+        source error is logged without failing.
         """
         if (
             key[0] is HVACMode.OFF
@@ -321,13 +347,14 @@ class TargetSync:
             or self._sources.running_mode() != self._modes.source_mode(key[0])
         ):
             return
-        entity_id = self._modes.active_source()
-        assert entity_id is not None
+        source_mode = self._modes.active_mode()
+        assert source_mode is not None
+        entity_id = self._sources.mode_sources[source_mode]
         mapping = self.mapping()
         features = self._sources.features(entity_id)
         data: dict[str, float] = {}
         for attr, target in mapping.items():
-            applied = self.applied(target, entity_id)
+            applied = self.applied(target, source_mode)
             if TARGET_FEATURES[attr] in features and applied is not None:
                 data[attr] = applied
         # Low and high targets go together.
@@ -366,6 +393,7 @@ class TargetSync:
         settle time, or from a source without that target, the target of
         this entity is shown, as the active source gets it. The target of the
         other phase of the combined mode is shown as its source gets it.
+        A target read from a source, or as it gets it, is minus its offset.
         """
         mode = self._modes.current()
         mapping = self.mapping()
@@ -381,16 +409,17 @@ class TargetSync:
         if target is None:
             return None
 
+        active_mode = self._modes.active_mode()
         active = self._modes.active_source()
         for source_attr, mapped in mapping.items():
             if mapped != target:
                 continue
-            value = self._sources.attr(active, source_attr)
+            value = self._sources.from_source(self._sources.attr(active, source_attr), active_mode)
             if (
                 not self.settling
                 and TARGET_FEATURES[source_attr] in self._sources.features(active)
-                and is_number(value)
+                and value is not None
             ):
                 return value
-            return self.applied(target, active)
-        return self.applied(target, self.target_source(target))
+            return self._applied_room(target, active_mode)
+        return self._applied_room(target, self.target_mode(target))

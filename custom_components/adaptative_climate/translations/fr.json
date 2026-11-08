@@ -7,25 +7,53 @@
         "data": {
           "name": "Nom",
           "heat_entity": "Entité climate du mode Chauffage",
+          "heat_offset": "Décalage de température du mode Chauffage",
+          "heat_external_sensor": "Capteur externe du mode Chauffage",
           "cool_entity": "Entité climate du mode Climatisation",
+          "cool_offset": "Décalage de température du mode Climatisation",
+          "cool_external_sensor": "Capteur externe du mode Climatisation",
           "heat_cool_entity": "Entité climate du mode Chauffage/Climatisation",
+          "heat_cool_offset": "Décalage de température du mode Chauffage/Climatisation",
+          "heat_cool_external_sensor": "Capteur externe du mode Chauffage/Climatisation",
           "auto_entity": "Entité climate du mode Auto",
+          "auto_offset": "Décalage de température du mode Auto",
+          "auto_external_sensor": "Capteur externe du mode Auto",
           "dry_entity": "Entité climate du mode Déshumidification",
+          "dry_offset": "Décalage de température du mode Déshumidification",
+          "dry_external_sensor": "Capteur externe du mode Déshumidification",
           "fan_only_entity": "Entité climate du mode Ventilation",
+          "fan_only_offset": "Décalage de température du mode Ventilation",
+          "fan_only_external_sensor": "Capteur externe du mode Ventilation",
           "temperature_sensor": "Capteur de température",
           "sync_modes": "Modes synchronisés",
           "min_temp": "Température minimale",
           "max_temp": "Température maximale",
           "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation",
-          "min_phase_duration": "Durée minimale en chauffage ou climatisation avant de basculer (heat/cool)"
+          "min_phase_duration": "Durée minimale en chauffage ou climatisation avant de basculer (heat/cool)",
+          "monitoring_gap": "Monitoring : écart maximal entre températures",
+          "monitoring_duration": "Monitoring : durée avant un problème"
         },
         "data_description": {
+          "heat_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "heat_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
+          "cool_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "cool_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
+          "heat_cool_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "heat_cool_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
+          "auto_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "auto_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
+          "dry_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "dry_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
+          "fan_only_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "fan_only_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
           "temperature_sensor": "Facultatif. Température de la pièce affichée par l'entité. Sans entité climate du mode Chauffage/Climatisation, ce mode bascule entre les entités de chauffage et de climatisation selon cette température. Laisser vide pour utiliser la température des entités climate.",
           "sync_modes": "Facultatif. Ces modes partagent leurs réglages de ventilation et de balayage. Un mode sans entité climate est ignoré.",
           "min_temp": "Facultatif. Laisser vide pour suivre le minimum de l'appareil utilisé. Ne peut que le relever.",
           "max_temp": "Facultatif. Laisser vide pour suivre le maximum de l'appareil utilisé. Ne peut que l'abaisser.",
           "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation",
-          "min_phase_duration": "Optionnel, en minutes (10 par défaut). Sans entité climate pour le mode heat/cool, celui-ci reste au moins ce temps en chauffage ou en climatisation avant de basculer de lui-même. 0 : bascule immédiate. Un changement de consigne bascule tout de suite."
+          "min_phase_duration": "Optionnel, en minutes (10 par défaut). Sans entité climate pour le mode heat/cool, celui-ci reste au moins ce temps en chauffage ou en climatisation avant de basculer de lui-même. 0 : bascule immédiate. Un changement de consigne bascule tout de suite.",
+          "monitoring_gap": "Optionnel, 2 par défaut. Le capteur de monitoring s'allume quand le capteur de la pièce et une entité climate, ou deux entités climate, lisent des températures plus éloignées que cet écart (chacune moins le décalage de son mode).",
+          "monitoring_duration": "Optionnel, en minutes (15 par défaut). Un écart devient un problème quand il dure ce temps. 0 : tout de suite."
         }
       }
     },
@@ -33,7 +61,8 @@
       "min_max_invalid": "La température minimale doit être inférieure à la température maximale.",
       "self_reference": "Une entité Adaptative Climate ne peut pas servir de source.",
       "no_source": "Choisis une entité climate pour au moins un mode.",
-      "mode_not_supported": "L'entité climate choisie ne propose pas ce mode."
+      "mode_not_supported": "L'entité climate choisie ne propose pas ce mode.",
+      "external_sensor_without_sensor": "Un capteur externe a besoin du capteur de température."
     },
     "abort": {
       "already_configured": "Cette entrée est déjà configurée.",
@@ -46,25 +75,53 @@
         "title": "Options Adaptative Climate",
         "data": {
           "heat_entity": "Entité climate du mode Chauffage",
+          "heat_offset": "Décalage de température du mode Chauffage",
+          "heat_external_sensor": "Capteur externe du mode Chauffage",
           "cool_entity": "Entité climate du mode Climatisation",
+          "cool_offset": "Décalage de température du mode Climatisation",
+          "cool_external_sensor": "Capteur externe du mode Climatisation",
           "heat_cool_entity": "Entité climate du mode Chauffage/Climatisation",
+          "heat_cool_offset": "Décalage de température du mode Chauffage/Climatisation",
+          "heat_cool_external_sensor": "Capteur externe du mode Chauffage/Climatisation",
           "auto_entity": "Entité climate du mode Auto",
+          "auto_offset": "Décalage de température du mode Auto",
+          "auto_external_sensor": "Capteur externe du mode Auto",
           "dry_entity": "Entité climate du mode Déshumidification",
+          "dry_offset": "Décalage de température du mode Déshumidification",
+          "dry_external_sensor": "Capteur externe du mode Déshumidification",
           "fan_only_entity": "Entité climate du mode Ventilation",
+          "fan_only_offset": "Décalage de température du mode Ventilation",
+          "fan_only_external_sensor": "Capteur externe du mode Ventilation",
           "temperature_sensor": "Capteur de température",
           "sync_modes": "Modes synchronisés",
           "min_temp": "Température minimale",
           "max_temp": "Température maximale",
           "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation",
-          "min_phase_duration": "Durée minimale en chauffage ou climatisation avant de basculer (heat/cool)"
+          "min_phase_duration": "Durée minimale en chauffage ou climatisation avant de basculer (heat/cool)",
+          "monitoring_gap": "Monitoring : écart maximal entre températures",
+          "monitoring_duration": "Monitoring : durée avant un problème"
         },
         "data_description": {
+          "heat_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "heat_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
+          "cool_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "cool_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
+          "heat_cool_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "heat_cool_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
+          "auto_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "auto_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
+          "dry_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "dry_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
+          "fan_only_offset": "Optionnel, 0 par défaut. De combien l'entité climate de ce mode lit plus chaud que la pièce (négatif : plus froid). Elle reçoit la consigne plus ce décalage ; sa consigne et sa température sont affichées moins ce décalage.",
+          "fan_only_external_sensor": "Optionnel. Entité number ou input_number avec laquelle l'entité climate de ce mode régule (température externe d'une tête thermostatique, sonde). Elle reçoit la température du capteur de température, qui devient obligatoire ; le décalage de ce mode est ignoré.",
           "temperature_sensor": "Facultatif. Température de la pièce affichée par l'entité. Sans entité climate du mode Chauffage/Climatisation, ce mode bascule entre les entités de chauffage et de climatisation selon cette température. Laisser vide pour utiliser la température des entités climate.",
           "sync_modes": "Facultatif. Ces modes partagent leurs réglages de ventilation et de balayage. Un mode sans entité climate est ignoré.",
           "min_temp": "Facultatif. Laisser vide pour suivre le minimum de l'appareil utilisé. Ne peut que le relever.",
           "max_temp": "Facultatif. Laisser vide pour suivre le maximum de l'appareil utilisé. Ne peut que l'abaisser.",
           "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation",
-          "min_phase_duration": "Optionnel, en minutes (10 par défaut). Sans entité climate pour le mode heat/cool, celui-ci reste au moins ce temps en chauffage ou en climatisation avant de basculer de lui-même. 0 : bascule immédiate. Un changement de consigne bascule tout de suite."
+          "min_phase_duration": "Optionnel, en minutes (10 par défaut). Sans entité climate pour le mode heat/cool, celui-ci reste au moins ce temps en chauffage ou en climatisation avant de basculer de lui-même. 0 : bascule immédiate. Un changement de consigne bascule tout de suite.",
+          "monitoring_gap": "Optionnel, 2 par défaut. Le capteur de monitoring s'allume quand le capteur de la pièce et une entité climate, ou deux entités climate, lisent des températures plus éloignées que cet écart (chacune moins le décalage de son mode).",
+          "monitoring_duration": "Optionnel, en minutes (15 par défaut). Un écart devient un problème quand il dure ce temps. 0 : tout de suite."
         }
       }
     },
@@ -72,7 +129,8 @@
       "min_max_invalid": "La température minimale doit être inférieure à la température maximale.",
       "no_source": "Choisis une entité climate pour au moins un mode.",
       "self_reference": "Une entité Adaptative Climate ne peut pas servir de source.",
-      "mode_not_supported": "L'entité climate choisie ne propose pas ce mode."
+      "mode_not_supported": "L'entité climate choisie ne propose pas ce mode.",
+      "external_sensor_without_sensor": "Un capteur externe a besoin du capteur de température."
     }
   },
   "exceptions": {

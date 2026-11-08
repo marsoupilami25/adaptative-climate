@@ -71,6 +71,20 @@ adaptative_climate:
     # Switches phase at once, to test the contradicting sources quickly
     # (the minimum phase duration is tested on MULTI).
     min_phase_duration: 0
+  # Temperature offset: the heat pump reads 2 degrees warmer than the room
+  # in heat; dry has no offset. The limit applies to the room target.
+  - name: Adaptative OFFSET
+    heat_entity: climate.pac_virtuel_mono
+    heat_offset: 2
+    dry_entity: climate.pac_virtuel_mono
+    max_temp: 26
+  # External sensor: the valve regulates with the temperature the entity
+  # writes from its room sensor. Its offset is then ignored.
+  - name: Adaptative TRV
+    heat_entity: climate.trv_virtuel_mono
+    heat_offset: 3
+    heat_external_sensor: input_number.temperature_externe_trv_mono
+    temperature_sensor: sensor.capteur_piece_trv_mono
 
   # Case 2: every mode, one single-mode source per mode.
   - name: Adaptative MULTI
@@ -85,6 +99,9 @@ adaptative_climate:
     # A phase lasts at least 1 minute (10 by default) before switching by
     # itself: short enough for manual tests.
     min_phase_duration: 1
+    # Monitoring: a gap above 2 degrees (default) is a problem after 1 minute
+    # (15 by default), short enough for manual tests.
+    monitoring_duration: 1
     # Heat, cool and dry share their fan and swing settings.
     sync_modes: [heat, cool, dry]
 

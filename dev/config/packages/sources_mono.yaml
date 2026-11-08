@@ -11,13 +11,52 @@
 # swing_horizontal_actif_<mode>): when off, the source lists no option, like a
 # device without them.
 # All sources read the same room temperature (input_number.temperature_courante_mono).
-# Except RADIATEUR and CLIM, which read their own (input_number.temperature_<source>_mono).
+# Except RADIATEUR, CLIM and PAC, which read their own (input_number.temperature_<source>_mono),
+# and TRV, which reads its external temperature (input_number.temperature_externe_trv_mono),
+# written by Adaptative TRV from its room sensor (sensor.capteur_piece_trv_mono).
 # hvac_action is computed from the mode and the room vs target temperature.
 
 # Each source has its own temperature range (heat 5-30, cool 16-32, dry 18-30,
 # fan_only 10-35, auto 10-30, all 8-32), so ranges differ between modes.
 template:
+  # Room sensor of Adaptative TRV, written to the external temperature of TRV.
+  - sensor:
+      - name: Capteur pièce TRV (mono)
+        default_entity_id: sensor.capteur_piece_trv_mono
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: "{{ is_state('input_boolean.dispo_capteur_trv_mono', 'on') }}"
+        state: "{{ states('input_number.temperature_piece_trv_mono') }}"
   - climate:
+      # Thermostatic valve regulating with an external temperature
+      # (heat_external_sensor of Adaptative TRV).
+      - name: TRV Virtuel (mono)
+        default_entity_id: climate.trv_virtuel_mono
+        hvac_modes: '{{ ["off", "heat"] }}'
+        min_temperature: 5
+        max_temperature: 30
+        current_temperature: "{{ states('input_number.temperature_externe_trv_mono') }}"
+        target_temperature: "{{ states('input_number.consigne_trv_mono') }}"
+        hvac_mode: "{{ states('input_select.mode_trv_mono') }}"
+        hvac_action: >
+          {% set t = states('input_number.temperature_externe_trv_mono') | float(0) %}
+          {% set c = states('input_number.consigne_trv_mono') | float(0) %}
+          {% if is_state('input_select.mode_trv_mono', 'off') %}off
+          {% elif t < c %}heating{% else %}idle{% endif %}
+        set_temperature:
+          action: input_number.set_value
+          target:
+            entity_id: input_number.consigne_trv_mono
+          data:
+            value: "{{ temperature }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_trv_mono
+          data:
+            option: "{{ hvac_mode }}"
+
       - name: HEAT Virtuel (mono)
         default_entity_id: climate.heat_virtuel_mono
         hvac_modes: '{{ ["off", "heat"] }}'
@@ -395,6 +434,35 @@ template:
           data:
             option: "{{ hvac_mode }}"
 
+      # Heat pump serving heat and dry, reading its own temperature: tests
+      # the temperature offset (heat_offset on Adaptative OFFSET).
+      - name: PAC Virtuel (mono)
+        default_entity_id: climate.pac_virtuel_mono
+        hvac_modes: '{{ ["off", "heat", "dry"] }}'
+        min_temperature: 5
+        max_temperature: 30
+        current_temperature: "{{ states('input_number.temperature_pac_mono') }}"
+        target_temperature: "{{ states('input_number.consigne_pac_mono') }}"
+        hvac_mode: "{{ states('input_select.mode_pac_mono') }}"
+        hvac_action: >
+          {% set t = states('input_number.temperature_pac_mono') | float(0) %}
+          {% set c = states('input_number.consigne_pac_mono') | float(0) %}
+          {% if is_state('input_select.mode_pac_mono', 'off') %}off
+          {% elif is_state('input_select.mode_pac_mono', 'dry') %}drying
+          {% elif t < c %}heating{% else %}idle{% endif %}
+        set_temperature:
+          action: input_number.set_value
+          target:
+            entity_id: input_number.consigne_pac_mono
+          data:
+            value: "{{ temperature }}"
+        set_hvac_mode:
+          action: input_select.select_option
+          target:
+            entity_id: input_select.mode_pac_mono
+          data:
+            option: "{{ hvac_mode }}"
+
       # 16-32 °C with a 1 °C step and a fan.
       - name: CLIM Virtuel (mono)
         default_entity_id: climate.clim_virtuel_mono
@@ -468,6 +536,12 @@ input_select:
   mode_clim_mono:
     name: Mode CLIM
     options: ["off", "cool"]
+  mode_pac_mono:
+    name: Mode PAC
+    options: ["off", "heat", "dry"]
+  mode_trv_mono:
+    name: Mode TRV
+    options: ["off", "heat"]
   fan_clim_mono:
     name: Fan CLIM
     options: ["auto", "low", "high"]
@@ -539,6 +613,47 @@ input_select:
     options: ["off", "on", "left", "center", "right", "wide"]
 
 input_number:
+  # Written by Adaptative TRV: 0-40 °C, so a room above 40 is not written.
+  temperature_externe_trv_mono:
+    name: Température externe TRV
+    min: 0
+    max: 40
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-auto
+  temperature_piece_trv_mono:
+    name: Température pièce TRV
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  consigne_trv_mono:
+    name: Consigne TRV
+    min: 5
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:thermometer-check
+  temperature_pac_mono:
+    name: Température PAC
+    min: 0
+    max: 50
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:home-thermometer
+  consigne_pac_mono:
+    name: Consigne PAC
+    min: 5
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: slider
+    icon: mdi:thermometer-check
   temperature_radiateur_mono:
     name: Température RADIATEUR
     min: 0
@@ -637,6 +752,10 @@ input_number:
     icon: mdi:thermometer-check
 
 input_boolean:
+  dispo_capteur_trv_mono:
+    name: Capteur pièce TRV disponible
+    initial: true
+    icon: mdi:power-plug
   dispo_heat_cool_mono:
     name: HEAT_COOL disponible
     initial: true
@@ -808,6 +927,9 @@ script:
             - input_number.temperature_courante_mono
             - input_number.temperature_radiateur_mono
             - input_number.temperature_clim_mono
+            - input_number.temperature_pac_mono
+            - input_number.temperature_piece_trv_mono
+            - input_number.temperature_externe_trv_mono
         data:
           value: 20
       - action: input_number.set_value
@@ -837,6 +959,7 @@ script:
             - input_boolean.dispo_radiateur_mono
             - input_boolean.dispo_clim_mono
             - input_boolean.dispo_deshum_mono
+            - input_boolean.dispo_capteur_trv_mono
       - action: input_select.select_option
         target:
           entity_id:
@@ -844,6 +967,8 @@ script:
             - input_select.mode_radiateur_mono
             - input_select.mode_clim_mono
             - input_select.mode_deshum_mono
+            - input_select.mode_pac_mono
+            - input_select.mode_trv_mono
         data:
           option: "off"
       - action: input_select.select_option
@@ -869,6 +994,8 @@ script:
         target:
           entity_id:
             - input_number.consigne_radiateur_mono
+            - input_number.consigne_pac_mono
+            - input_number.consigne_trv_mono
         data:
           value: 20
       - action: input_number.set_value

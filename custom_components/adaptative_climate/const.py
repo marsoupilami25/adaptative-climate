@@ -28,6 +28,14 @@ MIN_GAP: Final = 1.0
 CONF_MIN_PHASE_DURATION: Final = "min_phase_duration"
 DEFAULT_MIN_PHASE_DURATION: Final = 10
 
+# Monitoring (binary sensor): a gap above this, between the room sensor and
+# a source reading or between two sources, is a problem once it lasts the
+# monitoring duration (minutes, 0: at once).
+CONF_MONITORING_GAP: Final = "monitoring_gap"
+DEFAULT_MONITORING_GAP: Final = 2.0
+CONF_MONITORING_DURATION: Final = "monitoring_duration"
+DEFAULT_MONITORING_DURATION: Final = 15
+
 CONF_HEAT_ENTITY: Final = "heat_entity"
 CONF_COOL_ENTITY: Final = "cool_entity"
 CONF_HEAT_COOL_ENTITY: Final = "heat_cool_entity"
@@ -53,6 +61,26 @@ MODE_SOURCE_KEYS: Final[dict[HVACMode, str]] = {
     HVACMode.FAN_ONLY: CONF_FAN_ONLY_ENTITY,
 }
 
+# Optional temperature offset of each mode source: how much warmer than the
+# room its own sensor reads. The source gets the target plus its offset, and
+# its targets and readings minus its offset are those of the room.
+MODE_OFFSET_KEYS: Final[dict[HVACMode, str]] = {
+    mode: f"{mode}_offset" for mode in MODE_SOURCE_KEYS
+}
+# Largest offset accepted, either way.
+MAX_OFFSET: Final = 10.0
+
+# Optional external sensor of each mode source: a number or input_number
+# entity the source regulates with. It gets the temperature of the room
+# sensor, so the source reads the room (its offset is then ignored).
+MODE_EXTERNAL_SENSOR_KEYS: Final[dict[HVACMode, str]] = {
+    mode: f"{mode}_external_sensor" for mode in MODE_SOURCE_KEYS
+}
+# The room temperature is written at most this often...
+EXTERNAL_SENSOR_MIN_INTERVAL: Final = timedelta(seconds=60)
+# ...and again at least this often: some devices forget it.
+EXTERNAL_SENSOR_RESEND: Final = timedelta(minutes=30)
+
 
 def entry_settings(entry: Any) -> Mapping[str, Any]:
     """Return the current settings of a config entry.
@@ -69,6 +97,28 @@ def mode_sources(settings: Mapping[str, Any]) -> dict[HVACMode, str]:
         mode: settings[key]
         for mode, key in MODE_SOURCE_KEYS.items()
         if settings.get(key)
+    }
+
+
+def external_sensors(settings: Mapping[str, Any]) -> dict[HVACMode, str]:
+    """Return the external sensor of each mode that has a source and one."""
+    sources = mode_sources(settings)
+    return {
+        mode: settings[key]
+        for mode, key in MODE_EXTERNAL_SENSOR_KEYS.items()
+        if mode in sources and settings.get(key)
+    }
+
+
+def mode_offsets(settings: Mapping[str, Any]) -> dict[HVACMode, float]:
+    """Return the temperature offset of each mode source (0 when not set).
+
+    A source with an external sensor reads the room: no offset.
+    """
+    external = external_sensors(settings)
+    return {
+        mode: 0.0 if mode in external else float(settings.get(key) or 0)
+        for mode, key in MODE_OFFSET_KEYS.items()
     }
 
 
@@ -89,6 +139,20 @@ def min_phase_duration(settings: Mapping[str, Any]) -> timedelta:
     minutes = settings.get(CONF_MIN_PHASE_DURATION)
     if minutes is None:
         minutes = DEFAULT_MIN_PHASE_DURATION
+    return timedelta(minutes=float(minutes))
+
+
+def monitoring_gap(settings: Mapping[str, Any]) -> float:
+    """Return the largest gap between readings before it is a problem."""
+    gap = settings.get(CONF_MONITORING_GAP)
+    return DEFAULT_MONITORING_GAP if gap is None else float(gap)
+
+
+def monitoring_duration(settings: Mapping[str, Any]) -> timedelta:
+    """Return how long a gap lasts before it is a problem."""
+    minutes = settings.get(CONF_MONITORING_DURATION)
+    if minutes is None:
+        minutes = DEFAULT_MONITORING_DURATION
     return timedelta(minutes=float(minutes))
 
 

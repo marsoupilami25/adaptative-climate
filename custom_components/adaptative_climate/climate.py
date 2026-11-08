@@ -217,7 +217,7 @@ class AdaptativeClimateEntity(
         # elsewhere (remote, app), which then gives its targets.
         requested = before is None and self._modes.take_request(source, source_mode)
         self._memory.observe(source_mode, values, before)
-        self._targets.observe(key, source, values, before, requested=requested)
+        self._targets.observe(key, source_mode, values, before, requested=requested)
 
     # Combined HEAT_COOL
 
@@ -328,7 +328,7 @@ class AdaptativeClimateEntity(
     @property
     def native_current_temperature(self) -> float | None:
         """Return the room temperature: the sensor, else the display source."""
-        return self._sources.room_temperature(self._modes.display_source())
+        return self._sources.room_temperature(self._modes.display_mode())
 
     def _shown_target(self, attr: str) -> float | None:
         """Return a target attribute as shown by the entity (see TargetSync.shown)."""

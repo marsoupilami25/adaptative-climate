@@ -935,3 +935,186 @@ views:
       13. **Sources contradictoires** : plage 19–25, *Température RADIATEUR* et *Température CLIM* à 18, passer en *heat_cool* : RADIATEUR s'allume. *Température RADIATEUR* à 26 (près du radiateur il fait chaud) : RADIATEUR reste allumé, CLIM lit 18. *Température CLIM* à 22 : toujours RADIATEUR. *Température CLIM* à 26 : bascule sur CLIM. *Température CLIM* à 18 : CLIM reste allumée (RADIATEUR lit 26).
     view_layout:
       position: sidebar
+- title: OFFSET
+  path: offset
+  type: sidebar
+  cards:
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Adaptative OFFSET
+      - type: thermostat
+        entity: climate.adaptative_offset
+        features:
+        - type: climate-hvac-modes
+      - type: entities
+        entities:
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: current_temperature
+          name: Température
+          suffix: °C
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: temperature
+          name: Consigne
+          suffix: °C
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: min_temp
+          name: Min
+          suffix: °C
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: max_temp
+          name: Max
+          suffix: °C
+      - type: tile
+        entity: climate.adaptative_offset
+        name: Marche / arrêt
+        icon_tap_action:
+          action: toggle
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Source PAC Virtuel
+      - type: thermostat
+        entity: climate.pac_virtuel_mono
+      - type: entities
+        entities:
+        - input_select.mode_pac_mono
+        - input_number.temperature_pac_mono
+        - input_number.consigne_pac_mono
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: État
+      - type: markdown
+        content: |
+          {% if states.climate.adaptative_offset is none %}
+          > ⚠️ **`climate.adaptative_offset` introuvable.** Vérifier la section `adaptative_climate:` de
+          > `dev/config/configuration.yaml` et les journaux, puis redémarrer.
+
+          {% endif %}
+          {% set e = 'climate.pac_virtuel_mono' %}
+          {% set a = 'climate.adaptative_offset' %}
+          | | Mode | Temp. | Consigne | Min | Max |
+          |:--|:--|--:|--:|--:|--:|
+          | PAC | {{ states(e) }} | {{ state_attr(e, 'current_temperature') }} | {{ state_attr(e, 'temperature') }} | {{ state_attr(e, 'min_temp') }} | {{ state_attr(e, 'max_temp') }} |
+          | Adaptative | {{ states(a) }} | {{ state_attr(a, 'current_temperature') }} | {{ state_attr(a, 'temperature') }} | {{ state_attr(a, 'min_temp') }} | {{ state_attr(a, 'max_temp') }} |
+      - type: entities
+        entities:
+        - input_number.temperature_pac_mono
+        - entity: script.reset_sources_test_mono
+          name: Tout remettre à zéro
+  - type: markdown
+    content: |
+      ## Scénarios
+
+      Partir de **Tout remettre à zéro** (PAC éteinte, température et consigne à 20 °C).
+      PAC Virtuel sert *heat* et *dry*. En *heat*, elle lit 2 °C de plus que la pièce (`heat_offset: 2`) :
+      elle reçoit la consigne + 2, et Adaptative OFFSET affiche sa consigne et sa température − 2.
+      *dry* n'a pas d'offset. Limite `max_temp: 26`, sur la consigne de la pièce.
+
+      1. **Modes et plage** : modes *off*, *heat*, *dry*. Éteint, Min/Max 3–26 (PAC 5–30 : 3–28 en *heat*, 5–30 en *dry*, limité à 26). Température 18 (PAC 20 − 2).
+      2. **Consigne envoyée + offset** : passer en *heat*, consigne 21 : *Consigne PAC* passe à 23, Adaptative OFFSET affiche 21. Min/Max 3–26. Température 18.
+      3. **Température − offset** : *Température PAC* à 23 : Adaptative OFFSET lit 21. Remettre à 20.
+      4. **Changement sur la source** : attendre 12 s, mettre *Consigne PAC* à 24 depuis sa carte : Adaptative OFFSET affiche 22, *Consigne PAC* reste à 24 (rien n'est renvoyé).
+      5. **Limite** : consigne 26 (le maximum) : *Consigne PAC* passe à 28.
+      6. **Offset par mode** : passer en *dry*, consigne 21 : *Consigne PAC* passe à 21, Température 20 (pas d'offset). Repasser en *heat* : *Consigne PAC* reprend 28 (26 + 2).
+      7. **Allumée ailleurs** : éteindre, mettre *Consigne PAC* à 25, puis *Mode PAC* à *heat* depuis sa carte : Adaptative OFFSET passe en *heat* avec la consigne 23, et rien n'est envoyé à la PAC.
+    view_layout:
+      position: sidebar
+- title: TRV
+  path: trv
+  type: sidebar
+  cards:
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Adaptative TRV
+      - type: thermostat
+        entity: climate.adaptative_trv
+        features:
+        - type: climate-hvac-modes
+      - type: entities
+        entities:
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: current_temperature
+          name: Température
+          suffix: °C
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: temperature
+          name: Consigne
+          suffix: °C
+        - binary_sensor.adaptative_trv_monitoring
+      - type: tile
+        entity: climate.adaptative_trv
+        name: Marche / arrêt
+        icon_tap_action:
+          action: toggle
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: Source TRV Virtuel
+      - type: thermostat
+        entity: climate.trv_virtuel_mono
+      - type: entities
+        entities:
+        - input_select.mode_trv_mono
+        - input_number.consigne_trv_mono
+        - input_number.temperature_externe_trv_mono
+    - type: vertical-stack
+      cards:
+      - type: heading
+        heading: État
+      - type: markdown
+        content: |
+          {% if states.climate.adaptative_trv is none %}
+          > ⚠️ **`climate.adaptative_trv` introuvable.** Vérifier la section `adaptative_climate:` de
+          > `dev/config/configuration.yaml` et les journaux, puis redémarrer.
+
+          {% endif %}
+          | Pièce (capteur) | Externe TRV | TRV lit | Consigne TRV | Adaptative lit | Consigne Adaptative |
+          |--:|--:|--:|--:|--:|--:|
+          | {{ states('sensor.capteur_piece_trv_mono') }} | {{ states('input_number.temperature_externe_trv_mono') }} | {{ state_attr('climate.trv_virtuel_mono', 'current_temperature') }} | {{ state_attr('climate.trv_virtuel_mono', 'temperature') }} | {{ state_attr('climate.adaptative_trv', 'current_temperature') }} | {{ state_attr('climate.adaptative_trv', 'temperature') }} |
+
+          Dernière écriture de *Température externe TRV* : {{ relative_time(states.input_number.temperature_externe_trv_mono.last_changed) if states.input_number.temperature_externe_trv_mono else '?' }}
+      - type: entities
+        entities:
+        - input_number.temperature_piece_trv_mono
+        - input_boolean.dispo_capteur_trv_mono
+        - entity: script.reset_sources_test_mono
+          name: Tout remettre à zéro
+  - type: markdown
+    content: |
+      ## Scénarios
+
+      Partir de **Tout remettre à zéro** (pièce, externe et consigne TRV à 20 °C, TRV éteinte).
+      TRV Virtuel régule avec *Température externe TRV* (`heat_external_sensor`), qu'Adaptative TRV
+      remplit avec son capteur de pièce (*Température pièce TRV*). Écriture au plus toutes les minutes,
+      et de nouveau toutes les 30 min même sans changement. `heat_offset: 3` est ignoré.
+
+      1. **Écriture** : *Température pièce TRV* à 18 : *Température externe TRV* passe à 18 (tout de suite si la dernière écriture date de plus d'1 min, sinon à la fin de la minute). TRV Virtuel lit 18.
+      2. **Au plus une fois par minute** : *Température pièce TRV* à 19 puis 17 en quelques secondes : *Température externe TRV* passe à 19, puis à 17 une minute après.
+      3. **Offset ignoré** : passer en *heat*, consigne 21 : *Consigne TRV* passe à 21 (pas 24). Adaptative TRV affiche la température du capteur de pièce.
+      4. **Capteur indisponible** : couper *Capteur pièce TRV disponible*, changer *Température pièce TRV* : *Température externe TRV* ne bouge plus. Le rallumer : elle prend la température de la pièce.
+      5. **Hors plage** : *Température pièce TRV* à 45 : *Température externe TRV* ne bouge pas (maximum 40), un warning « out of the range » est dans les journaux.
+      6. **Renvoi** (long) : mettre *Température externe TRV* à 10 à la main : elle revient à la température de la pièce au plus 30 min après la dernière écriture.
+      7. **Démarrage** : changer *Température externe TRV*, redémarrer Home Assistant : elle reprend la température de la pièce au démarrage.
+    view_layout:
+      position: sidebar
