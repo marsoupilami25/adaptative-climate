@@ -26,6 +26,7 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_MAX_TEMP,
     CONF_MIN_GAP,
+    CONF_MIN_PHASE_DURATION,
     CONF_MIN_TEMP,
     CONF_SYNC_MODES,
     CONF_TEMPERATURE_SENSOR,
@@ -44,6 +45,13 @@ TEMPERATURE_SELECTOR = NumberSelector(
 
 GAP_SELECTOR = NumberSelector(
     NumberSelectorConfig(min=MIN_GAP, max=10, step=0.5, mode=NumberSelectorMode.BOX),
+)
+
+# Minutes; 0 lets the combined heat_cool switch phases at once.
+DURATION_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=0, max=120, step=1, unit_of_measurement="min", mode=NumberSelectorMode.BOX
+    ),
 )
 
 CLIMATE_SELECTOR = EntitySelector(EntitySelectorConfig(domain="climate"))
@@ -65,6 +73,7 @@ TEMPERATURE_SCHEMA: dict[vol.Marker, Any] = {
     vol.Optional(CONF_MIN_TEMP): TEMPERATURE_SELECTOR,
     vol.Optional(CONF_MAX_TEMP): TEMPERATURE_SELECTOR,
     vol.Optional(CONF_MIN_GAP): GAP_SELECTOR,
+    vol.Optional(CONF_MIN_PHASE_DURATION): DURATION_SELECTOR,
 }
 
 # Modes sharing their fan and swing settings. A mode without a source is ignored.

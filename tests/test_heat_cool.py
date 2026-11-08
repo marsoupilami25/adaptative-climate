@@ -44,6 +44,7 @@ from custom_components.adaptative_climate.const import (
     CONF_HEAT_COOL_ENTITY,
     CONF_HEAT_ENTITY,
     CONF_MIN_GAP,
+    CONF_MIN_PHASE_DURATION,
     CONF_TEMPERATURE_SENSOR,
     DOMAIN,
 )
@@ -113,7 +114,11 @@ def _saved(hass: HomeAssistant) -> dict[str, Any]:
 
 @pytest.fixture
 def combined_entry() -> MockConfigEntry:
-    """Heat and cool sources, no heat_cool source, a room sensor."""
+    """Heat and cool sources, no heat_cool source, a room sensor.
+
+    The phase switches at once (no minimum phase duration): see the tests
+    of the minimum phase duration for the default.
+    """
     return MockConfigEntry(
         domain=DOMAIN,
         entry_id="01JTESTENTRY000000000000000",
@@ -123,6 +128,7 @@ def combined_entry() -> MockConfigEntry:
             CONF_HEAT_ENTITY: HEATER,
             CONF_COOL_ENTITY: AC,
             CONF_TEMPERATURE_SENSOR: SENSOR,
+            CONF_MIN_PHASE_DURATION: 0,
         },
     )
 
@@ -255,6 +261,7 @@ async def test_combined_shared_source(
             CONF_HEAT_ENTITY: AC,
             CONF_COOL_ENTITY: AC,
             CONF_TEMPERATURE_SENSOR: SENSOR,
+            CONF_MIN_PHASE_DURATION: 0,
         },
     )
     # The fixture AC has no heat mode: give it one.
@@ -757,6 +764,207 @@ async def test_combined_restored_when_sources_ready(
     heater.async_write_ha_state()
     await hass.async_block_till_done()
     assert _state(hass) == HVACMode.HEAT_COOL
+
+
+# Combined heat_cool: minimum phase duration and contradicting sources.
+
+
+async def _setup_combined(
+    hass: HomeAssistant, *, sensor: bool = True, **options: Any
+) -> None:
+    """Set up the combined heat_cool, targets 19-25 °C, room at 18 °C."""
+    data: dict[str, Any] = {
+        CONF_NAME: "Living room",
+        CONF_HEAT_ENTITY: HEATER,
+        CONF_COOL_ENTITY: AC,
+        **options,
+    }
+    if sensor:
+        data[CONF_TEMPERATURE_SENSOR] = SENSOR
+        await _set_room(hass, "18")
+    await _setup(hass, MockConfigEntry(domain=DOMAIN, title="Living room", data=data))
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=19.0, target_temp_high=25.0
+    )
+
+
+async def _set_reading(hass: HomeAssistant, source: FakeClimate, value: float) -> None:
+    """Show a room temperature on a source."""
+    setattr(source, _attr_name("current_temperature"), value)
+    source.async_write_ha_state()
+    await hass.async_block_till_done()
+
+
+@pytest.mark.usefixtures("sources")
+async def test_phase_held_by_default(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """A phase lasts 10 minutes before switching by itself to the other one."""
+    await _setup_combined(hass)
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+
+    await _set_room(hass, "26")
+    await _wait(hass, freezer, 9 * 60)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+    assert _state(hass, AC) == HVACMode.OFF
+
+    # At the end of the hold, the room is checked again without any update.
+    await _wait(hass, freezer, 61)
+    assert _attrs(hass)["active_entity_id"] == AC
+    assert _state(hass, HEATER) == HVACMode.OFF
+
+    # The new phase is held too.
+    await _set_room(hass, "18")
+    await _wait(hass, freezer, 5 * 60)
+    assert _attrs(hass)["active_entity_id"] == AC
+    await _wait(hass, freezer, 5 * 60)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+
+
+@pytest.mark.usefixtures("sources")
+async def test_phase_hold_ends_if_back_between_targets(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """Back between the targets at the end of the hold: no switch."""
+    await _setup_combined(hass)
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+
+    await _set_room(hass, "26")
+    await _set_room(hass, "24")
+    await _wait(hass, freezer, 11 * 60)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+
+
+@pytest.mark.usefixtures("sources")
+async def test_phase_hold_configured(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """The minimum phase duration is an option."""
+    await _setup_combined(hass, **{CONF_MIN_PHASE_DURATION: 2})
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+
+    await _set_room(hass, "26")
+    await _wait(hass, freezer, 60)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+    await _wait(hass, freezer, 61)
+    assert _attrs(hass)["active_entity_id"] == AC
+
+
+@pytest.mark.usefixtures("sources")
+async def test_phase_hold_ignored_on_new_targets(hass: HomeAssistant) -> None:
+    """New targets from the user switch the phase at once."""
+    await _setup_combined(hass)
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=16.0, target_temp_high=17.0
+    )
+    assert _attrs(hass)["active_entity_id"] == AC
+    assert _state(hass, HEATER) == HVACMode.OFF
+
+
+async def test_phase_not_held_after_restart(
+    hass: HomeAssistant, sources: None, heater: FakeClimate
+) -> None:
+    """A phase brought back after a restart is not held."""
+    heater._attr_hvac_mode = HVACMode.HEAT
+    heater.async_write_ha_state()
+    await _set_room(hass, "18")
+    mock_restore_cache_with_extra_data(
+        hass,
+        (
+            (
+                State(ENTITY_ID, HVACMode.HEAT_COOL),
+                {
+                    "heat_cool": True,
+                    "target_temperature_low": 19.0,
+                    "target_temperature_high": 25.0,
+                },
+            ),
+        ),
+    )
+    await _setup(
+        hass,
+        MockConfigEntry(
+            domain=DOMAIN,
+            title="Living room",
+            data={
+                CONF_NAME: "Living room",
+                CONF_HEAT_ENTITY: HEATER,
+                CONF_COOL_ENTITY: AC,
+                CONF_TEMPERATURE_SENSOR: SENSOR,
+            },
+        ),
+    )
+    assert _state(hass) == HVACMode.HEAT_COOL
+
+    await _set_room(hass, "26")
+    assert _attrs(hass)["active_entity_id"] == AC
+
+
+@pytest.mark.usefixtures("sources")
+async def test_contradicting_sources_keep_phase(
+    hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
+) -> None:
+    """Without a sensor, the phase switches only when both sources agree.
+
+    Each source reads near its own sensor: the heater reads warm, the AC
+    cold. Following the running one would switch back and forth.
+    """
+    await _setup_combined(hass, sensor=False, **{CONF_MIN_PHASE_DURATION: 0})
+    await _set_reading(hass, heater, 18.0)
+    await _set_reading(hass, ac, 18.0)
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+
+    # The heater reads above high, the AC below low: heat is kept.
+    await _set_reading(hass, heater, 26.0)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+    # The AC in between: kept too.
+    await _set_reading(hass, ac, 22.0)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+
+    # Both above high: cool.
+    await _set_reading(hass, ac, 26.0)
+    assert _attrs(hass)["active_entity_id"] == AC
+    assert _state(hass, HEATER) == HVACMode.OFF
+
+    # The AC reads below low, the heater still warm: cool is kept.
+    await _set_reading(hass, ac, 18.0)
+    assert _attrs(hass)["active_entity_id"] == AC
+    await _set_reading(hass, heater, 18.0)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+
+
+@pytest.mark.usefixtures("sources")
+async def test_one_source_without_reading(
+    hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
+) -> None:
+    """A source without room temperature leaves the other one to decide."""
+    await _setup_combined(hass, sensor=False, **{CONF_MIN_PHASE_DURATION: 0})
+    await _set_reading(hass, heater, 18.0)
+    await _set_reading(hass, ac, None)
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+
+    await _set_reading(hass, heater, 26.0)
+    assert _attrs(hass)["active_entity_id"] == AC
+
+
+@pytest.mark.usefixtures("sources")
+async def test_sensor_wins_over_sources(
+    hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
+) -> None:
+    """With a sensor, the readings of the sources are ignored."""
+    await _setup_combined(hass, **{CONF_MIN_PHASE_DURATION: 0})
+    await _set_reading(hass, heater, 30.0)
+    await _set_reading(hass, ac, 30.0)
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    assert _attrs(hass)["active_entity_id"] == HEATER
+
+    await _set_room(hass, "26")
+    assert _attrs(hass)["active_entity_id"] == AC
 
 
 # heat_cool with its own source.

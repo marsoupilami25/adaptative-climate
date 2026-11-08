@@ -13,6 +13,8 @@ no state: it reads what the coordinator received at its last update.
 - pair: the low/high targets of the first source that has both.
 - room_temperature: the sensor when configured and valid (converted to
   the system unit), else the current temperature of a fallback source.
+- phase_temperatures: what the combined HEAT_COOL follows: the sensor,
+  else the readings of the heat and cool sources.
 - async_call: a blocking climate service call on a source. Errors are
   left to the caller.
 
@@ -50,6 +52,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 
 from ..const import CONF_MAX_TEMP, CONF_MIN_TEMP, entry_settings
 from ..coordinator import AdaptativeClimateCoordinator
+from .model import PHASES
 from .util import is_number
 
 
@@ -161,24 +164,48 @@ class Sources:
             value = round(math.floor(value / step + 0.5) * step, 6)
         return min(max(value, low), high)
 
-    def room_temperature(self, fallback: str | None) -> float | None:
-        """Return the room temperature: the sensor, else the fallback source."""
+    def sensor_temperature(self) -> float | None:
+        """Return the temperature of the room sensor, in the system unit."""
         sensor = self._coordinator.temperature_sensor
         state = (self._coordinator.data or {}).get(sensor) if sensor else None
-        if state is not None:
-            try:
-                value = float(state.state)
-            except ValueError:
-                pass
-            else:
-                if math.isfinite(value):
-                    unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
-                    wanted = self._hass.config.units.temperature_unit
-                    if unit in TemperatureConverter.VALID_UNITS and unit != wanted:
-                        value = TemperatureConverter.convert(value, unit, wanted)
-                    return value
-        value = self.attr(fallback, ATTR_CURRENT_TEMPERATURE)
+        if state is None:
+            return None
+        try:
+            value = float(state.state)
+        except ValueError:
+            return None
+        if not math.isfinite(value):
+            return None
+        unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+        wanted = self._hass.config.units.temperature_unit
+        if unit in TemperatureConverter.VALID_UNITS and unit != wanted:
+            value = TemperatureConverter.convert(value, unit, wanted)
+        return value
+
+    def source_temperature(self, entity_id: str | None) -> float | None:
+        """Return the room temperature read by a source."""
+        value = self.attr(entity_id, ATTR_CURRENT_TEMPERATURE)
         return float(value) if is_number(value) else None
+
+    def room_temperature(self, fallback: str | None) -> float | None:
+        """Return the room temperature: the sensor, else the fallback source."""
+        value = self.sensor_temperature()
+        return value if value is not None else self.source_temperature(fallback)
+
+    def phase_temperatures(self) -> list[float]:
+        """Return the room temperatures the combined HEAT_COOL follows.
+
+        The sensor, else what the heat and cool sources read (the ones that
+        do): each reads near its own sensor, they may not agree.
+        """
+        value = self.sensor_temperature()
+        if value is not None:
+            return [value]
+        return [
+            value
+            for mode in PHASES
+            if (value := self.source_temperature(self.mode_sources.get(mode))) is not None
+        ]
 
     async def async_call(
         self, service: str, entity_id: str, data: dict[str, Any]

@@ -16,14 +16,16 @@
           "sync_modes": "Modes synchronisés",
           "min_temp": "Température minimale",
           "max_temp": "Température maximale",
-          "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation"
+          "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation",
+          "min_phase_duration": "Durée minimale en chauffage ou climatisation avant de basculer (heat/cool)"
         },
         "data_description": {
           "temperature_sensor": "Facultatif. Température de la pièce affichée par l'entité. Sans entité climate du mode Chauffage/Climatisation, ce mode bascule entre les entités de chauffage et de climatisation selon cette température. Laisser vide pour utiliser la température des entités climate.",
           "sync_modes": "Facultatif. Ces modes partagent leurs réglages de ventilation et de balayage. Un mode sans entité climate est ignoré.",
           "min_temp": "Facultatif. Laisser vide pour suivre le minimum de l'appareil utilisé. Ne peut que le relever.",
           "max_temp": "Facultatif. Laisser vide pour suivre le maximum de l'appareil utilisé. Ne peut que l'abaisser.",
-          "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation"
+          "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation",
+          "min_phase_duration": "Optionnel, en minutes (10 par défaut). Sans entité climate pour le mode heat/cool, celui-ci reste au moins ce temps en chauffage ou en climatisation avant de basculer de lui-même. 0 : bascule immédiate. Un changement de consigne bascule tout de suite."
         }
       }
     },
@@ -53,14 +55,16 @@
           "sync_modes": "Modes synchronisés",
           "min_temp": "Température minimale",
           "max_temp": "Température maximale",
-          "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation"
+          "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation",
+          "min_phase_duration": "Durée minimale en chauffage ou climatisation avant de basculer (heat/cool)"
         },
         "data_description": {
           "temperature_sensor": "Facultatif. Température de la pièce affichée par l'entité. Sans entité climate du mode Chauffage/Climatisation, ce mode bascule entre les entités de chauffage et de climatisation selon cette température. Laisser vide pour utiliser la température des entités climate.",
           "sync_modes": "Facultatif. Ces modes partagent leurs réglages de ventilation et de balayage. Un mode sans entité climate est ignoré.",
           "min_temp": "Facultatif. Laisser vide pour suivre le minimum de l'appareil utilisé. Ne peut que le relever.",
           "max_temp": "Facultatif. Laisser vide pour suivre le maximum de l'appareil utilisé. Ne peut que l'abaisser.",
-          "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation"
+          "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation",
+          "min_phase_duration": "Optionnel, en minutes (10 par défaut). Sans entité climate pour le mode heat/cool, celui-ci reste au moins ce temps en chauffage ou en climatisation avant de basculer de lui-même. 0 : bascule immédiate. Un changement de consigne bascule tout de suite."
         }
       }
     },

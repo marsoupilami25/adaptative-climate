@@ -42,6 +42,7 @@ adaptative_climate:
     sync_modes: [cool, dry]   # optional, see "Fan and swing settings"
     max_temp: 23   # optional, see "Temperature range"
     min_gap: 2   # optional, see "Target temperature"
+    min_phase_duration: 10   # optional, minutes, see "Heat/cool mode"
 ```
 
 Each YAML entry is imported as a config entry when Home Assistant starts.
@@ -179,6 +180,10 @@ it runs one of them at a time, chosen from the room temperature.
 - In between, the running source is kept. When entering the mode, the source
   of the closest target starts. Without room temperature, the heat or cool
   source already running is kept, else heat starts.
+- A source started by the mode runs at least `min_phase_duration` minutes
+  (10 by default, 0 to switch at once) before the mode switches to the other
+  one, so close targets do not make short cycles. New targets set by the
+  user switch at once.
 
 A heat pump set as both heat and cool source switches its own mode. Fan and
 swing settings are those remembered for heat and for cool. The mode needs
@@ -188,6 +193,14 @@ offer its mode.
 The room temperature comes from `temperature_sensor` when set (converted to
 the unit of Home Assistant), else from the source in use. The entity shows
 it in every mode.
+
+Without `temperature_sensor`, the heat/cool mode follows the room
+temperatures of both sources, which may not agree (each one reads near its
+own device: warm near the heater, cool near the AC). It switches only when
+both are below the low target, or both above the high one; when they
+contradict each other, the running source is kept. A source without room
+temperature leaves the other one to decide. When entering the mode, their
+mean picks the closest target.
 
 The source has the upper hand: when a source is turned off or set to
 another mode elsewhere (remote control, app), the entity leaves heat/cool

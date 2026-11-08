@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import timedelta
 from typing import Any, Final
 
 from homeassistant.components.climate import HVACMode
@@ -20,6 +21,12 @@ CONF_MIN_GAP: Final = "min_gap"
 # Smallest gap, also the default: the combined HEAT_COOL keeps its phase
 # between the two targets, so they must not meet.
 MIN_GAP: Final = 1.0
+
+# Optional minimum time, in minutes, the combined HEAT_COOL stays in a phase
+# before switching to the other one by itself (0: no minimum). It keeps
+# compressors from short cycles when the targets are close.
+CONF_MIN_PHASE_DURATION: Final = "min_phase_duration"
+DEFAULT_MIN_PHASE_DURATION: Final = 10
 
 CONF_HEAT_ENTITY: Final = "heat_entity"
 CONF_COOL_ENTITY: Final = "cool_entity"
@@ -75,6 +82,14 @@ def combined_heat_cool(settings: Mapping[str, Any]) -> bool:
         and bool(settings.get(CONF_HEAT_ENTITY))
         and bool(settings.get(CONF_COOL_ENTITY))
     )
+
+
+def min_phase_duration(settings: Mapping[str, Any]) -> timedelta:
+    """Return the minimum time the combined HEAT_COOL stays in a phase."""
+    minutes = settings.get(CONF_MIN_PHASE_DURATION)
+    if minutes is None:
+        minutes = DEFAULT_MIN_PHASE_DURATION
+    return timedelta(minutes=float(minutes))
 
 
 def sync_modes(settings: Mapping[str, Any]) -> set[HVACMode]:

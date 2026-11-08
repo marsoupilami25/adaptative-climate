@@ -9,7 +9,8 @@ Home Assistant properties.
   (settings and targets; a source entering a mode the entity did not ask
   for gives its targets), switch the phase if the temperature asks for it.
 - Combined HEAT_COOL: the phase is chosen by wanted_phase and switched in
-  the background, under the mode lock.
+  the background, under the mode lock. A new phase is held for the minimum
+  phase duration, unless the user sets new targets.
 - Commands: set_temperature (targets, optional mode), set_hvac_mode,
   turn_on/off, fan and swing (sent to the active source).
 - Restore: the parts save and read their own data; the entity merges it.
@@ -111,7 +112,10 @@ class AdaptativeClimateEntity(
         self._sources = Sources(coordinator)
         self._memory = SettingsMemory(coordinator, self._sources)
         self._phase = CombinedPhase(
-            coordinator.hass, coordinator.combined_heat_cool, self._phase_wait_ended
+            coordinator.hass,
+            coordinator.combined_heat_cool,
+            self._phase_wait_ended,
+            coordinator.min_phase_duration,
         )
         self._modes = ModeTracker(
             coordinator,
@@ -151,7 +155,7 @@ class AdaptativeClimateEntity(
     async def async_will_remove_from_hass(self) -> None:
         """Stop the timers."""
         self._targets.end_settle()
-        self._phase.end_wait()
+        self._phase.stop_timers()
         await super().async_will_remove_from_hass()
 
     @property
@@ -221,7 +225,7 @@ class AdaptativeClimateEntity(
         """Return the phase the combined HEAT_COOL should run in."""
         return wanted_phase(
             current,
-            self._sources.room_temperature(self._modes.display_source()),
+            self._sources.phase_temperatures(),
             self._target_store[ATTR_TARGET_TEMP_LOW],
             self._target_store[ATTR_TARGET_TEMP_HIGH],
             self._sources.running_mode(),
@@ -237,9 +241,13 @@ class AdaptativeClimateEntity(
         )
 
     @callback
-    def _check_phase(self) -> None:
-        """Switch the combined HEAT_COOL to the phase the temperature asks for."""
-        if not self._phase.can_switch(self._modes.switching):
+    def _check_phase(self, *, forced: bool = False) -> None:
+        """Switch the combined HEAT_COOL to the phase the temperature asks for.
+
+        A new phase is held for the minimum phase duration before it switches
+        by itself again; forced (new targets from the user) ignores it.
+        """
+        if not self._phase.can_switch(self._modes.switching, forced=forced):
             return
         phase = self._wanted_phase(self._phase.phase)
         if phase != self._phase.phase:
@@ -470,7 +478,7 @@ class AdaptativeClimateEntity(
         if hvac_mode is not None and HVACMode(hvac_mode) != self._modes.current():
             await self.async_set_hvac_mode(HVACMode(hvac_mode))
         elif self._modes.current() is not HVACMode.OFF:
-            self._check_phase()
+            self._check_phase(forced=True)
             await self._targets.async_send(self._targets.key())
         # A target the source cannot take (out of its range) leaves the state
         # as it was. It is sent anyway, so the frontend drops the value it

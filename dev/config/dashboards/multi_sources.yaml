@@ -201,23 +201,26 @@ views:
       Pas de source *heat_cool* : Adaptative MULTI allume HEAT Virtuel ou COOL Virtuel selon
       *Température du capteur*. Sous la consigne basse, HEAT chauffe vers la consigne basse ;
       au-dessus de la haute, COOL refroidit vers la consigne haute ; entre les deux, la source
-      allumée est gardée. Sans capteur, c'est la température de la source active qui compte.
+      allumée est gardée. Sans capteur, les températures de HEAT et COOL doivent être d'accord pour basculer.
+      Une bascule faite d'elle-même attend que la phase ait duré 1 min (`min_phase_duration: 1`) ;
+      un changement de plage bascule tout de suite.
       La plage appartient à Adaptative MULTI et n'est affichée qu'en *heat_cool*.
 
       1. **Entrée** : capteur à 15, passer en *heat_cool* : HEAT Virtuel passe en *heat*. Régler la plage à 19–25 : *Consigne HEAT* passe à 19. Adaptative MULTI affiche *heat_cool*, source active HEAT, Température 15 (le capteur).
-      2. **Bascule vers COOL** : suite du 1, capteur à 26 : HEAT Virtuel s'éteint, COOL Virtuel passe en *cool* et *Consigne COOL* à 25 (la consigne haute). Adaptative MULTI reste en *heat_cool*, source active COOL.
-      3. **Entre les consignes** : suite du 2, capteur à 22 : COOL Virtuel reste allumé. Capteur à 18 : retour sur HEAT Virtuel, *Consigne HEAT* à 19.
+      2. **Bascule vers COOL** : suite du 1, capteur à 26 : rien pendant 1 min après l'entrée, puis HEAT Virtuel s'éteint, COOL Virtuel passe en *cool* et *Consigne COOL* à 25 (la consigne haute). Adaptative MULTI reste en *heat_cool*, source active COOL.
+      3. **Entre les consignes** : suite du 2, capteur à 22 : COOL Virtuel reste allumé. Capteur à 18 : retour sur HEAT Virtuel (1 min après la bascule du 2), *Consigne HEAT* à 19.
       4. **Départ au plus proche** : éteindre, plage 19–25 gardée. Capteur à 24, passer en *heat_cool* : COOL Virtuel s'allume (24 est plus près de 25). Éteindre, capteur à 20, passer en *heat_cool* : HEAT Virtuel s'allume.
       5. **Plage qui bascule** : en *heat_cool* sur HEAT Virtuel (capteur à 18), régler la plage à 15–17 : bascule sur COOL Virtuel, *Consigne COOL* à 17.
-      6. **Bornes** : en *heat_cool*, Min/Max couvrent HEAT et COOL : 5–32 °C. Sur COOL Virtuel (capteur à 30), plage 10–14 : *Consigne COOL* passe à 16 (son minimum) et la consigne haute d'Adaptative MULTI devient 16, même en remettant 14 une deuxième fois : elle ne sert qu'à COOL. Capteur à 5 : bascule sur HEAT Virtuel. Capteur à 15 : HEAT reste allumé (15 est entre 10 et 16). Capteur à 17 : bascule sur COOL Virtuel.
+      6. **Bornes** : en *heat_cool*, Min/Max couvrent HEAT et COOL : 5–32 °C. Sur COOL Virtuel (capteur à 30), plage 10–14 : *Consigne COOL* passe à 16 (son minimum) et la consigne haute d'Adaptative MULTI devient 16, même en remettant 14 une deuxième fois : elle ne sert qu'à COOL. Capteur à 5 : bascule sur HEAT Virtuel (après 1 min). Capteur à 15 : HEAT reste allumé (15 est entre 10 et 16). Capteur à 17 : bascule sur COOL Virtuel (après 1 min).
       7. **Changement sur la source** : en *heat_cool* sur HEAT Virtuel, attendre 12 s, puis mettre *Consigne HEAT* à 20 (vue Sources) : la consigne basse d'Adaptative MULTI passe à 20.
       8. **Source éteinte ailleurs** : en *heat_cool* sur HEAT Virtuel, éteindre HEAT Virtuel depuis sa carte (vue Sources) : Adaptative MULTI passe à *off*. Capteur à 30 : rien ne s'allume.
       9. **Autre mode allumé ailleurs** : en *heat_cool* sur HEAT Virtuel, allumer COOL Virtuel depuis sa carte : HEAT Virtuel s'éteint, Adaptative MULTI passe en *cool* (plus en *heat_cool*). Capteur à 15 : COOL Virtuel reste allumé.
-      10. **Capteur indisponible** : chaque source a sa propre température (*Température HEAT*, *COOL*...), toutes à 20. Éteint, couper *Capteur disponible* : Adaptative MULTI lit la première source disponible, HEAT Virtuel. *Température HEAT* à 15 : il affiche 15 ; *Température COOL* à 30 : rien ne change. Passer en *heat_cool* (plage 19–25) : HEAT Virtuel s'allume (15 < 19). *Température HEAT* à 26 : bascule sur COOL Virtuel ; Adaptative MULTI lit maintenant *Température COOL* (30) et reste sur COOL. Rallumer le capteur (20) : il reprend la main, COOL reste allumé (20 est entre 19 et 25).
+      10. **Capteur indisponible** : chaque source a sa propre température (*Température HEAT*, *COOL*...), toutes à 20. Éteint, couper *Capteur disponible* : Adaptative MULTI lit la première source disponible, HEAT Virtuel. *Température HEAT* à 15 : il affiche 15 ; *Température COOL* à 30 : rien ne change. Passer en *heat_cool* (plage 19–25) : HEAT Virtuel s'allume (15 < 19). *Température HEAT* à 26 : HEAT et COOL sont au-dessus de 25, bascule sur COOL Virtuel (après 1 min) ; Adaptative MULTI lit maintenant *Température COOL* (30) et reste sur COOL. Rallumer le capteur (20) : il reprend la main, COOL reste allumé (20 est entre 19 et 25).
       11. **Source indisponible** : couper *COOL disponible* : *heat_cool* apparaît dans *Modes indisponibles*, et le choisir est refusé avec un message, sans rien éteindre.
       12. **Consigne simple = basse ou haute** : plage 19–25. En *heat*, Adaptative MULTI affiche 19 et aucune plage ; la régler à 22 : la basse passe à 22. Passer en *cool* : elle affiche 25 ; la régler à 26 : la haute passe à 26. Passer en *heat_cool* : plage 22–26, pas de consigne simple.
       13. **Marche / arrêt** : en *heat_cool*, éteindre puis rallumer : *heat_cool* revient.
       14. **Après un redémarrage** : en *heat_cool* sur HEAT Virtuel, plage 19–25. Redémarrer Home Assistant : Adaptative MULTI est toujours en *heat_cool*, avec la plage 19–25.
+      15. **Durée minimale** : plage 19–25, capteur à 15, passer en *heat_cool* : HEAT Virtuel s'allume. Capteur à 26 : HEAT reste allumé ; 1 min après l'entrée, sans toucher au capteur, bascule sur COOL Virtuel. Aussitôt, capteur à 15 puis à 22 avant la fin de la minute : COOL reste allumé (22 est entre les deux). Capteur à 15, la minute passée : bascule tout de suite sur HEAT. Aussitôt, capteur à 26 : HEAT attend sa minute ; régler la plage à 10–14 pendant ce temps : bascule tout de suite sur COOL (changement de plage).
     view_layout:
       position: sidebar
 

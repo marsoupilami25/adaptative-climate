@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
@@ -33,6 +34,7 @@ from .const import (
     DOMAIN,
     combined_heat_cool,
     entry_settings,
+    min_phase_duration,
     mode_sources,
     sync_modes,
 )
@@ -83,6 +85,9 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         self.sync_modes: set[HVACMode] = sync_modes(settings)
         # HEAT_COOL switches between the heat and cool sources.
         self.combined_heat_cool: bool = combined_heat_cool(settings)
+        # Minimum time in a phase of the combined HEAT_COOL before it switches
+        # to the other one by itself.
+        self.min_phase_duration: timedelta = min_phase_duration(settings)
         # Each source once, in mode order (a source can serve several modes).
         self.source_entity_ids: list[str] = list(dict.fromkeys(self.mode_sources.values()))
         # Optional sensor giving the room temperature.

@@ -16,6 +16,7 @@ from custom_components.adaptative_climate.const import (
     CONF_HEAT_ENTITY,
     CONF_MAX_TEMP,
     CONF_MIN_GAP,
+    CONF_MIN_PHASE_DURATION,
     CONF_MIN_TEMP,
     CONF_SYNC_MODES,
     DOMAIN,
@@ -109,6 +110,23 @@ async def test_user_flow_min_gap(hass: HomeAssistant) -> None:
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_MIN_GAP] == 1.5
+
+
+async def test_user_flow_min_phase_duration(hass: HomeAssistant) -> None:
+    """The minimum phase duration of the combined heat_cool is saved."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_NAME: "Living room",
+            CONF_HEAT_ENTITY: HEATER,
+            CONF_MIN_PHASE_DURATION: 5,
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_MIN_PHASE_DURATION] == 5
 
 
 async def test_user_flow_self_reference(

@@ -20,6 +20,7 @@ from custom_components.adaptative_climate.const import (
     CONF_HEAT_ENTITY,
     CONF_MAX_TEMP,
     CONF_MIN_GAP,
+    CONF_MIN_PHASE_DURATION,
     CONF_MIN_TEMP,
     CONF_SYNC_MODES,
     DOMAIN,
@@ -140,6 +141,14 @@ async def test_import_min_gap(hass: HomeAssistant) -> None:
     assert entry.data == {**YAML_ENTRY, CONF_MIN_GAP: 2.0}
 
 
+async def test_import_min_phase_duration(hass: HomeAssistant) -> None:
+    """The minimum phase duration is a number of minutes."""
+    assert await _setup(hass, {DOMAIN: [{**YAML_ENTRY, CONF_MIN_PHASE_DURATION: 0}]})
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.data == {**YAML_ENTRY, CONF_MIN_PHASE_DURATION: 0.0}
+
+
 async def test_import_reloads_loaded_entry(hass: HomeAssistant) -> None:
     """Re-importing a changed entry while it runs reloads it."""
     assert await _setup(hass, {DOMAIN: [YAML_ENTRY]})
@@ -219,6 +228,9 @@ async def test_ui_entries_kept(
         pytest.param({CONF_NAME: "Living room"}, id="no_source"),
         pytest.param({**YAML_ENTRY, CONF_MIN_TEMP: 30, CONF_MAX_TEMP: 20}, id="min_max"),
         pytest.param({**YAML_ENTRY, CONF_MIN_GAP: -1}, id="negative_gap"),
+        pytest.param(
+            {**YAML_ENTRY, CONF_MIN_PHASE_DURATION: -1}, id="negative_phase_duration"
+        ),
         pytest.param({**YAML_ENTRY, CONF_HEAT_ENTITY: "sensor.heater"}, id="not_climate"),
         pytest.param({CONF_HEAT_ENTITY: HEATER}, id="no_name"),
         pytest.param({**YAML_ENTRY, "unknown": 1}, id="unknown_key"),

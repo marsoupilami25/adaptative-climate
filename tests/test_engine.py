@@ -100,21 +100,46 @@ def test_wanted_phase(
     current: HVACMode | None, temperature: float, expected: HVACMode
 ) -> None:
     """The phase follows the room temperature around the low/high targets."""
-    assert wanted_phase(current, temperature, 20, 25, HVACMode.OFF) is expected
+    assert wanted_phase(current, [temperature], 20, 25, HVACMode.OFF) is expected
+
+
+@pytest.mark.parametrize(
+    ("current", "temperatures", "expected"),
+    [
+        # Both sources agree: the phase follows them.
+        (HVACMode.HEAT, [26, 27], HVACMode.COOL),
+        (HVACMode.COOL, [18, 19], HVACMode.HEAT),
+        # They contradict each other: the current phase is kept.
+        (HVACMode.HEAT, [26, 18], HVACMode.HEAT),
+        (HVACMode.COOL, [26, 18], HVACMode.COOL),
+        # One is past a target, the other in between: kept too.
+        (HVACMode.HEAT, [26, 23], HVACMode.HEAT),
+        (HVACMode.COOL, [22, 19], HVACMode.COOL),
+        # Entering: the closest target to their mean.
+        (None, [26, 18], HVACMode.HEAT),
+        (None, [27, 21], HVACMode.COOL),
+        (None, [26, 27], HVACMode.COOL),
+    ],
+)
+def test_wanted_phase_several_temperatures(
+    current: HVACMode | None, temperatures: list[float], expected: HVACMode
+) -> None:
+    """With several readings, the phase switches only when they all agree."""
+    assert wanted_phase(current, temperatures, 20, 25, HVACMode.OFF) is expected
 
 
 def test_wanted_phase_inverted_targets() -> None:
     """Low above high: between them, the current phase is kept."""
-    assert wanted_phase(HVACMode.HEAT, 24, 25, 23, HVACMode.OFF) is HVACMode.HEAT
-    assert wanted_phase(HVACMode.COOL, 24, 25, 23, HVACMode.OFF) is HVACMode.COOL
+    assert wanted_phase(HVACMode.HEAT, [24], 25, 23, HVACMode.OFF) is HVACMode.HEAT
+    assert wanted_phase(HVACMode.COOL, [24], 25, 23, HVACMode.OFF) is HVACMode.COOL
 
 
 def test_wanted_phase_without_temperature() -> None:
     """Without temperature: the current phase, else the running source, else heat."""
-    assert wanted_phase(HVACMode.COOL, None, 20, 25, HVACMode.HEAT) is HVACMode.COOL
-    assert wanted_phase(None, None, 20, 25, HVACMode.COOL) is HVACMode.COOL
-    assert wanted_phase(None, None, 20, 25, HVACMode.AUTO) is HVACMode.HEAT
-    assert wanted_phase(None, 22, None, 25, HVACMode.OFF) is HVACMode.HEAT
+    assert wanted_phase(HVACMode.COOL, [], 20, 25, HVACMode.HEAT) is HVACMode.COOL
+    assert wanted_phase(None, [], 20, 25, HVACMode.COOL) is HVACMode.COOL
+    assert wanted_phase(None, [], 20, 25, HVACMode.AUTO) is HVACMode.HEAT
+    assert wanted_phase(None, [22], None, 25, HVACMode.OFF) is HVACMode.HEAT
 
 
 # TargetStore
@@ -414,6 +439,35 @@ async def test_phase_follows_source(hass: HomeAssistant) -> None:
     phase.update(HVACMode.AUTO, lambda: True, switching=False)
     assert phase.phase is None
     assert phase.as_dict() == {"heat_cool": False}
+
+
+async def test_phase_held(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    """A new phase is held for the minimum duration, unless forced."""
+    fired: list[bool] = []
+    phase = CombinedPhase(hass, True, lambda: fired.append(True), timedelta(minutes=10))
+    phase.start(HVACMode.HEAT)
+    phase.update(HVACMode.HEAT, lambda: True, switching=False)
+    assert phase.holding
+    assert not phase.can_switch(False)
+    assert phase.can_switch(False, forced=True)
+
+    freezer.tick(timedelta(minutes=10))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert not phase.holding
+    assert phase.can_switch(False)
+    assert fired
+
+    # Leaving the combined mode ends the hold.
+    phase.start(HVACMode.COOL)
+    phase.leave()
+    assert not phase.holding
+
+    # No minimum duration: not held.
+    phase = CombinedPhase(hass, True, lambda: None)
+    phase.start(HVACMode.HEAT)
+    assert not phase.holding
+    phase.leave()
 
 
 async def test_phase_restore(hass: HomeAssistant) -> None:
