@@ -56,6 +56,12 @@ def _target(hass: HomeAssistant, entity_id: str = ENTITY_ID) -> float | None:
     return hass.states.get(entity_id).attributes[ATTR_TEMPERATURE]
 
 
+def _range(hass: HomeAssistant) -> tuple[float | None, float | None]:
+    """Return the low and high targets shown (off: heating and cooling setpoints)."""
+    attrs = hass.states.get(ENTITY_ID).attributes
+    return attrs["target_temp_low"], attrs["target_temp_high"]
+
+
 def _sent(source: FakeClimate) -> list[float]:
     """Return the temperatures sent to a source."""
     return [
@@ -65,34 +71,51 @@ def _sent(source: FakeClimate) -> list[float]:
     ]
 
 
-def _saved(hass: HomeAssistant) -> float | None:
-    """Return the target the entity would save."""
+LOW = "target_temperature_low"
+HIGH = "target_temperature_high"
+
+
+def _saved(hass: HomeAssistant, name: str = "target_temperature") -> float | None:
+    """Return a target the entity would save: heating (low), cooling (high), or the other."""
     entity = hass.data[CLIMATE_DOMAIN].get_entity(ENTITY_ID)
-    return entity.extra_restore_state_data.as_dict()["target_temperature"]
+    return entity.extra_restore_state_data.as_dict()[name]
 
 
 @pytest.mark.usefixtures("init_integration")
 async def test_initial_target_from_sources(hass: HomeAssistant) -> None:
     """Without a saved target, the first one is taken from a source."""
-    # Off: the first usable source (the heater, at 20).
-    assert _target(hass) == 20.0
+    # Off: the heating and cooling setpoints, from the heater and the AC.
+    assert _target(hass) is None
+    assert _range(hass) == (20.0, 24.0)
+    assert _saved(hass, LOW) == 20.0
+    # The cooling setpoint is the one of the AC.
+    assert _saved(hass, HIGH) == 24.0
+    # The single target of the other modes comes from the first usable source.
     assert _saved(hass) == 20.0
 
 
 @pytest.mark.usefixtures("init_integration")
-async def test_mode_change_keeps_target(
+async def test_modes_keep_their_own_target(
     hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
 ) -> None:
-    """Switching mode sends the target to the new source, whatever it had."""
+    """Heat and cool each have a setpoint: switching mode does not carry it over."""
     await _mode(hass, HVACMode.HEAT)
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
 
     await _mode(hass, HVACMode.COOL)
 
-    # The AC showed 24 on entering cool: it gets 22 instead.
-    assert _sent(ac) == [22.0]
+    # The AC already shows its cooling setpoint (24): nothing is sent.
+    assert _sent(ac) == []
+    assert _target(hass) == 24.0
+    assert _saved(hass, LOW) == 22.0
+    assert _saved(hass, HIGH) == 24.0
+
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=26.0)
+    assert _sent(ac) == [26.0]
+
+    await _mode(hass, HVACMode.HEAT)
     assert _target(hass) == 22.0
-    assert _target(hass, AC) == 22.0
+    assert _sent(heater) == [22.0]
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -100,10 +123,14 @@ async def test_source_turned_on_elsewhere_gets_target(
     hass: HomeAssistant, ac: FakeClimate
 ) -> None:
     """A source turned on outside the integration gets the target of the entity."""
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=22.0
+    )
+
     await _on_source(hass, AC, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
 
-    assert _sent(ac) == [20.0]
-    assert _target(hass) == 20.0
+    assert _sent(ac) == [22.0]
+    assert _target(hass) == 22.0
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -117,35 +144,36 @@ async def test_source_already_at_target_not_called(
 
 
 @pytest.mark.usefixtures("init_integration")
-async def test_target_kept_in_source_range(
+async def test_heating_setpoint_pushes_cooling_one(
     hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
 ) -> None:
-    """A target outside the range of a source is limited for it, but kept."""
+    """The heating setpoint never goes above the cooling one."""
     await _mode(hass, HVACMode.HEAT)
-    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=10.0)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=28.0)
 
-    # The AC (16-32) gets its minimum; the entity shows what is applied.
+    assert _sent(heater) == [28.0]
+    assert _saved(hass, LOW) == 28.0
+    assert _saved(hass, HIGH) == 28.0
+
     await _mode(hass, HVACMode.COOL)
-    assert _sent(ac) == [16.0]
-    assert _target(hass) == 16.0
-    assert _saved(hass) == 10.0
-
-    # Back in heat, the heater (5-30) gets the target again.
-    await _mode(hass, HVACMode.HEAT)
-    assert _sent(heater)[-1] == 10.0
-    assert _target(hass) == 10.0
+    assert _sent(ac) == [28.0]
+    assert _target(hass) == 28.0
 
 
 @pytest.mark.usefixtures("init_integration")
-async def test_target_above_source_max(hass: HomeAssistant, heater: FakeClimate) -> None:
-    """A target above the maximum of a source gets that maximum."""
+async def test_cooling_setpoint_pulls_heating_one(
+    hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
+) -> None:
+    """The cooling setpoint never goes below the heating one."""
     await _mode(hass, HVACMode.COOL)
-    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=31.0)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=18.0)
+
+    assert _sent(ac) == [18.0]
+    assert _saved(hass, HIGH) == 18.0
+    assert _saved(hass, LOW) == 18.0
 
     await _mode(hass, HVACMode.HEAT)
-
-    assert _sent(heater) == [30.0]
-    assert _saved(hass) == 31.0
+    assert _sent(heater) == [18.0]
 
 
 async def test_target_kept_in_configured_limits(
@@ -164,29 +192,28 @@ async def test_target_kept_in_configured_limits(
 
     await _mode(hass, HVACMode.COOL)
 
-    # The AC showed 24, above the limit: it gets the target of 20.
-    assert _sent(ac) == [20.0]
-    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
-    assert _sent(ac) == [20.0, 23.0]
+    # The AC showed 24, above the limit: it gets the limit.
+    assert _sent(ac) == [23.0]
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
+    assert _sent(ac) == [23.0, 22.0]
 
 
 @pytest.mark.usefixtures("init_integration")
 async def test_target_rounded_to_source_step(
     hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
 ) -> None:
-    """A source gets the target rounded to its step, but the target is kept."""
+    """A target is kept rounded to the step of its source."""
     await _mode(hass, HVACMode.COOL)
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=21.3)
+    # The AC has no step.
     assert _sent(ac)[-1] == 21.3
 
     # The heater has a 0.5 step.
     await _mode(hass, HVACMode.HEAT)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=21.3)
     assert _sent(heater) == [21.5]
     assert _target(hass) == 21.5
-    assert _saved(hass) == 21.3
-
-    await _mode(hass, HVACMode.COOL)
-    assert _sent(ac)[-1] == 21.3
+    assert _saved(hass, LOW) == 21.5
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -195,13 +222,16 @@ async def test_change_on_active_source_taken(
 ) -> None:
     """A target changed on the active source becomes the target of the entity."""
     await _mode(hass, HVACMode.COOL)
-    freezer.tick(timedelta(seconds=13))
+    await _settle(hass, freezer, 13)
     await _on_source(hass, AC, SERVICE_SET_TEMPERATURE, temperature=25.0)
 
     assert _target(hass) == 25.0
+    assert _saved(hass, HIGH) == 25.0
 
+    # It is the cooling setpoint: heat keeps its own.
     await _mode(hass, HVACMode.HEAT)
-    assert _sent(heater) == [25.0]
+    assert _sent(heater) == []
+    assert _target(hass) == 20.0
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -224,7 +254,7 @@ async def test_set_temperature_when_off(
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
 
     assert heater.calls == []
-    assert _target(hass) == 23.0
+    assert _range(hass) == (23.0, 24.0)
 
     await _call(hass, SERVICE_TURN_ON)
     assert _sent(heater) == [23.0]
@@ -238,7 +268,8 @@ async def test_set_temperature_with_mode_off(hass: HomeAssistant) -> None:
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0, hvac_mode=HVACMode.OFF)
 
     assert hass.states.get(ENTITY_ID).state == HVACMode.OFF
-    assert _saved(hass) == 23.0
+    # Off, the target is the one of the mode turn_on goes to (heat).
+    assert _saved(hass, LOW) == 23.0
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -262,11 +293,14 @@ async def test_set_temperature_with_current_mode(
 async def test_source_without_target_keeps_it(
     hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
 ) -> None:
-    """A source without target (fan only) gets nothing; the next mode gets it."""
-    await _mode(hass, HVACMode.DRY)
+    """A source without target (fan only) gets nothing; the next time it gets it."""
+    await _mode(hass, HVACMode.COOL)
     attributes = dict(hass.states.get(AC).attributes)
-    attributes[ATTR_SUPPORTED_FEATURES] = ClimateEntityFeature.FAN_MODE
-    hass.states.async_set(AC, HVACMode.DRY, attributes)
+    hass.states.async_set(
+        AC,
+        HVACMode.COOL,
+        {**attributes, ATTR_SUPPORTED_FEATURES: ClimateEntityFeature.FAN_MODE},
+    )
     await hass.async_block_till_done()
     ac.calls.clear()
 
@@ -274,8 +308,11 @@ async def test_source_without_target_keeps_it(
 
     assert ac.calls == []
     assert _target(hass) == 22.0
-    await _mode(hass, HVACMode.HEAT)
-    assert _sent(heater) == [22.0]
+    await _call(hass, SERVICE_TURN_OFF)
+    hass.states.async_set(AC, HVACMode.OFF, attributes)
+    await hass.async_block_till_done()
+    await _mode(hass, HVACMode.COOL)
+    assert _sent(ac) == [22.0]
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -289,7 +326,9 @@ async def test_target_sent_once_source_switched(
         ac.calls.append(("set_hvac_mode", {"hvac_mode": hvac_mode}))
 
     ac.async_set_hvac_mode = slow_set_hvac_mode
-    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=22.0
+    )
     await _mode(hass, HVACMode.COOL)
     assert _sent(ac) == []
 
@@ -299,7 +338,7 @@ async def test_target_sent_once_source_switched(
     await hass.async_block_till_done()
 
     assert _sent(ac) == [22.0]
-    assert _saved(hass) == 22.0
+    assert _saved(hass, HIGH) == 22.0
 
 
 async def test_target_restored_after_restart(
@@ -307,13 +346,13 @@ async def test_target_restored_after_restart(
 ) -> None:
     """The target survives a restart and is sent to the source turned on."""
     mock_restore_cache_with_extra_data(
-        hass, ((State(ENTITY_ID, HVACMode.OFF), {"target_temperature": 18.5}),)
+        hass, ((State(ENTITY_ID, HVACMode.OFF), {"target_temperature_low": 18.5}),)
     )
     mock_config_entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert _target(hass) == 18.5
+    assert _range(hass)[0] == 18.5
     await _mode(hass, HVACMode.HEAT)
     assert _sent(heater) == [18.5]
 
@@ -343,10 +382,13 @@ async def test_source_error_does_not_fail_mode_change(
         raise HomeAssistantError("refused")
 
     ac.async_set_temperature = refuse
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=22.0
+    )
     await _mode(hass, HVACMode.COOL)
 
     assert hass.states.get(ENTITY_ID).state == HVACMode.COOL
-    assert "Could not set temperature 20.0 on climate.ac: refused" in caplog.text
+    assert "Could not set temperature 22.0 on climate.ac: refused" in caplog.text
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -357,7 +399,7 @@ async def test_turn_off_keeps_target(hass: HomeAssistant) -> None:
 
     await _call(hass, SERVICE_TURN_OFF)
 
-    assert _target(hass) == 25.0
+    assert _range(hass)[1] == 25.0
 
 
 async def test_initial_target_without_source_target(
@@ -377,8 +419,12 @@ async def test_initial_target_without_source_target(
     assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    # Off: the widest range, 10-35 (the AC has no max: default 35).
-    assert _target(hass) == 22.5
+    # The widest range, 10-35 (the AC has no max: default 35).
+    assert _saved(hass) == 22.5
+    # Heat and cool are 1 degree around it, for the heat/cool window.
+    assert _saved(hass, LOW) == 21.5
+    assert _saved(hass, HIGH) == 23.5
+    assert _range(hass) == (21.5, 23.5)
 
 
 async def _settle(hass: HomeAssistant, freezer: FrozenDateTimeFactory, seconds: float) -> None:
@@ -414,12 +460,12 @@ async def test_late_source_target_ignored_then_replaced(
     await _settle(hass, freezer, 7)
     assert _sent(heater) == [20.0]
     assert _target(hass, HEATER) == 20.0
-    assert _saved(hass) == 20.0
+    assert _saved(hass, LOW) == 20.0
 
     # From now on, the source is followed.
     await _set_on_device(hass, heater, 24.0)
     assert _target(hass) == 24.0
-    assert _saved(hass) == 24.0
+    assert _saved(hass, LOW) == 24.0
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -436,7 +482,7 @@ async def test_every_target_ignored_during_settle(
 
     await _settle(hass, freezer, 12)
     assert _target(hass, HEATER) == 20.0
-    assert _saved(hass) == 20.0
+    assert _saved(hass, LOW) == 20.0
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -444,15 +490,18 @@ async def test_confirmed_target_ends_settle(
     hass: HomeAssistant, ac: FakeClimate, freezer: FrozenDateTimeFactory
 ) -> None:
     """A source showing the target sent to it is followed right away."""
-    # The AC was at 24: it gets 20 and shows it, which confirms the mode.
+    # The AC was at 24: it gets 22 and shows it, which confirms the mode.
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=22.0
+    )
     await _mode(hass, HVACMode.COOL)
-    assert _sent(ac) == [20.0]
+    assert _sent(ac) == [22.0]
 
     await _settle(hass, freezer, 2)
     await _on_source(hass, AC, SERVICE_SET_TEMPERATURE, temperature=25.0)
 
     assert _target(hass) == 25.0
-    assert _saved(hass) == 25.0
+    assert _saved(hass, HIGH) == 25.0
     # No settle timer is left to send the old target back.
     await _settle(hass, freezer, 12)
     assert _target(hass, AC) == 25.0
@@ -469,15 +518,18 @@ async def test_nothing_resent_when_source_silent(
         ac.calls.append(("set_temperature", kwargs))
 
     ac.async_set_temperature = ignore
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=22.0
+    )
     await _mode(hass, HVACMode.COOL)
-    assert _sent(ac) == [20.0]
+    assert _sent(ac) == [22.0]
 
     await _settle(hass, freezer, 12)
 
-    assert _sent(ac) == [20.0]
+    assert _sent(ac) == [22.0]
     # The settle time is over: the source is followed again.
     await _set_on_device(hass, ac, 26.0)
-    assert _saved(hass) == 26.0
+    assert _saved(hass, HIGH) == 26.0
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -517,4 +569,4 @@ async def test_change_on_source_outside_limits(
     assert _sent(ac) == [28.0]  # Only the call made on the source itself.
     assert _target(hass, AC) == 28.0
     assert _target(hass) == 28.0
-    assert _saved(hass) == 28.0
+    assert _saved(hass, HIGH) == 28.0

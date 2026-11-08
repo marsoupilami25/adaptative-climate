@@ -25,6 +25,7 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_MAX_TEMP,
+    CONF_MIN_GAP,
     CONF_MIN_TEMP,
     CONF_SYNC_MODES,
     CONF_TEMPERATURE_SENSOR,
@@ -38,6 +39,10 @@ _LOGGER = logging.getLogger(__name__)
 
 TEMPERATURE_SELECTOR = NumberSelector(
     NumberSelectorConfig(min=0, max=40, step=0.5, mode=NumberSelectorMode.BOX),
+)
+
+GAP_SELECTOR = NumberSelector(
+    NumberSelectorConfig(min=0, max=10, step=0.5, mode=NumberSelectorMode.BOX),
 )
 
 CLIMATE_SELECTOR = EntitySelector(EntitySelectorConfig(domain="climate"))
@@ -58,6 +63,7 @@ SENSOR_SCHEMA: dict[vol.Marker, Any] = {
 TEMPERATURE_SCHEMA: dict[vol.Marker, Any] = {
     vol.Optional(CONF_MIN_TEMP): TEMPERATURE_SELECTOR,
     vol.Optional(CONF_MAX_TEMP): TEMPERATURE_SELECTOR,
+    vol.Optional(CONF_MIN_GAP): GAP_SELECTOR,
 }
 
 # Modes sharing their fan and swing settings. A mode without a source is ignored.

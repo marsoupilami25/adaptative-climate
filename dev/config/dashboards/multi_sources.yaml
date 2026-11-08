@@ -128,7 +128,7 @@ views:
 
       1. **Changement de mode** : passer en *heat*, puis en *cool*. HEAT Virtuel repasse à *off* avant que COOL Virtuel passe à *cool*.
       2. **Consigne** : en *cool*, changer la consigne. Seule *Consigne COOL* bouge.
-      3. **Changement externe** : éteint, régler Adaptative MULTI à 23. Allumer HEAT Virtuel depuis sa carte (vue Sources). Adaptative MULTI passe en *heat* et *Consigne HEAT* passe de 20 à 23.
+      3. **Changement externe** : éteint, régler la plage d'Adaptative MULTI à 23–26. Allumer HEAT Virtuel depuis sa carte (vue Sources). Adaptative MULTI passe en *heat* et *Consigne HEAT* passe de 20 à 23.
       4. **Deuxième source allumée** : HEAT Virtuel allumé (scénario 3), allumer aussi COOL Virtuel à la main. HEAT Virtuel s'éteint et Adaptative MULTI passe en *cool* : la dernière source allumée l'emporte.
       5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
       6. **Source indisponible** : couper *HEAT disponible*. *heat* n'est plus détecté ; l'entité reste disponible tant qu'une autre source l'est. **Toutes les sources indisponibles** : l'entité devient indisponible ; **Toutes les sources disponibles** les rétablit.
@@ -159,25 +159,29 @@ views:
   - *pilotage
   - type: markdown
     content: |
-      ## Scénarios (2/3) : consigne
+      ## Scénarios (2/3) : consignes
 
       Partir de **Tout remettre à zéro**.
 
       ### Consigne
 
-      La consigne appartient à Adaptative MULTI : chaque source la reçoit en entrant dans son mode.
+      Adaptative MULTI garde deux consignes : chauffage et refroidissement. Celle de *heat* est la
+      consigne basse de *heat_cool*, celle de *cool* la consigne haute. *dry* et *auto* ont une
+      consigne simple à part. Chaque source reçoit la sienne en entrant dans son mode, et la basse
+      reste au moins à l'écart minimal sous la haute (aucun ici : elles peuvent être égales).
       Sources : HEAT 5–30 °C, COOL 16–32 °C au pas de 1 °C, DRY 18–30 °C.
-      **Tout remettre à zéro** remet les consignes des sources à 20 °C, pas celle d'Adaptative MULTI.
+      **Tout remettre à zéro** remet les consignes des sources à 20 °C, pas celles d'Adaptative MULTI.
 
-      1. **Changement de mode** : en *heat*, consigne 23. Passer en *cool* : *Consigne COOL* passe de 20 à 23. Passer en *dry* : *Consigne DRY* passe à 23.
-      2. **Source allumée ailleurs** : éteindre, mettre *Consigne HEAT* à 26 (vue Sources) : Adaptative MULTI ne bouge pas. Allumer HEAT Virtuel depuis sa carte : *Consigne HEAT* revient à 23.
-      3. **Changement sur la source** : en *heat*, attendre 12 s, puis mettre *Consigne HEAT* à 19 (vue Sources). Adaptative MULTI affiche 19. Passer en *cool* : *Consigne COOL* passe à 19.
-      4. **Consigne tardive de la source** : éteint, régler Adaptative MULTI à 20 (la consigne de COOL Virtuel après la remise à zéro), passer en *cool* : rien n'est envoyé, la source est déjà à 20. Dans les 12 s, mettre *Consigne COOL* à 27 (comme un appareil qui renvoie sa propre consigne après le mode) : Adaptative MULTI affiche toujours 20. Au bout des 12 s, *Consigne COOL* revient à 20. Ensuite, mettre *Consigne COOL* à 26 : Adaptative MULTI suit.
-      5. **Consigne confirmée** : en *heat*, consigne 23, puis passer en *dry* : *Consigne DRY* passe à 23, ce qui confirme le mode. Tout de suite après, mettre *Consigne DRY* à 25 : Adaptative MULTI suit sans attendre 12 s.
-      6. **Bornes** : en *heat*, consigne 8. Passer en *cool* : *Consigne COOL* passe à 16 (son minimum) et Adaptative MULTI affiche 16. Repasser en *heat* : *Consigne HEAT* revient à 8. Même chose par le haut : en *cool*, consigne 32 ; en *dry*, 30 ; de retour en *cool*, 32.
-      7. **Arrondi** : en *heat*, consigne 21,5. Passer en *cool* : *Consigne COOL* passe à 22 (pas de 1 °C). Repasser en *heat* : *Consigne HEAT* revient à 21,5.
-      8. **Consigne réglée éteint** : éteindre, régler la consigne d'Adaptative MULTI à 18. Aucune source ne bouge. Passer en *heat* : *Consigne HEAT* passe de 20 à 18.
-      9. **Après un redémarrage** : en *cool*, consigne 25, puis éteindre. Redémarrer Home Assistant, passer en *heat* : *Consigne HEAT* passe à 25.
+      1. **Consigne par mode** : en *heat*, consigne 18 : *Consigne HEAT* passe à 18. Passer en *cool* : Adaptative MULTI affiche sa consigne de refroidissement (20 la première fois), *Consigne COOL* reste à 20. La régler à 26 : *Consigne COOL* passe à 26. Passer en *dry*, régler 24 : seule *Consigne DRY* bouge. Repasser en *heat* : 18 ; en *cool* : 26.
+      2. **Les consignes se poussent** : en *heat*, consigne 28 : la consigne de refroidissement monte aussi à 28 (*Consigne COOL* passe à 28 à l'entrée en *cool*). En *cool*, consigne 17 : la consigne de chauffage descend à 17.
+      3. **Source allumée ailleurs** : éteindre : le thermostat montre la plage (basse–haute). La régler à 18–26, puis mettre *Consigne HEAT* à 22 (vue Sources) : Adaptative MULTI ne bouge pas. Allumer HEAT Virtuel depuis sa carte : *Consigne HEAT* revient à 18. Même chose avec COOL Virtuel : *Consigne COOL* passe à 26.
+      4. **Changement sur la source** : en *heat*, attendre 12 s, puis mettre *Consigne HEAT* à 19 (vue Sources). Adaptative MULTI affiche 19. Passer en *cool* : sa consigne de refroidissement ne change pas. Repasser en *heat* : 19.
+      5. **Consigne tardive de la source** : éteint, régler la plage à 18–20 (20 est la consigne de COOL Virtuel après la remise à zéro), passer en *cool* : rien n'est envoyé, la source est déjà à 20. Dans les 12 s, mettre *Consigne COOL* à 27 (comme un appareil qui renvoie sa propre consigne après le mode) : Adaptative MULTI affiche toujours 20. Au bout des 12 s, *Consigne COOL* revient à 20. Ensuite, mettre *Consigne COOL* à 26 : Adaptative MULTI suit.
+      6. **Consigne confirmée** : en *cool*, consigne 25. Passer en *heat*, mettre *Consigne COOL* à 22 (vue Sources) : Adaptative MULTI ne bouge pas. Repasser en *cool* : *Consigne COOL* passe à 25, ce qui confirme le mode. Tout de suite après, mettre *Consigne COOL* à 24 : Adaptative MULTI suit sans attendre 12 s.
+      7. **Bornes** : chaque consigne reste dans la plage de sa source. En *cool*, consigne 32 (maximum) ; en *dry*, 30 (maximum de DRY) ; de retour en *cool*, 32. En *heat*, consigne 5 (minimum de HEAT) : la consigne de refroidissement ne bouge pas.
+      8. **Arrondi** : en *cool*, consigne 21,5 : *Consigne COOL* passe à 22 (pas de 1 °C) et Adaptative MULTI affiche 22.
+      9. **Consignes réglées éteint** : éteindre, régler la plage d'Adaptative MULTI à 18–24. Aucune source ne bouge. Passer en *heat* : *Consigne HEAT* passe de 20 à 18. Éteindre, passer en *cool* : *Consigne COOL* passe à 24.
+      10. **Après un redémarrage** : en *heat*, consigne 18 ; en *cool*, consigne 25 ; éteindre, puis **Tout remettre à zéro**. Redémarrer Home Assistant, passer en *heat* : *Consigne HEAT* passe à 18 ; en *cool* : *Consigne COOL* passe à 25.
     view_layout:
       position: sidebar
 - title: heat_cool
@@ -210,7 +214,7 @@ views:
       9. **Autre mode allumé ailleurs** : en *heat_cool* sur HEAT Virtuel, allumer COOL Virtuel depuis sa carte : HEAT Virtuel s'éteint, Adaptative MULTI passe en *cool* (plus en *heat_cool*). Capteur à 15 : COOL Virtuel reste allumé.
       10. **Capteur indisponible** : chaque source a sa propre température (*Température HEAT*, *COOL*...), toutes à 20. Éteint, couper *Capteur disponible* : Adaptative MULTI lit la première source disponible, HEAT Virtuel. *Température HEAT* à 15 : il affiche 15 ; *Température COOL* à 30 : rien ne change. Passer en *heat_cool* (plage 19–25) : HEAT Virtuel s'allume (15 < 19). *Température HEAT* à 26 : bascule sur COOL Virtuel ; Adaptative MULTI lit maintenant *Température COOL* (30) et reste sur COOL. Rallumer le capteur (20) : il reprend la main, COOL reste allumé (20 est entre 19 et 25).
       11. **Source indisponible** : couper *COOL disponible* : *heat_cool* apparaît dans *Modes indisponibles*, et le choisir est refusé avec un message, sans rien éteindre.
-      12. **Consigne simple à part** : en *heat*, consigne 23. Capteur à 15, passer en *heat_cool* (plage 19–25) : *Consigne HEAT* passe à 19. Repasser en *heat* : *Consigne HEAT* revient à 23.
+      12. **Consigne simple = basse ou haute** : plage 19–25. En *heat*, Adaptative MULTI affiche 19 et aucune plage ; la régler à 22 : la basse passe à 22. Passer en *cool* : elle affiche 25 ; la régler à 26 : la haute passe à 26. Passer en *heat_cool* : plage 22–26, pas de consigne simple.
       13. **Marche / arrêt** : en *heat_cool*, éteindre puis rallumer : *heat_cool* revient.
       14. **Après un redémarrage** : en *heat_cool* sur HEAT Virtuel, plage 19–25. Redémarrer Home Assistant : Adaptative MULTI est toujours en *heat_cool*, avec la plage 19–25.
     view_layout:

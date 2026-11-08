@@ -694,7 +694,7 @@ views:
       HEAT_COOL Virtuel n'a qu'une plage (basse–haute), pas de consigne simple.
 
       1. **Marche / arrêt** : allumer Adaptative HEAT_COOL. HEAT_COOL Virtuel passe en *heat_cool* ; éteindre, il repasse à *off*.
-      2. **Modes proposés** : seuls *off* et *heat_cool* sont proposés. Allumé, le thermostat montre une plage.
+      2. **Modes proposés** : seuls *off* et *heat_cool* sont proposés. Allumé ou éteint, le thermostat montre une plage.
       3. **Plage** : régler la plage d'Adaptative HEAT_COOL à 20–24. *Consigne HEAT_COOL basse* et *haute* suivent.
       4. **Changement externe** : Adaptative HEAT_COOL éteint, mettre *Consigne HEAT_COOL basse* à 17 (Adaptative HEAT_COOL ne bouge pas), puis régler HEAT_COOL Virtuel sur *heat_cool* depuis sa carte. Adaptative HEAT_COOL suit et la consigne basse revient à 20.
       5. **Changement sur la source** : allumé, attendre 12 s, puis mettre *Consigne HEAT_COOL haute* à 26. Adaptative HEAT_COOL affiche 20–26.
@@ -826,6 +826,7 @@ views:
       Partir de **Tout remettre à zéro** (consignes et températures de RADIATEUR et CLIM à 20 °C ; CLIM au pas de 1 °C).
       Pas de source *heat_cool* : Adaptative COMBINE allume RADIATEUR Virtuel ou CLIM Virtuel.
       Consigne basse vers RADIATEUR, haute vers CLIM ; entre les deux, la source allumée est gardée.
+      Écart minimal de 2 °C (`min_gap: 2`) entre la basse et la haute.
       Pas de capteur : chaque source a sa température (*Température RADIATEUR*, *Température CLIM*).
       Adaptative COMBINE lit celle de la source active ; éteint, celle de RADIATEUR (la première source).
 
@@ -838,7 +839,8 @@ views:
       7. **Source éteinte ailleurs** : sur RADIATEUR, l'éteindre depuis sa carte : Adaptative COMBINE passe à *off*. *Température RADIATEUR* à 30 : rien ne s'allume.
       8. **Autre mode allumé ailleurs** : sur RADIATEUR, allumer CLIM depuis sa carte : RADIATEUR s'éteint, Adaptative COMBINE passe en *cool* (plus en *heat_cool*). *Température CLIM* à 15 : CLIM reste allumée.
       9. **Source indisponible** : couper *CLIM disponible* : *heat_cool* apparaît dans *Modes indisponibles*, et le choisir est refusé, sans rien éteindre.
-      10. **Consigne simple et fan** : en *cool*, consigne 23 et fan *high*. *Température RADIATEUR* à 15, *Température CLIM* à 22, passer en *heat_cool* : *Consigne RADIATEUR* prend la consigne basse. *Température RADIATEUR* à 30 : CLIM reprend le fan *high* et la consigne haute. Repasser en *cool* : *Consigne CLIM* revient à 23.
+      10. **Consigne simple et fan** : en *cool*, consigne 23 (c'est la consigne haute) et fan *high*. *Température RADIATEUR* à 15, *Température CLIM* à 22, passer en *heat_cool* : la plage affichée finit à 23 et *Consigne RADIATEUR* prend la consigne basse. *Température RADIATEUR* à 30 : CLIM reprend le fan *high* et la consigne haute, 23. Repasser en *cool* : *Consigne CLIM* est toujours 23.
       11. **Marche / arrêt et redémarrage** : en *heat_cool*, éteindre puis rallumer : *heat_cool* revient. Redémarrer Home Assistant en *heat_cool* : il y est toujours, avec sa plage.
+      12. **Écart minimal** : plage 19–25. En *heat*, consigne 24 : la consigne haute passe à 26 (*Consigne CLIM* y passe à l'entrée en *cool*). En *cool*, consigne 20 : la consigne basse passe à 18. En *heat_cool*, régler la plage à 20–21 : Adaptative COMBINE affiche 20–22. Changer *Consigne RADIATEUR* depuis sa carte (après 12 s en *heat*) à 25 : Adaptative COMBINE prend 25 sans corriger la haute (la source a la main).
     view_layout:
       position: sidebar

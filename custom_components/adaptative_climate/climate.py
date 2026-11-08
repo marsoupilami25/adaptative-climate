@@ -53,6 +53,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .const import (
     CONF_MAX_TEMP,
+    CONF_MIN_GAP,
     CONF_MIN_TEMP,
     DOMAIN,
     MODE_SOURCE_KEYS,
@@ -70,9 +71,17 @@ SOURCE_FEATURES = (
     | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 )
 
-# Targets kept by the entity, named like the source attributes: the single
-# target and the low/high targets of HEAT_COOL.
+# Targets kept by the entity, named like the source attributes. The low target
+# is the heating setpoint and the high target the cooling setpoint: the single
+# target of heat is the low one, the one of cool the high one, and HEAT_COOL
+# shows both. The single target only serves the other modes (auto, dry...).
 TARGETS = (ATTR_TEMPERATURE, ATTR_TARGET_TEMP_LOW, ATTR_TARGET_TEMP_HIGH)
+
+# Target behind the single target, in the modes that have a setpoint.
+SINGLE_TARGETS = {
+    HVACMode.HEAT: ATTR_TARGET_TEMP_LOW,
+    HVACMode.COOL: ATTR_TARGET_TEMP_HIGH,
+}
 
 # Feature a source needs to get a target attribute.
 TARGET_FEATURES = {
@@ -235,7 +244,10 @@ class AdaptativeClimateEntity(
 
     The targets belong to this entity, not to the sources: they are sent to
     the source of each mode the entity enters, rounded to the step of that
-    source and kept in its range (see _observe_targets).
+    source and kept in its range (see _observe_targets). It keeps two
+    setpoints, heating (low) and cooling (high), and exposes them as the
+    single target of heat and cool, and as low/high in HEAT_COOL. The low
+    setpoint stays at least the configured gap below the high one.
     """
 
     _attr_has_entity_name = True
@@ -519,8 +531,10 @@ class AdaptativeClimateEntity(
         """Set the first targets, once a source is usable.
 
         The single target comes from a source, else the middle of the range.
-        The low/high targets come from a source that has both (the heat_cool
-        source first), else 1 degree around the single target.
+        The low target (heating setpoint) comes from the heat source, the high
+        one from the cool source. A heat_cool source with low/high targets
+        comes first; without any source, they are 1 degree around the single
+        target.
         """
         if self._display_source is None:
             return
@@ -536,22 +550,38 @@ class AdaptativeClimateEntity(
                 ),
                 (low + high) / 2,
             )
-        if self._targets[ATTR_TARGET_TEMP_LOW] is None or (
-            self._targets[ATTR_TARGET_TEMP_HIGH] is None
+        if (
+            self._targets[ATTR_TARGET_TEMP_LOW] is not None
+            and self._targets[ATTR_TARGET_TEMP_HIGH] is not None
         ):
-            heat_cool = self._mode_sources.get(HVACMode.HEAT_COOL)
-            for entity_id in dict.fromkeys(
-                [*filter(None, [heat_cool]), *self.coordinator.source_entity_ids]
-            ):
-                low = self._attr_from(entity_id, ATTR_TARGET_TEMP_LOW)
-                high = self._attr_from(entity_id, ATTR_TARGET_TEMP_HIGH)
-                if _is_number(low) and _is_number(high) and low <= high:
-                    break
-            else:
-                target = self._targets[ATTR_TEMPERATURE]
-                low, high = target - 1, target + 1
-            self._targets[ATTR_TARGET_TEMP_LOW] = float(low)
-            self._targets[ATTR_TARGET_TEMP_HIGH] = float(high)
+            return
+        heat_cool = self._mode_sources.get(HVACMode.HEAT_COOL)
+        own = self._source_pair([heat_cool] if heat_cool else [])
+        other = self._source_pair(self.coordinator.source_entity_ids)
+        single = self._targets[ATTR_TEMPERATURE]
+        for index, (target, mode, fallback) in enumerate(
+            (
+                (ATTR_TARGET_TEMP_LOW, HVACMode.HEAT, single - 1),
+                (ATTR_TARGET_TEMP_HIGH, HVACMode.COOL, single + 1),
+            )
+        ):
+            if self._targets[target] is not None:
+                continue
+            value = self._attr_from(self._mode_sources.get(mode), ATTR_TEMPERATURE)
+            if own is not None:
+                value = own[index]
+            elif not _is_number(value):
+                value = other[index] if other is not None else fallback
+            self._targets[target] = float(value)
+
+    def _source_pair(self, entity_ids: list[str]) -> tuple[float, float] | None:
+        """Return the low/high targets of the first source that has both."""
+        for entity_id in entity_ids:
+            low = self._attr_from(entity_id, ATTR_TARGET_TEMP_LOW)
+            high = self._attr_from(entity_id, ATTR_TARGET_TEMP_HIGH)
+            if _is_number(low) and _is_number(high) and low <= high:
+                return float(low), float(high)
+        return None
 
     def _applied(self, target: str, entity_id: str | None) -> float | None:
         """Return a target as a source gets it (see _fit)."""
@@ -598,11 +628,15 @@ class AdaptativeClimateEntity(
     def _target_map(self) -> dict[str, str]:
         """Return which target each target attribute of the active source gets.
 
-        The combined HEAT_COOL sends the low target to the heat source and
-        the high one to the cool source, as their single target. A heat_cool
-        source gets the low/high targets when it has them.
+        Heat sends the low target (heating setpoint) and cool the high one
+        (cooling setpoint) as the single target of their source, like the
+        phases of the combined HEAT_COOL. A heat_cool source gets the
+        low/high targets when it has them. The other modes get the single
+        target.
         """
         mode = self._current_mode()
+        if mode in SINGLE_TARGETS:
+            return {ATTR_TEMPERATURE: SINGLE_TARGETS[mode]}
         if mode is HVACMode.HEAT_COOL:
             if self._phase is HVACMode.HEAT:
                 return {ATTR_TEMPERATURE: ATTR_TARGET_TEMP_LOW}
@@ -976,40 +1010,57 @@ class AdaptativeClimateEntity(
         """Return the room temperature: the sensor, else the display source."""
         return self._room_temperature()
 
-    def _shown_target(self, target: str) -> float | None:
-        """Return a target as shown by the entity.
+    def _shown_target(self, attr: str) -> float | None:
+        """Return a target attribute as shown by the entity.
+
+        Heat shows the low target as the single target and cool the high one;
+        the low/high attributes are empty. HEAT_COOL shows low/high and no
+        single target. The other modes show the single target. While off, the
+        low/high targets are shown when the entity has them, else the targets
+        of the mode turn_on goes to.
 
         A target the active source gets is read from it: it shows what is
         applied, even a target set on it outside the limits. During the
         settle time, or from a source without that target, the target of
-        this entity is shown, as the active source gets it.
-
-        In HEAT_COOL, the single target is not shown, and the target of the
+        this entity is shown, as the active source gets it. The target of the
         other phase of the combined mode is shown as its source gets it.
-        Outside HEAT_COOL, the low/high targets are not shown.
         """
         mode = self._current_mode()
-        active = self._active_source
         mapping = self._target_map()
-        for attr, mapped in mapping.items():
+        if mode is HVACMode.OFF and (
+            ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in self.supported_features
+        ):
+            # Off, both setpoints are shown, to be set before turning on.
+            target = None if attr == ATTR_TEMPERATURE else attr
+        else:
+            if mode is HVACMode.OFF:
+                # No low/high targets: those of the mode turn_on goes to.
+                mode = self._next_mode()
+            if mode is HVACMode.HEAT_COOL:
+                if attr == ATTR_TEMPERATURE:
+                    target = ATTR_TEMPERATURE if ATTR_TEMPERATURE in mapping.values() else None
+                else:
+                    target = attr if self._combined or attr in mapping.values() else None
+            elif attr == ATTR_TEMPERATURE:
+                target = SINGLE_TARGETS.get(mode, ATTR_TEMPERATURE)
+            else:
+                target = None
+        if target is None:
+            return None
+
+        active = self._active_source
+        for source_attr, mapped in mapping.items():
             if mapped != target:
                 continue
-            value = self._attr_from(active, attr)
+            value = self._attr_from(active, source_attr)
             if (
                 self._settle_cancel is None
-                and TARGET_FEATURES[attr] in self._source_features(active)
+                and TARGET_FEATURES[source_attr] in self._source_features(active)
                 and _is_number(value)
             ):
                 return value
             return self._applied(target, active)
-        if mode is HVACMode.HEAT_COOL:
-            if target == ATTR_TEMPERATURE or self._phase is None:
-                return None
-            other = HVACMode.COOL if self._phase is HVACMode.HEAT else HVACMode.HEAT
-            return self._applied(target, self._mode_sources[other])
-        if target == ATTR_TEMPERATURE:
-            return self._applied(target, active)
-        return None
+        return self._applied(target, self._target_source(target))
 
     @property
     def native_target_temperature(self) -> float | None:
@@ -1185,11 +1236,15 @@ class AdaptativeClimateEntity(
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set the targets and send them to the source of the current mode.
 
-        A low/high target is kept rounded and in the range of the source it
-        goes to (see _target_source). The targets are kept even when off, or when the current mode does
-        not use them: the next mode gets them. With a new mode, the source
-        gets the targets once it shows that mode. In the combined HEAT_COOL,
-        new low/high targets may switch the phase.
+        The single target is the heating setpoint in heat and the cooling one
+        in cool (see _target_map); the low and high targets are those of
+        HEAT_COOL. Setting one keeps the configured gap with the other (see
+        _apply_gap). A low/high target is kept rounded and in the range of the
+        source it goes to (see _target_source). The targets are kept even when
+        off, or when the current mode does not use them: the next mode gets
+        them. With a new mode, the source gets the targets once it shows that
+        mode. In the combined HEAT_COOL, new low/high targets may switch the
+        phase.
         """
         hvac_mode = kwargs.get(ATTR_HVAC_MODE)
         if hvac_mode is not None and hvac_mode not in self.hvac_modes:
@@ -1198,17 +1253,19 @@ class AdaptativeClimateEntity(
                 translation_key="unsupported_hvac_mode",
                 translation_placeholders={"hvac_mode": str(hvac_mode)},
             )
-        for target in TARGETS:
-            if kwargs.get(target) is None:
+        # The single target is the heating setpoint in heat, the cooling one
+        # in cool (of the new mode when one is asked).
+        mode = HVACMode(hvac_mode) if hvac_mode is not None else self._current_mode()
+        if mode is HVACMode.OFF:
+            mode = self._next_mode()
+        changed: list[str] = []
+        for attr in TARGETS:
+            if kwargs.get(attr) is None:
                 continue
-            value = float(kwargs[target])
-            # A low/high target only goes to one source: it is kept as that
-            # source gets it, so the phase switches where the source works.
-            # The single target is kept as is, for every source.
-            source = self._target_source(target)
-            if source is not None and self._state(source) is not None:
-                value = self._fit(value, source)
-            self._targets[target] = value
+            target = SINGLE_TARGETS.get(mode, attr) if attr == ATTR_TEMPERATURE else attr
+            self._targets[target] = self._keep(target, float(kwargs[attr]))
+            changed.append(target)
+        self._apply_gap(changed)
 
         if hvac_mode is not None and HVACMode(hvac_mode) != self._current_mode():
             await self.async_set_hvac_mode(HVACMode(hvac_mode))
@@ -1223,6 +1280,58 @@ class AdaptativeClimateEntity(
             self.async_write_ha_state()
         finally:
             self._force_write = False
+
+    def _keep(self, target: str, value: float) -> float:
+        """Return a value to keep for a target.
+
+        A target that only goes to one source (see _target_source) is kept as
+        that source gets it, so the phase switches where the source works.
+        Otherwise it is kept as is, for every source.
+        """
+        source = self._target_source(target)
+        if source is not None and self._state(source) is not None:
+            return self._fit(value, source)
+        return value
+
+    def _gap_respected(self, gap: float) -> bool:
+        """Return True when the low target is at least gap below the high one."""
+        low = self._targets[ATTR_TARGET_TEMP_LOW]
+        high = self._targets[ATTR_TARGET_TEMP_HIGH]
+        return (
+            low is None
+            or high is None
+            or low <= high - gap
+            or _same_temperature(low, high - gap)
+        )
+
+    def _apply_gap(self, changed: list[str]) -> None:
+        """Keep the low target the configured gap below the high one.
+
+        The target just set stays; the other one moves. If its source cannot
+        follow (range), the target just set moves back as far as needed. When
+        both were set, the high target moves.
+        """
+        low_high = {ATTR_TARGET_TEMP_LOW, ATTR_TARGET_TEMP_HIGH}
+        gap = float(entry_settings(self._entry).get(CONF_MIN_GAP) or 0)
+        if not low_high & set(changed) or self._gap_respected(gap):
+            return
+        pivot = (
+            ATTR_TARGET_TEMP_LOW
+            if ATTR_TARGET_TEMP_LOW in changed
+            else ATTR_TARGET_TEMP_HIGH
+        )
+        other = (
+            ATTR_TARGET_TEMP_HIGH
+            if pivot == ATTR_TARGET_TEMP_LOW
+            else ATTR_TARGET_TEMP_LOW
+        )
+        for moved, fixed in ((other, pivot), (pivot, other)):
+            sign = 1 if moved == ATTR_TARGET_TEMP_HIGH else -1
+            self._targets[moved] = self._keep(
+                moved, self._targets[fixed] + sign * gap
+            )
+            if self._gap_respected(gap):
+                return
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set the fan mode of the active source.
@@ -1324,12 +1433,20 @@ class AdaptativeClimateEntity(
         if self._current_mode() is not HVACMode.OFF:
             return
 
+        mode = self._next_mode()
+        if mode is not HVACMode.OFF:
+            await self.async_set_hvac_mode(mode)
+
+    def _next_mode(self) -> HVACMode:
+        """Return the mode turn_on goes to: the last used one, else the first configured.
+
+        While off, the targets shown and set are those of this mode.
+        """
         modes = self.hvac_modes[1:]
         mode = self._last_on_mode
         if mode not in modes:
-            mode = next(iter(modes), None)
-        if mode is not None:
-            await self.async_set_hvac_mode(mode)
+            mode = next(iter(modes), HVACMode.OFF)
+        return mode
 
     async def async_turn_off(self) -> None:
         """Turn off every source that is on."""

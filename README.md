@@ -41,6 +41,7 @@ adaptative_climate:
     temperature_sensor: sensor.living_room_temperature   # optional, see "Heat/cool mode"
     sync_modes: [cool, dry]   # optional, see "Fan and swing settings"
     max_temp: 23   # optional, see "Temperature range"
+    min_gap: 2   # optional, see "Target temperature"
 ```
 
 Each YAML entry is imported as a config entry when Home Assistant starts.
@@ -92,16 +93,43 @@ are not matched (`1` is not `low`).
 
 ### Target temperature
 
-The target temperature belongs to the entity, not to the sources: switching
-mode keeps it, and a source turned on elsewhere (remote control, app) gets
-it too. It is sent once the source shows its new mode, so a device that
-first shows its own target for that mode gets the entity target instead.
+The entity keeps two setpoints, like the thermostats of Z-Wave and Matter:
+a heating one (the low target) and a cooling one (the high target). They are
+exposed according to the mode:
+
+| Mode | `temperature` | `target_temp_low` | `target_temp_high` |
+|---|---|---|---|
+| heat | heating setpoint | none | none |
+| cool | cooling setpoint | none | none |
+| heat/cool | none | heating setpoint | cooling setpoint |
+| auto, dry... | single target | none | none |
+
+So the target of heat is the low target of heat/cool, and the one of cool is
+the high target: going from heat to heat/cool reuses it. The other modes
+(auto, dry) have a single target of their own. While off, the entity shows
+both setpoints (low and high) so they can be set before turning on; a single
+`temperature` set then goes to the mode `turn_on` goes to.
+
+The targets belong to the entity, not to the sources: switching mode keeps
+them, and a source turned on elsewhere (remote control, app) gets its own
+setpoint too. It is sent once the source shows its new mode, so a device
+that first shows its own target for that mode gets the entity target instead.
+
+The low target stays at least `min_gap` below the high one (empty or 0: it
+may equal it, not exceed it). Setting one moves the other: a heating setpoint
+raised above the cooling one pulls it up, a cooling setpoint lowered below
+the heating one pulls it down. In a `target_temp_low`/`target_temp_high`
+call, the high target moves. When the source of the other target cannot
+follow (range), the target just set gives way. A change made on a source is
+not checked: the source has the upper hand.
 
 Each source gets the target rounded to its step and kept in its range (and
-in the `min_temp`/`max_temp` limits), but the entity keeps the value it was
-given: a target of 18 °C sent as 20 °C to a radiator whose minimum is 20 °C
-is 18 °C again back in cool mode. The entity shows the target of the
-active source (except right after entering a mode, see below).
+in the `min_temp`/`max_temp` limits). A setpoint that only goes to one
+source (see "Heat/cool mode") is kept as that source gets it: a high target
+of 14 °C for an AC whose minimum is 16 °C is 16 °C, also to decide when to
+switch to it. The single target of the other modes is kept as it was given.
+The entity shows the target of the active source (except right after
+entering a mode, see below).
 
 A target changed on the active source (remote control, app) becomes the
 target of the entity: the user took over from the source, which has the
@@ -120,19 +148,11 @@ gets nothing, so nothing confirms it: its targets are ignored for the full
 
 While the entity is off, the targets of the sources are ignored. A target
 set while off, or in a mode whose source has none (fan only), is kept for
-the next mode. The target is kept across restarts; the first one comes from
-a source, else the middle of the range.
-
-The low/high targets (`target_temp_low`/`target_temp_high`) of the heat/cool
-mode are handled the same way: kept by the entity and across restarts, taken
-from the source after a change made on it, with the same settle time. They
-are shown in heat/cool only, the single target in the other modes. Each is
-kept while the other is used.
-
-Unlike the single target, each of them only goes to one source (see
-"Heat/cool mode"), so it is kept as that source gets it: rounded to its step
-and in its range. A high target of 14 °C for an AC whose minimum is 16 °C
-is 16 °C, also to decide when to switch to it.
+the next mode. The targets are kept across restarts. The first heating
+setpoint comes from the heat source, the cooling one from the cool source
+(a `heat_cool_entity` with low/high targets comes first), else 1 degree
+around the single target, which comes from a source, else the middle of
+the range.
 
 ### Heat/cool mode
 

@@ -295,7 +295,10 @@ async def test_sync_ignores_source_without_the_setting(hass: HomeAssistant) -> N
     await _mode(hass, HVACMode.DRY)
 
     assert _memory(hass)["sync"][ATTR_FAN_MODE] == "high"
-    assert ac.calls[-1] == ("set_hvac_mode", {"hvac_mode": HVACMode.DRY})
+    assert [call for call in ac.calls if call[0] == "set_hvac_mode"][-1] == (
+        "set_hvac_mode",
+        {"hvac_mode": HVACMode.DRY},
+    )
 
 
 async def test_settings_restored_after_restart(hass: HomeAssistant) -> None:

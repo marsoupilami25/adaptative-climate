@@ -42,6 +42,7 @@ from custom_components.adaptative_climate.const import (
     CONF_COOL_ENTITY,
     CONF_HEAT_COOL_ENTITY,
     CONF_HEAT_ENTITY,
+    CONF_MIN_GAP,
     CONF_TEMPERATURE_SENSOR,
     DOMAIN,
 )
@@ -162,12 +163,12 @@ async def test_combined_listed(hass: HomeAssistant) -> None:
 async def test_combined_initial_targets(
     hass: HomeAssistant, sources: None, combined_entry: MockConfigEntry
 ) -> None:
-    """The first low/high targets come from a source that has them (the AC)."""
+    """The first low/high targets are the setpoints of the heater and the AC."""
     await _setup(hass, combined_entry)
 
     saved = _saved(hass)
     assert saved["target_temperature_low"] == 20.0
-    assert saved["target_temperature_high"] == 26.0
+    assert saved["target_temperature_high"] == 24.0
 
 
 @pytest.mark.usefixtures("combined")
@@ -352,20 +353,69 @@ async def test_combined_targets_kept_as_sources_get_them(
 
 
 @pytest.mark.usefixtures("combined")
-async def test_combined_single_target_kept_apart(
+async def test_combined_single_target_is_a_setpoint(
     hass: HomeAssistant, heater: FakeClimate
 ) -> None:
-    """The single target is kept for heat and cool, not used by heat_cool."""
-    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
+    """The single target of heat is the low target, the one of cool the high one."""
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
     assert _sent(heater) == [{ATTR_TEMPERATURE: 19.0}]
 
+    # Heat shows the low target as its single target.
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
-    assert _state(hass) == HVACMode.HEAT
-    assert _sent(heater)[-1] == {ATTR_TEMPERATURE: 22.0}
     attrs = _attrs(hass)
-    assert attrs[ATTR_TEMPERATURE] == 22.0
+    assert attrs[ATTR_TEMPERATURE] == 19.0
     assert attrs[ATTR_TARGET_TEMP_LOW] is None
+    assert attrs[ATTR_TARGET_TEMP_HIGH] is None
+
+    # Setting it in heat sets the low target of heat_cool.
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
+    assert _sent(heater)[-1] == {ATTR_TEMPERATURE: 22.0}
+    assert _saved(hass)["target_temperature_low"] == 22.0
+    assert _saved(hass)["target_temperature_high"] == 25.0
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    attrs = _attrs(hass)
+    assert attrs[ATTR_TEMPERATURE] is None
+    assert attrs[ATTR_TARGET_TEMP_LOW] == 22.0
+    assert attrs[ATTR_TARGET_TEMP_HIGH] == 25.0
+
+
+@pytest.mark.usefixtures("combined")
+async def test_combined_cool_single_target_is_the_high_target(
+    hass: HomeAssistant, ac: FakeClimate
+) -> None:
+    """Cool shows the high target as its single target and sets it."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+    assert _attrs(hass)[ATTR_TEMPERATURE] == 25.0
+
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=26.0)
+
+    assert _sent(ac)[-1] == {ATTR_TEMPERATURE: 26.0}
+    assert _saved(hass)["target_temperature_high"] == 26.0
+    assert _saved(hass)["target_temperature_low"] == 19.0
+    # The single target of the other modes is apart.
+    assert _saved(hass)["target_temperature"] == 20.0
+
+
+@pytest.mark.usefixtures("combined")
+async def test_combined_off_shows_targets_of_next_mode(hass: HomeAssistant) -> None:
+    """While off, both setpoints are shown; a single target is the next mode's."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+    await _call(hass, SERVICE_TURN_OFF)
+    attrs = _attrs(hass)
+    assert attrs[ATTR_TEMPERATURE] is None
+    assert (attrs[ATTR_TARGET_TEMP_LOW], attrs[ATTR_TARGET_TEMP_HIGH]) == (19.0, 25.0)
+
+    # Off, the single target is the one of the mode turn_on goes to (cool).
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
+    assert _saved(hass)["target_temperature_high"] == 23.0
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    await _call(hass, SERVICE_TURN_OFF)
+    attrs = _attrs(hass)
+    assert attrs[ATTR_TEMPERATURE] is None
+    assert attrs[ATTR_TARGET_TEMP_LOW] == 19.0
+    assert attrs[ATTR_TARGET_TEMP_HIGH] == 23.0
 
 
 @pytest.mark.usefixtures("combined")
@@ -422,6 +472,9 @@ async def test_combined_slow_source(
     """A source slow to show its new mode does not end heat_cool."""
     await _set_room(hass, "18")
     await _setup(hass, combined_entry)
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=26.0
+    )
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
 
     # The AC takes a few seconds to report its mode.
@@ -735,3 +788,122 @@ async def test_own_source_takeover(
 
     assert _saved(hass)["target_temperature_low"] == 21.0
     assert _saved(hass)["target_temperature_high"] == 24.0
+
+
+# Minimum gap between the low and high targets.
+
+
+@pytest.fixture
+async def gap(hass: HomeAssistant, sources: None) -> None:
+    """Set up the combined heat_cool with a gap of 2 degrees, targets 19-25."""
+    await _set_room(hass, "18")
+    await _setup(
+        hass,
+        MockConfigEntry(
+            domain=DOMAIN,
+            title="Living room",
+            data={
+                CONF_NAME: "Living room",
+                CONF_HEAT_ENTITY: HEATER,
+                CONF_COOL_ENTITY: AC,
+                CONF_TEMPERATURE_SENSOR: SENSOR,
+                CONF_MIN_GAP: 2.0,
+            },
+        ),
+    )
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=19.0, target_temp_high=25.0
+    )
+
+
+@pytest.mark.parametrize(
+    ("data", "low", "high"),
+    [
+        # Within the gap: nothing moves.
+        ({"target_temp_low": 21.0, "target_temp_high": 24.0}, 21.0, 24.0),
+        ({"target_temp_low": 23.0, "target_temp_high": 25.0}, 23.0, 25.0),
+        # The low target is the one just set: the high one moves.
+        ({"target_temp_low": 24.0, "target_temp_high": 25.0}, 24.0, 26.0),
+        # Both set: the high one moves.
+        ({"target_temp_low": 22.0, "target_temp_high": 23.0}, 22.0, 24.0),
+        # The single target of the mode is a setpoint too.
+        ({"temperature": 24.0}, 24.0, 26.0),
+    ],
+)
+@pytest.mark.usefixtures("gap")
+async def test_gap_keeps_targets_apart(
+    hass: HomeAssistant, data: dict[str, float], low: float, high: float
+) -> None:
+    """Setting a target moves the other one to keep the gap."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+
+    await _call(hass, SERVICE_SET_TEMPERATURE, **data)
+
+    assert _saved(hass)["target_temperature_low"] == low
+    assert _saved(hass)["target_temperature_high"] == high
+
+
+@pytest.mark.usefixtures("gap")
+async def test_gap_cool_single_target_moves_low(
+    hass: HomeAssistant, heater: FakeClimate
+) -> None:
+    """Lowering the cooling setpoint pulls the heating one down."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=20.0)
+
+    assert _saved(hass)["target_temperature_low"] == 18.0
+    assert _saved(hass)["target_temperature_high"] == 20.0
+    # The heater gets it once it runs.
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    assert _sent(heater)[-1] == {ATTR_TEMPERATURE: 18.0}
+
+
+@pytest.mark.usefixtures("gap")
+async def test_gap_limited_by_the_source_range(hass: HomeAssistant) -> None:
+    """When the other source cannot follow, the target just set gives way.
+
+    Heat tops at 30, so a gap of 2 degrees leaves a high target of 32.
+    """
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=17.0)
+    # The low target follows 2 degrees below.
+    assert _saved(hass)["target_temperature_high"] == 17.0
+    assert _saved(hass)["target_temperature_low"] == 15.0
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=30.0)
+    assert _saved(hass)["target_temperature_low"] == 30.0
+    assert _saved(hass)["target_temperature_high"] == 32.0
+
+
+async def test_no_gap_by_default(
+    hass: HomeAssistant, sources: None, combined_entry: MockConfigEntry
+) -> None:
+    """Without a gap, the low target may equal the high one, not exceed it."""
+    await _setup(hass, combined_entry)
+
+    await _call(hass, SERVICE_SET_TEMPERATURE, target_temp_low=22.0, target_temp_high=22.0)
+    assert _saved(hass)["target_temperature_low"] == 22.0
+    assert _saved(hass)["target_temperature_high"] == 22.0
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
+    assert _saved(hass)["target_temperature_low"] == 23.0
+    assert _saved(hass)["target_temperature_high"] == 23.0
+
+
+@pytest.mark.usefixtures("gap")
+async def test_gap_not_enforced_on_source_takeover(
+    hass: HomeAssistant, heater: FakeClimate, freezer: FrozenDateTimeFactory
+) -> None:
+    """A change made on the source wins, even inside the gap."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    await _wait(hass, freezer, 13)
+
+    setattr(heater, _attr_name("target_temperature"), 24.0)
+    heater.async_write_ha_state()
+    await hass.async_block_till_done()
+
+    assert _saved(hass)["target_temperature_low"] == 24.0
+    assert _saved(hass)["target_temperature_high"] == 25.0

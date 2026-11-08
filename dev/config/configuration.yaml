@@ -61,6 +61,8 @@ adaptative_climate:
   - name: Adaptative COMBINE
     heat_entity: climate.radiateur_virtuel_mono
     cool_entity: climate.clim_virtuel_mono
+    # The low target stays at least 2 degrees below the high one.
+    min_gap: 2
 
   # Case 2: every mode, one single-mode source per mode.
   - name: Adaptative MULTI

@@ -112,8 +112,8 @@ async def test_follows_source_changed_elsewhere(hass: HomeAssistant) -> None:
     state = hass.states.get(ENTITY_ID)
     assert state.state == HVACMode.COOL
     assert state.attributes["active_entity_id"] == AC
-    # The AC gets the target of the entity (taken from the heater at start).
-    assert state.attributes[ATTR_TEMPERATURE] == 20.0
+    # The cooling setpoint of the entity is the one the AC already shows.
+    assert state.attributes[ATTR_TEMPERATURE] == 24.0
     assert state.attributes["current_temperature"] == 21.0
     assert state.attributes[ATTR_HVAC_ACTION] == HVACAction.COOLING
 
@@ -184,7 +184,10 @@ async def test_shared_source_mode_change_elsewhere(
     )
     await hass.async_block_till_done()
 
-    assert ac.calls == [("set_hvac_mode", {"hvac_mode": HVACMode.DRY})]
+    # Dry has its own target, sent after the mode.
+    assert [call for call in ac.calls if call[0] == "set_hvac_mode"] == [
+        ("set_hvac_mode", {"hvac_mode": HVACMode.DRY})
+    ]
     assert heater.calls == []
     assert _mode(hass) == HVACMode.DRY
 
@@ -199,7 +202,9 @@ async def test_switch_mode_on_shared_source(
 
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.DRY)
 
-    assert ac.calls == [("set_hvac_mode", {"hvac_mode": HVACMode.DRY})]
+    assert [call for call in ac.calls if call[0] == "set_hvac_mode"] == [
+        ("set_hvac_mode", {"hvac_mode": HVACMode.DRY})
+    ]
     assert _mode(hass) == HVACMode.DRY
 
 
@@ -225,7 +230,7 @@ async def test_set_temperature_forwards_to_active_source(
 async def test_set_temperature_range_outside_heat_cool(
     hass: HomeAssistant, ac: FakeClimate
 ) -> None:
-    """Low/high targets are kept for heat_cool, not sent to a cool source."""
+    """Cool gets the high target as its setpoint; the low target is only kept."""
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
     ac.calls.clear()
 
@@ -233,8 +238,11 @@ async def test_set_temperature_range_outside_heat_cool(
         hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=25.0
     )
 
-    assert ac.calls == []
+    assert ac.calls == [
+        ("set_temperature", {ATTR_TEMPERATURE: 25.0, ATTR_ENTITY_ID: [AC]})
+    ]
     attributes = hass.states.get(ENTITY_ID).attributes
+    assert attributes[ATTR_TEMPERATURE] == 25.0
     assert attributes[ATTR_TARGET_TEMP_LOW] is None
     assert attributes[ATTR_TARGET_TEMP_HIGH] is None
 

@@ -15,6 +15,9 @@ DEFAULT_NAME: Final = "Adaptative Climate"
 CONF_MIN_TEMP: Final = "min_temp"
 CONF_MAX_TEMP: Final = "max_temp"
 
+# Optional minimum gap between the low (heating) and high (cooling) targets.
+CONF_MIN_GAP: Final = "min_gap"
+
 CONF_HEAT_ENTITY: Final = "heat_entity"
 CONF_COOL_ENTITY: Final = "cool_entity"
 CONF_HEAT_COOL_ENTITY: Final = "heat_cool_entity"

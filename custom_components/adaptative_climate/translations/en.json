@@ -15,13 +15,15 @@
           "temperature_sensor": "Temperature sensor",
           "sync_modes": "Synchronized modes",
           "min_temp": "Minimum temperature",
-          "max_temp": "Maximum temperature"
+          "max_temp": "Maximum temperature",
+          "min_gap": "Minimum gap between heating and cooling targets"
         },
         "data_description": {
           "temperature_sensor": "Optional. Room temperature shown by the entity. Without a heat/cool mode climate entity, the heat/cool mode switches between the heat and cool climate entities using it. Leave empty to use the temperature of the climate entities.",
           "sync_modes": "Optional. These modes share their fan and swing settings. A mode without a climate entity is ignored.",
           "min_temp": "Optional. Leave empty to follow the minimum of the climate entity in use. Can only raise it.",
-          "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it."
+          "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it.",
+          "min_gap": "Minimum gap between heating and cooling targets"
         }
       }
     },
@@ -50,13 +52,15 @@
           "temperature_sensor": "Temperature sensor",
           "sync_modes": "Synchronized modes",
           "min_temp": "Minimum temperature",
-          "max_temp": "Maximum temperature"
+          "max_temp": "Maximum temperature",
+          "min_gap": "Minimum gap between heating and cooling targets"
         },
         "data_description": {
           "temperature_sensor": "Optional. Room temperature shown by the entity. Without a heat/cool mode climate entity, the heat/cool mode switches between the heat and cool climate entities using it. Leave empty to use the temperature of the climate entities.",
           "sync_modes": "Optional. These modes share their fan and swing settings. A mode without a climate entity is ignored.",
           "min_temp": "Optional. Leave empty to follow the minimum of the climate entity in use. Can only raise it.",
-          "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it."
+          "max_temp": "Optional. Leave empty to follow the maximum of the climate entity in use. Can only lower it.",
+          "min_gap": "Minimum gap between heating and cooling targets"
         }
       }
     },
