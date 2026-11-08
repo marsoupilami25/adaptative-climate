@@ -29,6 +29,8 @@ from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
 
+from custom_components.adaptative_climate.const import CONF_MAX_TEMP, DOMAIN
+
 from .conftest import AC, ENTITY_ID, HEATER, FakeClimate, _attr_name
 
 
@@ -459,11 +461,16 @@ async def test_bad_saved_target_ignored(
 
 @pytest.mark.usefixtures("init_integration")
 async def test_source_error_does_not_fail_mode_change(
-    hass: HomeAssistant, ac: FakeClimate, caplog: pytest.LogCaptureFixture
+    hass: HomeAssistant,
+    ac: FakeClimate,
+    caplog: pytest.LogCaptureFixture,
+    freezer: FrozenDateTimeFactory,
 ) -> None:
-    """A source refusing the target is logged; the mode change still happens."""
+    """A source refusing the target is tried again once, then logged; the mode still changes."""
+    tries: list[dict[str, Any]] = []
 
     async def refuse(**kwargs: Any) -> None:
+        tries.append(kwargs)
         raise HomeAssistantError("refused")
 
     ac.async_set_temperature = refuse
@@ -473,7 +480,70 @@ async def test_source_error_does_not_fail_mode_change(
     await _mode(hass, HVACMode.COOL)
 
     assert hass.states.get(ENTITY_ID).state == HVACMode.COOL
+    assert len(tries) == 1
+    assert "Could not set temperature 22.0 on climate.ac: refused" not in caplog.text
+    assert "Could not set temperature 22.0 on climate.ac (refused), trying again" in caplog.text
+
+    await _settle(hass, freezer, 5)
+    assert len(tries) == 2
     assert "Could not set temperature 22.0 on climate.ac: refused" in caplog.text
+
+    # Once only.
+    await _settle(hass, freezer, 30)
+    assert len(tries) == 2
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_send_tried_again_works(
+    hass: HomeAssistant,
+    heater: FakeClimate,
+    caplog: pytest.LogCaptureFixture,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A send that fails once works on the retry, without a warning."""
+    await _mode(hass, HVACMode.HEAT)
+    await _settle(hass, freezer, 13)
+    set_temperature = heater.async_set_temperature
+    failures = [HomeAssistantError("busy")]
+
+    async def flaky(**kwargs: Any) -> None:
+        if failures:
+            raise failures.pop()
+        await set_temperature(**kwargs)
+
+    heater.async_set_temperature = flaky
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
+    assert heater.target_temperature == 20.0
+
+    await _settle(hass, freezer, 5)
+
+    assert heater.target_temperature == 23.0
+    assert not [
+        r for r in caplog.records if r.levelname == "WARNING" and "Could not set" in r.message
+    ]
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_send_retry_dropped_after_mode_change(
+    hass: HomeAssistant,
+    heater: FakeClimate,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """The retry is not sent once the entity left the mode."""
+    await _mode(hass, HVACMode.HEAT)
+    await _settle(hass, freezer, 13)
+    tries: list[dict[str, Any]] = []
+
+    async def refuse(**kwargs: Any) -> None:
+        tries.append(kwargs)
+        raise HomeAssistantError("refused")
+
+    heater.async_set_temperature = refuse
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
+    await _call(hass, SERVICE_TURN_OFF)
+
+    await _settle(hass, freezer, 5)
+    assert len(tries) == 1
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -845,3 +915,156 @@ async def test_auto_without_target(
     assert _range(hass) == (None, None)
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
     assert ac.calls == []
+
+
+# Resync
+
+
+async def _silent_once(hass: HomeAssistant, source: FakeClimate) -> list[dict[str, Any]]:
+    """Make the next target call to a source get lost (taken, not shown)."""
+    set_temperature = source.async_set_temperature
+    lost: list[dict[str, Any]] = []
+
+    async def lose(**kwargs: Any) -> None:
+        if not lost:
+            lost.append(kwargs)
+            return
+        await set_temperature(**kwargs)
+
+    source.async_set_temperature = lose
+    return lost
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_resync_sends_lost_target(
+    hass: HomeAssistant, heater: FakeClimate, freezer: FrozenDateTimeFactory
+) -> None:
+    """A target the source does not show is sent again after 30 minutes."""
+    await _mode(hass, HVACMode.HEAT)
+    await _settle(hass, freezer, 13)
+    lost = await _silent_once(hass, heater)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
+    assert [call[ATTR_TEMPERATURE] for call in lost] == [23.0]
+    assert heater.target_temperature == 20.0
+
+    await _settle(hass, freezer, 29 * 60)
+    assert heater.target_temperature == 20.0
+    await _settle(hass, freezer, 60)
+    assert heater.target_temperature == 23.0
+
+    # Then nothing more: the source shows it.
+    heater.calls.clear()
+    await _settle(hass, freezer, 30 * 60)
+    assert _sent(heater) == []
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_resync_sends_nothing_when_shown(
+    hass: HomeAssistant, heater: FakeClimate, freezer: FrozenDateTimeFactory
+) -> None:
+    """A source showing the targets, or one off, gets nothing."""
+    await _mode(hass, HVACMode.HEAT)
+    await _settle(hass, freezer, 13)
+    heater.calls.clear()
+
+    await _settle(hass, freezer, 30 * 60)
+    assert _sent(heater) == []
+
+    await _call(hass, SERVICE_TURN_OFF)
+    await _set_on_device(hass, heater, 25.0)
+    await _settle(hass, freezer, 30 * 60)
+    assert _sent(heater) == []
+
+
+@pytest.mark.usefixtures("sources")
+async def test_resync_keeps_target_taken_outside_limits(
+    hass: HomeAssistant,
+    heater: FakeClimate,
+    mock_config_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A target set on the source above the limit is not sent back to the limit."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Living room",
+        data={**mock_config_entry.data, CONF_MAX_TEMP: 25},
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    await _mode(hass, HVACMode.HEAT)
+    await _settle(hass, freezer, 13)
+
+    await _set_on_device(hass, heater, 28.0)
+    heater.calls.clear()
+    await _settle(hass, freezer, 30 * 60)
+
+    assert _sent(heater) == []
+    assert heater.target_temperature == 28.0
+
+
+# Active source unavailable for a while
+
+
+async def _lose(hass: HomeAssistant, entity_id: str) -> None:
+    """Make a source unavailable."""
+    hass.states.async_set(entity_id, "unavailable")
+    await hass.async_block_till_done()
+
+
+async def _back(hass: HomeAssistant, source: FakeClimate, mode: HVACMode, target: float) -> None:
+    """Bring a source back, in a mode, showing its own target."""
+    source._attr_hvac_mode = mode
+    setattr(source, _attr_name("target_temperature"), target)
+    source.async_write_ha_state()
+    await hass.async_block_till_done()
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_source_back_in_its_mode_gets_targets(
+    hass: HomeAssistant, heater: FakeClimate, freezer: FrozenDateTimeFactory
+) -> None:
+    """The active source back from unavailable gets the target of the entity."""
+    await _mode(hass, HVACMode.HEAT)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
+    await _settle(hass, freezer, 13)
+    await _lose(hass, HEATER)
+    assert hass.states.get(ENTITY_ID).state == HVACMode.OFF
+
+    await _back(hass, heater, HVACMode.HEAT, 16.0)
+
+    assert hass.states.get(ENTITY_ID).state == HVACMode.HEAT
+    assert heater.target_temperature == 22.0
+    assert _saved(hass, LOW) == 22.0
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_source_back_off_then_on_elsewhere_gives_target(
+    hass: HomeAssistant, heater: FakeClimate
+) -> None:
+    """Back off, it was changed meanwhile: turned on later, it gives its target."""
+    await _mode(hass, HVACMode.HEAT)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
+    await _lose(hass, HEATER)
+
+    await _back(hass, heater, HVACMode.OFF, 22.0)
+    await _back(hass, heater, HVACMode.HEAT, 18.0)
+
+    assert heater.target_temperature == 18.0
+    assert _saved(hass, LOW) == 18.0
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_source_back_after_user_mode_change(
+    hass: HomeAssistant, heater: FakeClimate
+) -> None:
+    """A mode asked by the user meanwhile: the source back on is not the return."""
+    await _mode(hass, HVACMode.HEAT)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
+    await _lose(hass, HEATER)
+    await _call(hass, SERVICE_TURN_OFF)
+
+    await _back(hass, heater, HVACMode.HEAT, 18.0)
+
+    assert heater.target_temperature == 18.0
+    assert _saved(hass, LOW) == 18.0

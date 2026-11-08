@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+from datetime import datetime, timedelta
 import logging
-from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
@@ -26,7 +28,7 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -39,9 +41,16 @@ from .const import (
     sync_modes,
 )
 
+if TYPE_CHECKING:
+    from .engine.monitoring import TargetMismatch
+
 _LOGGER = logging.getLogger(__name__)
 
 type SourceStates = dict[str, State | None]
+
+# A source that does not turn off when another one runs is tried again this
+# often, while it runs.
+EXCLUSIVE_RETRY = timedelta(minutes=1)
 
 
 def is_running(state: State | None) -> bool:
@@ -120,6 +129,18 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         # Modes whose source is usable but does not offer them. They stay
         # listed, but switching to them is refused (see _async_check_modes).
         self.unsupported_modes: set[HVACMode] = set()
+        # Sources that did not turn off while another one runs: the source
+        # that runs, and the error. Tried again every EXCLUSIVE_RETRY while
+        # they run. Reported by the monitoring.
+        self.stuck_sources: dict[str, tuple[str, str]] = {}
+        # Targets the active source shows instead of those sent to it, from
+        # the climate entity. Reported by the monitoring.
+        self.target_mismatches: list[TargetMismatch] = []
+        self._problem_listeners: list[CALLBACK_TYPE] = []
+        # One exclusivity check at a time: a mode change and a source turned
+        # on elsewhere would both turn the same sources off.
+        self._exclusive_lock = asyncio.Lock()
+        self._cancel_retry: CALLBACK_TYPE | None = None
 
     def async_start(self) -> None:
         """Check the source modes, then listen for source and sensor state changes."""
@@ -137,6 +158,8 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         if self._unsub_state_change is not None:
             self._unsub_state_change()
             self._unsub_state_change = None
+        self._stop_retry()
+        self.stuck_sources = {}
         # The issues are checked again when the entry loads.
         for mode in self.unsupported_modes:
             ir.async_delete_issue(self.hass, DOMAIN, self._issue_id(mode))
@@ -204,21 +227,127 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
             for entity_id in self.tracked_entity_ids
         }
 
-    async def async_turn_off_other_sources(self, keep: str | None) -> None:
-        """Turn off every running source except keep."""
-        for entity_id in self.source_entity_ids:
-            if entity_id != keep and is_running(self.hass.states.get(entity_id)):
-                await self.hass.services.async_call(
-                    CLIMATE_DOMAIN,
-                    "set_hvac_mode",
-                    {ATTR_ENTITY_ID: entity_id, ATTR_HVAC_MODE: HVACMode.OFF},
-                    blocking=True,
-                )
+    async def _async_turn_off(self, entity_id: str) -> None:
+        """Turn a source off."""
+        await self.hass.services.async_call(
+            CLIMATE_DOMAIN,
+            "set_hvac_mode",
+            {ATTR_ENTITY_ID: entity_id, ATTR_HVAC_MODE: HVACMode.OFF},
+            blocking=True,
+        )
 
-    async def _async_enforce_exclusive(self, entity_id: str) -> None:
+    async def async_turn_off_sources(self) -> None:
+        """Turn off every running source. Errors are raised."""
+        for entity_id in self.source_entity_ids:
+            if is_running(self.hass.states.get(entity_id)):
+                await self._async_turn_off(entity_id)
+
+    async def async_enforce_exclusive(self, keep: str, *, retry: bool = False) -> None:
+        """Turn off every running source except keep, which runs.
+
+        A source that fails is tried again once at once. If it still fails,
+        it is stuck: listed in stuck_sources, and tried again every
+        EXCLUSIVE_RETRY while it runs and keep is the source turned on last.
+        Between those times, only retry (the timer) tries a stuck source.
+        Errors are not raised: keep is on, the mode change worked.
+        """
+        async with self._exclusive_lock:
+            for entity_id in self.source_entity_ids:
+                if entity_id == keep or not is_running(self.hass.states.get(entity_id)):
+                    continue
+                if entity_id in self.stuck_sources and not retry:
+                    continue
+                error = await self._async_try_turn_off(entity_id)
+                if error is None:
+                    self._unstick(entity_id)
+                    continue
+                _LOGGER.debug(
+                    "%s: %s does not turn off while %s runs (%s)",
+                    self.config_entry.title,
+                    entity_id,
+                    keep,
+                    error,
+                )
+                self.stuck_sources[entity_id] = (keep, error)
+            if self.stuck_sources and self._cancel_retry is None:
+                self._cancel_retry = async_call_later(
+                    self.hass, EXCLUSIVE_RETRY, self._async_retry_exclusive
+                )
+        self.async_update_listeners()
+
+    async def _async_try_turn_off(self, entity_id: str) -> str | None:
+        """Turn a source off, trying twice. Return the last error, if any."""
+        error = ""
+        for _ in range(2):
+            try:
+                await self._async_turn_off(entity_id)
+            # The source integration may raise anything: it must not stop the
+            # other sources from being turned off.
+            except Exception as err:  # noqa: BLE001
+                error = str(err) or type(err).__name__
+            else:
+                return None
+        return error
+
+    @callback
+    def _async_retry_exclusive(self, _now: datetime) -> None:
+        """Try the stuck sources again, while the source turned on last runs."""
+        self._cancel_retry = None
+        keep = self.last_on_source
+        if keep is None or not is_running(self.hass.states.get(keep)):
+            for entity_id in list(self.stuck_sources):
+                self._unstick(entity_id)
+            self.async_update_listeners()
+            return
+        self.config_entry.async_create_background_task(
+            self.hass,
+            self.async_enforce_exclusive(keep, retry=True),
+            f"{DOMAIN} exclusive retry {keep}",
+        )
+
+    @callback
+    def _unstick(self, entity_id: str) -> None:
+        """Forget a stuck source (it turned off, or no longer has to)."""
+        if self.stuck_sources.pop(entity_id, None) is not None:
+            _LOGGER.debug(
+                "%s: %s no longer runs along with another source",
+                self.config_entry.title,
+                entity_id,
+            )
+        if not self.stuck_sources:
+            self._stop_retry()
+
+    @callback
+    def _stop_retry(self) -> None:
+        """Stop trying the stuck sources again."""
+        if self._cancel_retry is not None:
+            self._cancel_retry()
+            self._cancel_retry = None
+
+    @callback
+    def async_set_target_mismatches(self, mismatches: list[TargetMismatch]) -> None:
+        """Keep the targets the active source does not show, and tell the monitoring."""
+        if mismatches == self.target_mismatches:
+            return
+        self.target_mismatches = mismatches
+        for listener in list(self._problem_listeners):
+            listener()
+
+    @callback
+    def async_add_problem_listener(self, listener: CALLBACK_TYPE) -> CALLBACK_TYPE:
+        """Call listener when the target mismatches change. Return the removal."""
+        self._problem_listeners.append(listener)
+
+        @callback
+        def _remove() -> None:
+            self._problem_listeners.remove(listener)
+
+        return _remove
+
+    async def _async_enforce_on(self, entity_id: str) -> None:
         """Turn off the other sources, unless another source was turned on since."""
         if self.last_on_source == entity_id:
-            await self.async_turn_off_other_sources(entity_id)
+            await self.async_enforce_exclusive(entity_id)
 
     @callback
     def _async_source_state_changed(self, event: Event[EventStateChangedData]) -> None:
@@ -226,6 +355,8 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
 
         A source switched to a new mode it serves (by this integration or
         elsewhere) becomes the active one and the other sources are turned off.
+        A source back from unavailable in its old mode while another one was
+        turned on meanwhile is turned off instead.
         A source switched to a mode it does not serve here is only logged: the
         entity ignores it and the other sources keep running.
         """
@@ -243,17 +374,32 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         )
         if mode_changed and not switched_on:
             self._warn_foreign(entity_id, new_state)
+        # Back from unavailable while another source was turned on meanwhile:
+        # it still shows its old mode, the other source wins.
+        stale = (
+            switched_on
+            and old_state is not None
+            and old_state.state == STATE_UNAVAILABLE
+            and self.last_on_source not in (None, entity_id)
+            and is_running(self.hass.states.get(self.last_on_source))
+        )
+        if stale:
+            switched_on = False
         if switched_on:
             self.last_on_source = entity_id
+        if entity_id in self.stuck_sources and not is_running(new_state):
+            self._unstick(entity_id)
 
         self._async_check_modes()
         self.async_set_updated_data({**(self.data or {}), entity_id: new_state})
 
-        if switched_on:
+        if switched_on or stale:
+            keep = self.last_on_source
+            assert keep is not None
             self.config_entry.async_create_background_task(
                 self.hass,
-                self._async_enforce_exclusive(entity_id),
-                f"{DOMAIN} exclusive {entity_id}",
+                self._async_enforce_on(keep),
+                f"{DOMAIN} exclusive {keep}",
             )
 
 

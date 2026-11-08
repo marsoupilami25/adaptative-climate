@@ -53,7 +53,7 @@
           "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation",
           "min_phase_duration": "Optionnel, en minutes (10 par défaut). Sans entité climate pour le mode heat/cool, celui-ci reste au moins ce temps en chauffage ou en climatisation avant de basculer de lui-même. 0 : bascule immédiate. Un changement de consigne bascule tout de suite.",
           "monitoring_gap": "Optionnel, 2 par défaut. Le capteur de monitoring s'allume quand le capteur de la pièce et une entité climate, ou deux entités climate, lisent des températures plus éloignées que cet écart (chacune moins le décalage de son mode).",
-          "monitoring_duration": "Optionnel, en minutes (15 par défaut). Un écart devient un problème quand il dure ce temps. 0 : tout de suite."
+          "monitoring_duration": "Optionnel, en minutes (15 par défaut). Un écart de températures, ou une consigne que l'entité climate n'affiche pas (30 s minimum), devient un problème quand il dure ce temps. 0 : tout de suite."
         }
       }
     },
@@ -121,7 +121,7 @@
           "min_gap": "Écart minimal entre les consignes de chauffage et de climatisation",
           "min_phase_duration": "Optionnel, en minutes (10 par défaut). Sans entité climate pour le mode heat/cool, celui-ci reste au moins ce temps en chauffage ou en climatisation avant de basculer de lui-même. 0 : bascule immédiate. Un changement de consigne bascule tout de suite.",
           "monitoring_gap": "Optionnel, 2 par défaut. Le capteur de monitoring s'allume quand le capteur de la pièce et une entité climate, ou deux entités climate, lisent des températures plus éloignées que cet écart (chacune moins le décalage de son mode).",
-          "monitoring_duration": "Optionnel, en minutes (15 par défaut). Un écart devient un problème quand il dure ce temps. 0 : tout de suite."
+          "monitoring_duration": "Optionnel, en minutes (15 par défaut). Un écart de températures, ou une consigne que l'entité climate n'affiche pas (30 s minimum), devient un problème quand il dure ce temps. 0 : tout de suite."
         }
       }
     },

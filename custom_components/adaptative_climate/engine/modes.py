@@ -5,7 +5,9 @@ sources each time.
 
 - current: the mode a source runs in, or HEAT_COOL when the combined
   phase runs. While waiting for the phase, or switching, it stays
-  HEAT_COOL even if the sources still show off or the other phase.
+  HEAT_COOL even if the sources still show off or the other phase; and
+  while the source of the phase is unavailable (phase_lost), with no
+  source running.
 - source_mode, active_mode / active_source, display_mode /
   display_source: what is sent to the source, the source mode of the
   current mode and its source, the one read for display (the active one,
@@ -17,9 +19,10 @@ sources each time.
   current mode, all of them when off, minus their offset, narrowed by the
   limits), and a value as the source of a mode gets it (only kept in that
   range without a source mode).
-- async_activate: turns the other sources off, sets the mode of the
-  source, sends back its remembered settings. switching_to is set
-  meanwhile. async_turn_off turns every source off.
+- async_activate: sets the mode of the source, sends back its remembered
+  settings, then turns the other sources off (the new mode runs even if
+  one of them fails, see AdaptativeClimateCoordinator.async_enforce_exclusive).
+  switching_to is set meanwhile. async_turn_off turns every source off.
 - take_request: whether a source entering a mode was asked to by this
   entity (recently), or turned on elsewhere.
 
@@ -99,7 +102,8 @@ class ModeTracker:
 
         The mode the sources run in, or the combined HEAT_COOL when its source
         runs in its phase. While the sources may still show the previous
-        phase, or off, it stays HEAT_COOL.
+        phase, or off, it stays HEAT_COOL. So it does while the source of
+        the phase is unavailable and no source runs.
         """
         running = self._sources.running_mode()
         phase = self._phase.phase
@@ -109,9 +113,14 @@ class ModeTracker:
                 (self._phase.waiting or self.switching)
                 and running in {HVACMode.OFF, *PHASES}
             )
+            or (running is HVACMode.OFF and self.phase_lost(phase))
         ):
             return HVACMode.HEAT_COOL
         return running
+
+    def phase_lost(self, phase: HVACMode) -> bool:
+        """Return True when the source of a phase of the combined HEAT_COOL is unavailable."""
+        return self._sources.state(self._sources.mode_sources.get(phase)) is None
 
     def source_mode(self, mode: HVACMode) -> HVACMode:
         """Return the mode sent to the source: the phase for the combined HEAT_COOL."""
@@ -204,21 +213,26 @@ class ModeTracker:
         return min(max(value, low), high)
 
     async def async_activate(self, source_mode: HVACMode, mode: HVACMode) -> None:
-        """Run the source of a mode, after turning the other sources off.
+        """Run the source of a mode, then turn the other sources off.
 
         source_mode is sent to the source; mode is the mode of this entity
         (HEAT_COOL for a phase of the combined mode). The remembered settings
-        of the mode are then sent to its source.
+        of the mode are then sent to its source. The source is turned on
+        first: if it fails, the other sources keep running. A source that
+        does not turn off is tried again later, without failing the change.
         """
         entity_id = self._sources.mode_sources[source_mode]
         self.switching_to = mode
         self._request = (entity_id, source_mode, dt_util.utcnow())
         try:
-            await self._coordinator.async_turn_off_other_sources(entity_id)
             await self._sources.async_call(
                 "set_hvac_mode", entity_id, {ATTR_HVAC_MODE: source_mode}
             )
+            # It wins over the other sources, even if it was already in its
+            # mode (no state change to tell the coordinator).
+            self._coordinator.last_on_source = entity_id
             await self._memory.async_send(source_mode, entity_id)
+            await self._coordinator.async_enforce_exclusive(entity_id)
         except BaseException:
             self._request = None
             raise
@@ -228,7 +242,7 @@ class ModeTracker:
     async def async_turn_off(self) -> None:
         """Turn off every source that is on."""
         self._request = None
-        await self._coordinator.async_turn_off_other_sources(None)
+        await self._coordinator.async_turn_off_sources()
 
     def take_request(self, entity_id: str, source_mode: HVACMode) -> bool:
         """Return True when this entity asked a source for the mode it entered.

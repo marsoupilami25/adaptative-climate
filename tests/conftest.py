@@ -23,6 +23,7 @@ from homeassistant.components.climate import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, CONF_NAME, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
 
 from custom_components.adaptative_climate.const import (
@@ -88,10 +89,18 @@ class FakeClimate(ClimateEntity):
         for key, value in attrs.items():
             setattr(self, _attr_name(key), value)
         self.calls: list[tuple[str, dict[str, Any]]] = []
+        # Modes the source refuses, like a device that cannot be reached.
+        self.failing_modes: set[HVACMode] = set()
+        # Shared by several sources to check the order of their mode changes.
+        self.mode_log: list[tuple[str, HVACMode]] | None = None
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Change the mode."""
         self.calls.append(("set_hvac_mode", {"hvac_mode": hvac_mode}))
+        if self.mode_log is not None:
+            self.mode_log.append((self.entity_id, hvac_mode))
+        if hvac_mode in self.failing_modes:
+            raise HomeAssistantError(f"{self.entity_id} cannot be reached")
         self._attr_hvac_mode = hvac_mode
         self.async_write_ha_state()
 

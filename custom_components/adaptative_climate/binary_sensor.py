@@ -1,14 +1,24 @@
 """Binary sensor platform for Adaptative Climate: the monitoring.
 
-One problem sensor per entry, on when the readings disagree for too long:
-the room sensor and a source, or two sources (see engine.monitoring). The
-problems are listed in its attributes, and logged when they start (warning)
-and end (info). It is only created when there is
-something to compare: a room sensor, or two different source entities.
+One problem sensor per entry, on while there is a problem (see
+engine.monitoring):
+
+- sensor / sources: the room sensor and a source, or two sources, read
+  temperatures too far apart for the monitoring duration;
+- target: the active source shows another target than the one sent to
+  it for the monitoring duration (TARGET_MIN_DURATION at least: a source
+  may take that long to show it);
+- exclusivity: a source does not turn off while another one runs
+  (reported at once: it was already tried twice).
+
+The problems are listed in its attributes. When one starts it is logged
+(warning) and an EVENT_PROBLEM event is fired; when it ends, logged (info)
+and fired again.
 """
 
 from __future__ import annotations
 
+from datetime import timedelta
 import logging
 from typing import Any
 
@@ -21,13 +31,26 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import entry_settings, monitoring_duration, monitoring_gap
+from .const import EVENT_PROBLEM, entry_settings, monitoring_duration, monitoring_gap
 from .coordinator import AdaptativeClimateConfigEntry, AdaptativeClimateCoordinator
-from .engine.monitoring import Gap, GapKey, GapTracker, find_gaps, readings
+from .engine.model import REQUEST_TIME
+from .engine.monitoring import (
+    EXCLUSIVITY_PROBLEM,
+    TARGET_PROBLEM,
+    Problem,
+    ProblemKey,
+    ProblemTracker,
+    StuckSource,
+    find_gaps,
+    readings,
+)
 from .engine.sources import Sources
 from .engine.timer import Timer
 
 _LOGGER = logging.getLogger(__name__)
+
+# A target the source does not show is a problem after this at least.
+TARGET_MIN_DURATION = REQUEST_TIME
 
 
 async def async_setup_entry(
@@ -35,16 +58,14 @@ async def async_setup_entry(
     entry: AdaptativeClimateConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the monitoring sensor, when there is something to compare."""
-    coordinator = entry.runtime_data
-    if coordinator.temperature_sensor or len(coordinator.source_entity_ids) > 1:
-        async_add_entities([AdaptativeClimateMonitoring(coordinator)])
+    """Set up the monitoring sensor."""
+    async_add_entities([AdaptativeClimateMonitoring(entry.runtime_data)])
 
 
 class AdaptativeClimateMonitoring(
     CoordinatorEntity[AdaptativeClimateCoordinator], BinarySensorEntity
 ):
-    """On when a gap between readings lasted the monitoring duration."""
+    """On while a problem lasted its duration."""
 
     _attr_has_entity_name = True
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
@@ -58,15 +79,22 @@ class AdaptativeClimateMonitoring(
         self._attr_name = f"{entry.title} monitoring"
         self._sources = Sources(coordinator)
         self._max_gap = monitoring_gap(settings)
-        self._duration = monitoring_duration(settings)
-        self._tracker = GapTracker(self._duration)
-        # Checks again when the next gap becomes a problem.
+        duration = monitoring_duration(settings)
+        self._tracker = ProblemTracker(
+            duration,
+            {
+                TARGET_PROBLEM: max(duration, TARGET_MIN_DURATION),
+                EXCLUSIVITY_PROBLEM: timedelta(),
+            },
+        )
+        # Checks again when the next problem seen is reported.
         self._timer = Timer(coordinator.hass)
-        self._problems: dict[GapKey, Gap] = {}
+        self._problems: dict[ProblemKey, Problem] = {}
 
     async def async_added_to_hass(self) -> None:
-        """Check the readings once added."""
+        """Check once added, and on each change of the target mismatches."""
         await super().async_added_to_hass()
+        self.async_on_remove(self.coordinator.async_add_problem_listener(self._recheck))
         self._check()
 
     async def async_will_remove_from_hass(self) -> None:
@@ -74,15 +102,30 @@ class AdaptativeClimateMonitoring(
         self._timer.cancel()
         await super().async_will_remove_from_hass()
 
+    def _seen(self) -> dict[ProblemKey, Problem]:
+        """Return every problem seen now, before its duration."""
+        coordinator = self.coordinator
+        seen: dict[ProblemKey, Problem] = dict(
+            find_gaps(
+                self._sources.sensor_temperature(), readings(self._sources), self._max_gap
+            )
+        )
+        for mismatch in coordinator.target_mismatches:
+            seen[mismatch.key] = mismatch
+        for entity_id, (running, error) in coordinator.stuck_sources.items():
+            state = self._sources.state(entity_id)
+            stuck = StuckSource(
+                entity_id, state.state if state is not None else "", running, error
+            )
+            seen[stuck.key] = stuck
+        return seen
+
     @callback
     def _check(self) -> None:
-        """Compare the readings, and plan the next check."""
+        """Find the problems, and plan the next check."""
         now = dt_util.utcnow()
-        gaps = find_gaps(
-            self._sources.sensor_temperature(), readings(self._sources), self._max_gap
-        )
-        problems = self._tracker.update(now, gaps)
-        self._log(problems)
+        problems = self._tracker.update(now, self._seen())
+        self._report(problems)
         self._problems = problems
         wait = self._tracker.next_problem(now)
         if wait is None:
@@ -90,36 +133,44 @@ class AdaptativeClimateMonitoring(
         else:
             self._timer.start(wait, self._recheck)
 
-    def _log(self, problems: dict[GapKey, Gap]) -> None:
-        """Log the problems that start and those that end."""
+    def _report(self, problems: dict[ProblemKey, Problem]) -> None:
+        """Log and fire the problems that start and those that end."""
         name = self.coordinator.config_entry.title
-        for key, gap in problems.items():
+        for key, problem in problems.items():
             if key not in self._problems:
-                _LOGGER.warning(
-                    "%s: temperatures disagree for %d min, above %s: %s",
-                    name,
-                    self._duration.total_seconds() // 60,
-                    self._max_gap,
-                    gap.describe(),
-                )
-        for key, gap in self._problems.items():
+                message = problem.started(self._tracker.duration(key[0]), self._max_gap)
+                _LOGGER.warning("%s: %s", name, message)
+                self._fire("started", problem, message)
+        for key, problem in self._problems.items():
             if key not in problems:
-                _LOGGER.info(
-                    "%s: temperatures agree again: %s",
-                    name,
-                    " and ".join(reading.entity_id for reading in gap.readings)
-                    + (", the room sensor" if gap.sensor is not None else ""),
-                )
+                message = problem.ended()
+                _LOGGER.info("%s: %s", name, message)
+                self._fire("ended", problem, message)
+
+    def _fire(self, status: str, problem: Problem, message: str) -> None:
+        """Fire the event of a problem that starts or ends."""
+        entry = self.coordinator.config_entry
+        self.hass.bus.async_fire(
+            EVENT_PROBLEM,
+            {
+                "entry_id": entry.entry_id,
+                "name": entry.title,
+                "entity_id": self.entity_id,
+                "status": status,
+                "message": message,
+                "problem": problem.as_dict(),
+            },
+        )
 
     @callback
     def _recheck(self) -> None:
-        """Check again once a gap lasted the duration."""
+        """Check again: a problem lasted its duration, or the mismatches changed."""
         self._check()
         self.async_write_ha_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Check the readings on each source or sensor update."""
+        """Check on each source or sensor update."""
         self._check()
         super()._handle_coordinator_update()
 
@@ -138,5 +189,5 @@ class AdaptativeClimateMonitoring(
         """Return the problems and the maximum gap."""
         return {
             "max_gap": self._max_gap,
-            "problems": [gap.as_dict() for gap in self._problems.values()],
+            "problems": [problem.as_dict() for problem in self._problems.values()],
         }

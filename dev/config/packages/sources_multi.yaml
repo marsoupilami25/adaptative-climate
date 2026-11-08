@@ -65,18 +65,30 @@ template:
         swing_horizontal_mode: >
           {{ states('input_select.swing_horizontal_heat_multi')
              if is_state('input_boolean.swing_horizontal_actif_heat_multi', 'on') else none }}
+        # "Panne HEAT" on: the target is refused too (lost command).
         set_temperature:
-          action: input_number.set_value
-          target:
-            entity_id: input_number.consigne_heat_multi
-          data:
-            value: "{{ temperature }}"
+          - if: "{{ is_state('input_boolean.panne_heat_multi', 'on') }}"
+            then:
+              - action: input_select.select_option
+                target:
+                  entity_id: input_select.mode_heat_multi
+                data:
+                  option: injoignable
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.consigne_heat_multi
+            data:
+              value: "{{ temperature }}"
+        # "Panne HEAT" on: the source refuses every mode, like a device
+        # that cannot be reached (an option the select does not have raises).
         set_hvac_mode:
           action: input_select.select_option
           target:
             entity_id: input_select.mode_heat_multi
           data:
-            option: "{{ hvac_mode }}"
+            option: >
+              {{ 'injoignable' if is_state('input_boolean.panne_heat_multi', 'on')
+                 else hvac_mode }}
         set_fan_mode:
           action: input_select.select_option
           target:
@@ -130,18 +142,30 @@ template:
         swing_horizontal_mode: >
           {{ states('input_select.swing_horizontal_cool_multi')
              if is_state('input_boolean.swing_horizontal_actif_cool_multi', 'on') else none }}
+        # "Panne COOL" on: the target is refused too (lost command).
         set_temperature:
-          action: input_number.set_value
-          target:
-            entity_id: input_number.consigne_cool_multi
-          data:
-            value: "{{ temperature }}"
+          - if: "{{ is_state('input_boolean.panne_cool_multi', 'on') }}"
+            then:
+              - action: input_select.select_option
+                target:
+                  entity_id: input_select.mode_cool_multi
+                data:
+                  option: injoignable
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.consigne_cool_multi
+            data:
+              value: "{{ temperature }}"
+        # "Panne COOL" on: the source refuses every mode, like a device
+        # that cannot be reached (an option the select does not have raises).
         set_hvac_mode:
           action: input_select.select_option
           target:
             entity_id: input_select.mode_cool_multi
           data:
-            option: "{{ hvac_mode }}"
+            option: >
+              {{ 'injoignable' if is_state('input_boolean.panne_cool_multi', 'on')
+                 else hvac_mode }}
         set_fan_mode:
           action: input_select.select_option
           target:
@@ -509,6 +533,14 @@ input_boolean:
     name: COOL disponible
     initial: true
     icon: mdi:power-plug
+  panne_heat_multi:
+    name: Panne HEAT
+    initial: false
+    icon: mdi:lan-disconnect
+  panne_cool_multi:
+    name: Panne COOL
+    initial: false
+    icon: mdi:lan-disconnect
   dispo_dry_multi:
     name: DRY disponible
     initial: true
@@ -613,6 +645,11 @@ script:
     alias: Réinitialiser les sources (multi)
     icon: mdi:restore
     sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.panne_heat_multi
+            - input_boolean.panne_cool_multi
       - action: input_boolean.turn_on
         target:
           entity_id:

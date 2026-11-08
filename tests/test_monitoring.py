@@ -1,4 +1,4 @@
-"""Tests for the monitoring: the problem sensor of the readings.
+"""Tests for the monitoring: the problem sensor of the readings, targets and sources.
 
 The heater reads 19.5, the AC 21 (it serves cool and dry).
 """
@@ -13,13 +13,27 @@ from freezegun.api import FrozenDateTimeFactory
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
+    async_capture_events,
     async_fire_time_changed,
     snapshot_platform,
 )
 from syrupy.assertion import SnapshotAssertion
 
-from homeassistant.components.climate import HVACMode
-from homeassistant.const import CONF_NAME, STATE_OFF, STATE_ON, Platform
+from homeassistant.components.climate import (
+    ATTR_HVAC_MODE,
+    DOMAIN as CLIMATE_DOMAIN,
+    SERVICE_SET_HVAC_MODE,
+    SERVICE_SET_TEMPERATURE,
+    HVACMode,
+)
+from homeassistant.const import (
+    ATTR_ENTITY_ID,
+    ATTR_TEMPERATURE,
+    CONF_NAME,
+    STATE_OFF,
+    STATE_ON,
+    Platform,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
@@ -28,12 +42,14 @@ from custom_components.adaptative_climate.const import (
     CONF_COOL_ENTITY,
     CONF_DRY_ENTITY,
     CONF_HEAT_ENTITY,
+    CONF_MAX_TEMP,
     CONF_MONITORING_DURATION,
     CONF_TEMPERATURE_SENSOR,
     DOMAIN,
+    EVENT_PROBLEM,
 )
 from custom_components.adaptative_climate.engine.monitoring import (
-    GapTracker,
+    ProblemTracker,
     Reading,
     find_gaps,
 )
@@ -41,6 +57,7 @@ from custom_components.adaptative_climate.engine.monitoring import (
 from .conftest import AC, HEATER, FakeClimate, _attr_name
 
 MONITORING = "binary_sensor.living_room_monitoring"
+ENTITY_ID = "climate.living_room"
 SENSOR = "sensor.room"
 
 
@@ -88,6 +105,38 @@ async def _wait(hass: HomeAssistant, freezer: FrozenDateTimeFactory, minutes: fl
     await hass.async_block_till_done()
 
 
+async def _climate(hass: HomeAssistant, service: str, **data: Any) -> None:
+    """Call a climate service on the Adaptative Climate entity."""
+    await hass.services.async_call(
+        CLIMATE_DOMAIN, service, {ATTR_ENTITY_ID: ENTITY_ID, **data}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+
+async def _wait_seconds(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, seconds: float
+) -> None:
+    freezer.tick(timedelta(seconds=seconds))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+
+def _silent(source: FakeClimate) -> None:
+    """Make a source take target calls without showing them, like a lost command."""
+
+    async def ignore(**kwargs: Any) -> None:
+        source.calls.append(("set_temperature", kwargs))
+
+    source.async_set_temperature = ignore
+
+
+async def _show_target(hass: HomeAssistant, source: FakeClimate, value: float) -> None:
+    """Show a target on a source, as the device reports it."""
+    setattr(source, _attr_name("target_temperature"), value)
+    source.async_write_ha_state()
+    await hass.async_block_till_done()
+
+
 def _problems(hass: HomeAssistant) -> list[dict[str, Any]]:
     return hass.states.get(MONITORING).attributes["problems"]
 
@@ -122,7 +171,7 @@ def test_find_gaps() -> None:
 
 def test_gap_tracker() -> None:
     """A gap is a problem once it lasted the duration, from zero when it comes back."""
-    tracker = GapTracker(timedelta(minutes=15))
+    tracker = ProblemTracker(timedelta(minutes=15))
     gaps = find_gaps(None, [_reading("climate.h", 18.0), _reading("climate.a", 22.0)], 2.0)
     start = dt_util.utcnow()
 
@@ -158,10 +207,8 @@ async def test_snapshot(
     await snapshot_platform(hass, entity_registry, snapshot, entry.entry_id)
 
 
-async def test_not_created_without_anything_to_compare(
-    hass: HomeAssistant, sources: None
-) -> None:
-    """One source entity and no sensor: nothing to compare, no sensor."""
+async def test_created_with_one_source(hass: HomeAssistant, sources: None) -> None:
+    """One source entity and no sensor: no temperature to compare, but targets."""
     await _setup(
         hass,
         MockConfigEntry(
@@ -171,7 +218,7 @@ async def test_not_created_without_anything_to_compare(
         ),
     )
 
-    assert hass.states.get(MONITORING) is None
+    assert hass.states.get(MONITORING).state == STATE_OFF
 
 
 async def test_gap_between_sources(
@@ -306,3 +353,163 @@ async def test_unavailable_source_not_compared(
     await hass.async_block_till_done()
 
     assert hass.states.get(MONITORING).state == STATE_OFF
+
+
+# Targets
+
+
+async def test_target_not_shown(
+    hass: HomeAssistant,
+    sources: None,
+    heater: FakeClimate,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A target the source does not show is a problem after 30 s at least."""
+    events = async_capture_events(hass, EVENT_PROBLEM)
+    await _setup(hass, _entry())
+    await _climate(hass, SERVICE_SET_HVAC_MODE, **{ATTR_HVAC_MODE: HVACMode.HEAT})
+    await _wait_seconds(hass, freezer, 13)
+    _silent(heater)
+
+    await _climate(hass, SERVICE_SET_TEMPERATURE, **{ATTR_TEMPERATURE: 23.0})
+    # Duration 0, but a source may take a while to show it.
+    await _wait_seconds(hass, freezer, 29)
+    assert not [p for p in _problems(hass) if p["type"] == "target"]
+
+    await _wait_seconds(hass, freezer, 1)
+    target = {
+        "type": "target",
+        "entity_id": HEATER,
+        "mode": "heat",
+        "attribute": "temperature",
+        "expected": 23.0,
+        "actual": 20.0,
+    }
+    assert hass.states.get(MONITORING).state == STATE_ON
+    assert target in _problems(hass)
+    assert (
+        "Living room: climate.heater (heat) shows temperature 20.0 instead of 23.0"
+        in caplog.text
+    )
+    started = [e.data for e in events if e.data["problem"]["type"] == "target"]
+    assert started == [
+        {
+            "entry_id": "01JTESTENTRY000000000000000",
+            "name": "Living room",
+            "entity_id": MONITORING,
+            "status": "started",
+            "message": "climate.heater (heat) shows temperature 20.0 instead of 23.0 for 0 min",
+            "problem": target,
+        }
+    ]
+
+    # The device shows it at last.
+    await _show_target(hass, heater, 23.0)
+    assert target not in _problems(hass)
+    assert "Living room: climate.heater shows the temperature sent to it again" in caplog.text
+    assert [e.data["status"] for e in events if e.data["problem"]["type"] == "target"] == [
+        "started",
+        "ended",
+    ]
+
+
+async def test_target_problem_after_duration(
+    hass: HomeAssistant,
+    sources: None,
+    heater: FakeClimate,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A target the source does not show waits for the monitoring duration."""
+    await _setup(hass, _entry(**{CONF_MONITORING_DURATION: 2}))
+    await _climate(hass, SERVICE_SET_HVAC_MODE, **{ATTR_HVAC_MODE: HVACMode.HEAT})
+    await _wait_seconds(hass, freezer, 13)
+    _silent(heater)
+    await _climate(hass, SERVICE_SET_TEMPERATURE, **{ATTR_TEMPERATURE: 23.0})
+
+    await _wait(hass, freezer, 1.9)
+    assert hass.states.get(MONITORING).state == STATE_OFF
+    await _wait(hass, freezer, 0.1)
+    assert hass.states.get(MONITORING).state == STATE_ON
+
+
+async def test_target_not_judged_during_settle_or_off(
+    hass: HomeAssistant,
+    sources: None,
+    heater: FakeClimate,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A source may show its own target during the settle time; off, nothing is judged."""
+    await _setup(hass, _entry())
+    await _climate(hass, SERVICE_SET_HVAC_MODE, **{ATTR_HVAC_MODE: HVACMode.HEAT})
+    _silent(heater)
+    await _climate(hass, SERVICE_SET_TEMPERATURE, **{ATTR_TEMPERATURE: 23.0})
+    entity = hass.data[CLIMATE_DOMAIN].get_entity(ENTITY_ID)
+    assert entity._targets.settling
+    assert entity._targets.mismatches() == []
+
+    await _wait_seconds(hass, freezer, 12)
+    assert len(entity._targets.mismatches()) == 1
+
+    await _climate(hass, SERVICE_SET_HVAC_MODE, **{ATTR_HVAC_MODE: HVACMode.OFF})
+    assert entity._targets.mismatches() == []
+    await _wait(hass, freezer, 1)
+    assert hass.states.get(MONITORING).state == STATE_OFF
+
+
+async def test_target_taken_outside_limits_is_no_problem(
+    hass: HomeAssistant,
+    sources: None,
+    heater: FakeClimate,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A target set on the source above the limit is taken as is: no problem."""
+    await _setup(hass, _entry(**{CONF_MAX_TEMP: 25}))
+    await _climate(hass, SERVICE_SET_HVAC_MODE, **{ATTR_HVAC_MODE: HVACMode.HEAT})
+    await _wait_seconds(hass, freezer, 13)
+
+    await _show_target(hass, heater, 28.0)
+    await _wait(hass, freezer, 1)
+
+    assert not [p for p in _problems(hass) if p["type"] == "target"]
+
+
+# Exclusivity
+
+
+async def test_stuck_source(
+    hass: HomeAssistant,
+    sources: None,
+    heater: FakeClimate,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A source that does not turn off is a problem at once, until it stops."""
+    events = async_capture_events(hass, EVENT_PROBLEM)
+    await _setup(hass, _entry(**{CONF_MONITORING_DURATION: 15}))
+    await _climate(hass, SERVICE_SET_HVAC_MODE, **{ATTR_HVAC_MODE: HVACMode.HEAT})
+    heater.failing_modes = {HVACMode.OFF}
+
+    await _climate(hass, SERVICE_SET_HVAC_MODE, **{ATTR_HVAC_MODE: HVACMode.COOL})
+
+    stuck = {
+        "type": "exclusivity",
+        "entity_id": HEATER,
+        "mode": "heat",
+        "running": AC,
+        "error": "climate.heater cannot be reached",
+    }
+    assert hass.states.get(MONITORING).state == STATE_ON
+    assert _problems(hass) == [stuck]
+    assert (
+        "Living room: climate.heater (heat) does not turn off while climate.ac runs"
+        " (climate.heater cannot be reached); tried again every minute"
+    ) in caplog.text
+    assert [(e.data["status"], e.data["problem"]) for e in events] == [("started", stuck)]
+
+    heater.failing_modes = set()
+    await _wait(hass, freezer, 1.1)
+
+    assert hass.states.get(MONITORING).state == STATE_OFF
+    assert "Living room: climate.heater no longer runs along with another source" in caplog.text
+    assert [e.data["status"] for e in events] == ["started", "ended"]

@@ -53,7 +53,7 @@
           "min_gap": "Minimum gap between heating and cooling targets",
           "min_phase_duration": "Optional, in minutes (10 by default). Without a heat/cool mode climate entity, the heat/cool mode stays this long in heating or cooling before switching to the other one by itself. 0: switch at once. A change of the targets switches at once.",
           "monitoring_gap": "Optional, 2 by default. The monitoring sensor turns on when the room sensor and a climate entity, or two climate entities, read temperatures further apart than this (each one minus the offset of its mode).",
-          "monitoring_duration": "Optional, in minutes (15 by default). A gap is a problem once it lasted this long. 0: at once."
+          "monitoring_duration": "Optional, in minutes (15 by default). A temperature gap, or a target the climate entity does not show (30 s at least), is a problem once it lasted this long. 0: at once."
         }
       }
     },
@@ -121,7 +121,7 @@
           "min_gap": "Minimum gap between heating and cooling targets",
           "min_phase_duration": "Optional, in minutes (10 by default). Without a heat/cool mode climate entity, the heat/cool mode stays this long in heating or cooling before switching to the other one by itself. 0: switch at once. A change of the targets switches at once.",
           "monitoring_gap": "Optional, 2 by default. The monitoring sensor turns on when the room sensor and a climate entity, or two climate entities, read temperatures further apart than this (each one minus the offset of its mode).",
-          "monitoring_duration": "Optional, in minutes (15 by default). A gap is a problem once it lasted this long. 0: at once."
+          "monitoring_duration": "Optional, in minutes (15 by default). A temperature gap, or a target the climate entity does not show (30 s at least), is a problem once it lasted this long. 0: at once."
         }
       }
     },

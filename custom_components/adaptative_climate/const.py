@@ -30,11 +30,15 @@ DEFAULT_MIN_PHASE_DURATION: Final = 10
 
 # Monitoring (binary sensor): a gap above this, between the room sensor and
 # a source reading or between two sources, is a problem once it lasts the
-# monitoring duration (minutes, 0: at once).
+# monitoring duration (minutes, 0: at once). So is a target the active source
+# does not show.
 CONF_MONITORING_GAP: Final = "monitoring_gap"
 DEFAULT_MONITORING_GAP: Final = 2.0
 CONF_MONITORING_DURATION: Final = "monitoring_duration"
 DEFAULT_MONITORING_DURATION: Final = 15
+
+# Event fired when a monitoring problem starts or ends.
+EVENT_PROBLEM: Final = f"{DOMAIN}_problem"
 
 CONF_HEAT_ENTITY: Final = "heat_entity"
 CONF_COOL_ENTITY: Final = "cool_entity"

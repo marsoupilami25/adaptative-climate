@@ -18,8 +18,9 @@ heat or in a phase of HEAT_COOL), so it is kept here.
     itself before (on_wait_end runs at the end too).
   - update: on each source update. The source has the upper hand:
     another mode or off set on it ends the combined mode, unless the
-    entity is waiting or switching. After a restart, brings the phase
-    back once a source runs heat or cool (not held).
+    entity is waiting or switching. A source of the phase that is
+    unavailable is waited for: the combined mode is kept. After a restart,
+    brings the phase back once a source runs heat or cool (not held).
   - can_switch: the phase may switch to follow the temperature; forced
     (new targets from the user) ignores the hold.
   - leave, end_wait, stop_timers, restore, as_dict.
@@ -133,12 +134,19 @@ class CombinedPhase:
 
     @callback
     def update(
-        self, running: HVACMode, usable: Callable[[], bool], switching: bool
+        self,
+        running: HVACMode,
+        usable: Callable[[], bool],
+        switching: bool,
+        lost: Callable[[HVACMode], bool] = lambda _phase: False,
     ) -> None:
         """Leave the combined mode when its source left the phase elsewhere.
 
         While the sources may still show the previous phase (see start), or
-        while the entity switches modes, this is not judged.
+        while the entity switches modes, this is not judged. Nor while the
+        source of the phase is unavailable (lost) and no source runs: the
+        combined mode goes on once it is back in the phase; back off, it
+        ends.
 
         After a restart, the combined mode comes back with the phase its
         source runs in, once the sources are usable (usable returns True).
@@ -156,6 +164,8 @@ class CombinedPhase:
             self.end_wait()
             return
         if self.waiting or switching:
+            return
+        if running is HVACMode.OFF and lost(self.phase):
             return
         self.leave()
 

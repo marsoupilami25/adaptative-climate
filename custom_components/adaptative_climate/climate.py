@@ -139,6 +139,9 @@ class AdaptativeClimateEntity(
         # The next state write is sent even when nothing changed (see
         # async_set_temperature).
         self._force_write = False
+        # Active source that became unavailable, and its mode: back in that
+        # mode, it gets the targets of the entity (see _observe_sources).
+        self._lost: tuple[str, HVACMode] | None = None
 
     async def async_added_to_hass(self) -> None:
         """Restore the remembered settings, the targets and the combined mode."""
@@ -151,10 +154,11 @@ class AdaptativeClimateEntity(
             self._phase.restore(data)
         self._update_phase()
         self._observe_sources()
+        self._targets.start_resync()
 
     async def async_will_remove_from_hass(self) -> None:
         """Stop the timers."""
-        self._targets.end_settle()
+        self._targets.stop_timers()
         self._phase.stop_timers()
         await super().async_will_remove_from_hass()
 
@@ -194,7 +198,8 @@ class AdaptativeClimateEntity(
         source_mode = self._modes.source_mode(mode)
         if mode is HVACMode.OFF or self._sources.running_mode() != source_mode:
             # Off, or the combined HEAT_COOL whose source does not show the
-            # phase yet.
+            # phase yet (or is unavailable).
+            self._follow_lost()
             self._observed = None
             self._targets.end_settle()
             return
@@ -213,11 +218,33 @@ class AdaptativeClimateEntity(
             return
 
         before = None if previous is None or previous[0] != key else previous[1]
-        # Entering a mode: asked by this entity, or the source was turned on
-        # elsewhere (remote, app), which then gives its targets.
-        requested = before is None and self._modes.take_request(source, source_mode)
+        # Entering a mode: asked by this entity, or the active source back
+        # in its mode after being unavailable, which get the targets of the
+        # entity. Otherwise the source was turned on elsewhere (remote, app),
+        # and gives its targets.
+        requested = False
+        if before is None:
+            back = self._lost == (source, source_mode)
+            self._lost = None
+            requested = self._modes.take_request(source, source_mode) or back
         self._memory.observe(source_mode, values, before)
         self._targets.observe(key, source_mode, values, before, requested=requested)
+
+    @callback
+    def _follow_lost(self) -> None:
+        """Remember the active source when it becomes unavailable.
+
+        Forgotten once it is back in another mode or off (it was changed
+        meanwhile), or when the user switches modes.
+        """
+        if self._observed is not None:
+            key = self._observed[0]
+            source_mode = key[1] or key[0]
+            entity_id = self._sources.mode_sources.get(source_mode)
+            if entity_id is not None and self._sources.state(entity_id) is None:
+                self._lost = (entity_id, source_mode)
+        elif self._lost is not None and self._sources.state(self._lost[0]) is not None:
+            self._lost = None
 
     # Combined HEAT_COOL
 
@@ -238,6 +265,7 @@ class AdaptativeClimateEntity(
             self._sources.running_mode(),
             lambda: self._modes.usable(HVACMode.HEAT_COOL),
             self._modes.switching,
+            self._modes.phase_lost,
         )
 
     @callback
@@ -282,6 +310,12 @@ class AdaptativeClimateEntity(
                 )
         self._observe_sources()
         self.async_write_ha_state()
+
+    @callback
+    def async_write_ha_state(self) -> None:
+        """Tell the monitoring which targets the source does not show, then write the state."""
+        self.coordinator.async_set_target_mismatches(self._targets.mismatches())
+        super().async_write_ha_state()
 
     # Entity properties
 
@@ -523,19 +557,21 @@ class AdaptativeClimateEntity(
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Switch to a mode.
 
-        Every other source that is not off is turned off first, so two
-        sources never run at once, even when several were turned on elsewhere.
-        The remembered fan and swing settings of the mode are then sent to
-        its source. Home Assistant has already checked that hvac_mode is in
-        hvac_modes.
+        The source of the mode is turned on and gets the remembered fan and
+        swing settings of the mode, then every other source that is not off
+        is turned off, even when several were turned on elsewhere. If the
+        source fails, the others keep running; a source that does not turn
+        off is tried again later (see async_enforce_exclusive). Home
+        Assistant has already checked that hvac_mode is in hvac_modes.
         The combined HEAT_COOL runs the heat or cool source (see wanted_phase).
         A mode whose source is unavailable is refused before anything is
-        turned off: Home Assistant would skip the call to that source silently.
+        changed: Home Assistant would skip the call to that source silently.
         So is a mode its source does not offer: the source would reject it.
         The combined HEAT_COOL needs both of its sources.
         """
         if hvac_mode is not HVACMode.OFF:
             self._modes.check(hvac_mode)
+        self._lost = None
 
         async with self._modes.lock:
             if hvac_mode is HVACMode.HEAT_COOL and self._phase.enabled:

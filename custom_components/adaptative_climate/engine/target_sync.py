@@ -24,7 +24,11 @@ TargetSync uses the TargetStore and the profiles to:
   becomes the target of the entity (the source takeover wins).
 - Send (async_send): only to the active source still in that mode, only
   the targets it has, low and high together, nothing already applied.
-  Errors are logged.
+  A failed send is tried again once after SEND_RETRY (in the background),
+  then logged.
+- Check (mismatches): the targets the active source shows instead of
+  those sent to it, for the monitoring. Every RESYNC_INTERVAL, they are
+  sent again (resync).
 - Show (shown): what the entity shows in each target attribute. A target
   the active source gets is read from it, except during the settle time.
   Off, low/high are shown when supported, else the targets of the mode
@@ -34,6 +38,7 @@ TargetSync uses the TargetStore and the profiles to:
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import timedelta
 import logging
 from typing import Any
 
@@ -50,6 +55,7 @@ from ..const import CONF_MIN_GAP, DOMAIN, MIN_GAP, entry_settings
 from ..coordinator import AdaptativeClimateCoordinator
 from .model import SETTLE_TIME, SINGLE_TARGETS, TARGET_FEATURES, TargetKey
 from .modes import ModeTracker
+from .monitoring import TargetMismatch
 from .phase import CombinedPhase
 from .sources import Sources
 from .targets import TargetStore
@@ -57,6 +63,12 @@ from .timer import Timer
 from .util import changed, is_number, same_temperature
 
 _LOGGER = logging.getLogger(__name__)
+
+# A send that failed is tried again once after this.
+SEND_RETRY = timedelta(seconds=5)
+
+# The targets the active source does not show are sent again this often.
+RESYNC_INTERVAL = timedelta(minutes=30)
 
 
 class TargetSync:
@@ -91,6 +103,10 @@ class TargetSync:
         self._settle_sent = False
         # The source showed another target during the settle time.
         self._settle_received = False
+        # Sends again once after a failed send.
+        self._retry = Timer(coordinator.hass)
+        # Sends again the targets the source does not show (see resync).
+        self._resync = Timer(coordinator.hass)
 
     @property
     def settling(self) -> bool:
@@ -326,21 +342,53 @@ class TargetSync:
     # Sending the targets
 
     @callback
-    def schedule_send(self, key: TargetKey) -> None:
+    def schedule_send(self, key: TargetKey, *, retry: bool = True) -> None:
         """Send the targets to the active source, without waiting."""
         self._entry.async_create_task(
             self._coordinator.hass,
-            self.async_send(key),
+            self.async_send(key, retry=retry),
             f"{DOMAIN} temperature {self._modes.active_source()}",
         )
 
-    async def async_send(self, key: TargetKey) -> None:
+    @callback
+    def start_resync(self) -> None:
+        """Check every RESYNC_INTERVAL that the active source shows the targets."""
+        self._resync.start(RESYNC_INTERVAL, self.resync)
+
+    @callback
+    def resync(self) -> None:
+        """Send the targets again when the active source does not show them.
+
+        A command lost by the device, or a source that went back to its own
+        target without telling: no change was seen, so nothing was taken.
+        Only what mismatches finds is sent: a target taken from the source is
+        never overridden. Runs every RESYNC_INTERVAL.
+        """
+        self.start_resync()
+        if self.mismatches():
+            _LOGGER.debug(
+                "%s does not show the targets: sending them again",
+                self._modes.active_source(),
+            )
+            self.schedule_send(self.key())
+
+    @callback
+    def stop_timers(self) -> None:
+        """Stop the settle time, the retry of a failed send and the resync."""
+        self.end_settle()
+        self._retry.cancel()
+        self._resync.cancel()
+
+    async def async_send(self, key: TargetKey, *, retry: bool = True) -> None:
         """Send the targets to the active source, if its mode is still on.
 
         A source without these targets, fan only, or dry or auto on a source
         without target, gets nothing, and they are kept for the next mode. A
-        source error is logged without failing.
+        source error does not fail: the targets are sent again once after
+        SEND_RETRY (retry), with the targets of that time; if that fails too,
+        it is logged. A new send replaces a pending retry.
         """
+        self._retry.cancel()
         if (
             key[0] is HVACMode.OFF
             or self.key() != key
@@ -369,12 +417,60 @@ class TargetSync:
         try:
             await self._sources.async_call("set_temperature", entity_id, data)
         except HomeAssistantError as err:
-            _LOGGER.warning(
-                "Could not set %s on %s: %s",
-                ", ".join(f"{attr} {value}" for attr, value in data.items()),
-                entity_id,
-                err,
-            )
+            sent = ", ".join(f"{attr} {value}" for attr, value in data.items())
+            if retry:
+                _LOGGER.debug(
+                    "Could not set %s on %s (%s), trying again in %d s",
+                    sent,
+                    entity_id,
+                    err,
+                    SEND_RETRY.total_seconds(),
+                )
+                self._retry.start(
+                    SEND_RETRY, lambda: self.schedule_send(key, retry=False)
+                )
+                return
+            _LOGGER.warning("Could not set %s on %s: %s", sent, entity_id, err)
+
+    # Checking the targets
+
+    def mismatches(self) -> list[TargetMismatch]:
+        """Return the targets the active source shows instead of those sent to it.
+
+        Not judged while off, during the settle time, while switching, or
+        while the source does not show the mode yet. Only the targets the
+        source has. A target taken from the source is kept as is, even
+        outside the range (see _take): the source showing it is no mismatch.
+        """
+        mode = self._modes.current()
+        source_mode = self._modes.active_mode()
+        if (
+            mode is HVACMode.OFF
+            or source_mode is None
+            or self.settling
+            or self._modes.switching
+            or self._sources.running_mode() != source_mode
+        ):
+            return []
+        entity_id = self._sources.mode_sources[source_mode]
+        features = self._sources.features(entity_id)
+        offset = self._sources.offset(source_mode)
+        found: list[TargetMismatch] = []
+        for attr, target in self.mapping().items():
+            expected = self.applied(target, source_mode)
+            actual = self._sources.attr(entity_id, attr)
+            kept = self._store[target]
+            if (
+                TARGET_FEATURES[attr] not in features
+                or expected is None
+                or kept is None
+                or not is_number(actual)
+                or same_temperature(actual, expected)
+                or same_temperature(actual, kept + offset)
+            ):
+                continue
+            found.append(TargetMismatch(entity_id, source_mode, attr, expected, float(actual)))
+        return found
 
     # Showing the targets
 

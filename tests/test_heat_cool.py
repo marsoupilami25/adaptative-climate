@@ -1227,3 +1227,72 @@ async def test_gap_kept_on_source_takeover(
 
     assert _saved(hass)["target_temperature_low"] == 24.0
     assert _saved(hass)["target_temperature_high"] == 26.0
+
+
+# Combined heat_cool: a source of the phase unavailable for a while
+
+
+async def _lose(hass: HomeAssistant, entity_id: str) -> None:
+    """Make a source unavailable."""
+    hass.states.async_set(entity_id, STATE_UNAVAILABLE)
+    await hass.async_block_till_done()
+
+
+async def _back(hass: HomeAssistant, source: FakeClimate, mode: HVACMode, target: float) -> None:
+    """Bring a source back, in a mode, showing its own target."""
+    source._attr_hvac_mode = mode
+    setattr(source, _attr_name("target_temperature"), target)
+    source.async_write_ha_state()
+    await hass.async_block_till_done()
+
+
+@pytest.mark.usefixtures("combined")
+async def test_combined_kept_while_phase_source_unavailable(
+    hass: HomeAssistant, heater: FakeClimate
+) -> None:
+    """The combined mode waits for its source, then sends it the targets."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    assert heater.target_temperature == 19.0
+
+    await _lose(hass, HEATER)
+    assert _state(hass) == HVACMode.HEAT_COOL
+
+    # Back in heat, with its own target: it gets the one of the entity.
+    await _back(hass, heater, HVACMode.HEAT, 15.0)
+    assert _state(hass) == HVACMode.HEAT_COOL
+    assert _attrs(hass)["active_entity_id"] == HEATER
+    assert heater.target_temperature == 19.0
+    assert _attrs(hass)["saved_targets"][ATTR_TARGET_TEMP_LOW] == 19.0
+
+
+@pytest.mark.usefixtures("combined")
+async def test_combined_ends_when_phase_source_back_off(
+    hass: HomeAssistant, heater: FakeClimate
+) -> None:
+    """A source back off was turned off meanwhile: the combined mode ends."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    await _lose(hass, HEATER)
+
+    await _back(hass, heater, HVACMode.OFF, 19.0)
+
+    assert _state(hass) == HVACMode.OFF
+    # Turned on elsewhere later: it gives its target, it is not the return.
+    await _back(hass, heater, HVACMode.HEAT, 22.0)
+    assert _state(hass) == HVACMode.HEAT
+    assert heater.target_temperature == 22.0
+    assert _attrs(hass)["saved_targets"][ATTR_TARGET_TEMP_LOW] == 22.0
+
+
+@pytest.mark.usefixtures("combined")
+async def test_combined_switches_phase_while_source_unavailable(
+    hass: HomeAssistant, ac: FakeClimate
+) -> None:
+    """The other phase still runs when the room asks for it."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    await _lose(hass, HEATER)
+
+    await _set_room(hass, "30")
+
+    assert _state(hass) == HVACMode.HEAT_COOL
+    assert _state(hass, AC) == HVACMode.COOL
+    assert _attrs(hass)["active_entity_id"] == AC

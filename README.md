@@ -62,8 +62,15 @@ configuration (`heat_cool_entity` for heat/cool). The same source can serve
 several modes. A mode without a source is not shown, except heat/cool (see
 "Heat/cool mode").
 
-Switching to a mode sets its source to the HVAC mode of the same name, after
-turning off the source of the previous mode when it is a different entity.
+Switching to a mode sets its source to the HVAC mode of the same name, then
+turns off the other sources that run (only one source runs at a time, also
+when a source is turned on elsewhere). The new source is turned on first: if
+it fails, the error is shown and the previous mode keeps running. If another
+source does not turn off, the mode change still works: that source is tried
+again at once, then it is tried again every minute while it runs, and the
+monitoring reports it (see "Monitoring"). A source back from unavailable still
+showing its old mode, while another source was turned on meanwhile, is
+turned off.
 
 A source must offer the modes it serves. The configuration checks it, except
 for a source that is still starting or unavailable, so it is checked again
@@ -134,9 +141,16 @@ high) so they can be set before turning on; a single
 `temperature` set then goes to the mode `turn_on` goes to.
 
 The targets belong to the entity, not to the sources: switching mode keeps
-them, and a source turned on elsewhere (remote control, app) gets its own
-setpoint too. It is sent once the source shows its new mode, so a device
-that first shows its own target for that mode gets the entity target instead.
+them, and the source of the new mode gets them. They are sent once the
+source shows its new mode, so a device that first shows its own target for
+that mode gets the entity target instead. A source turned on elsewhere
+(remote control, app), or showing its mode more than 30 seconds after the
+entity asked for it, gives its targets instead: the entity takes them (also
+at startup, with a source already running). The active source back from
+unavailable (connection lost, device restarting) in the same mode gets the
+targets of the entity, as if the entity had just switched to it; back in
+another mode, or off then turned on, it was changed meanwhile and gives its
+targets.
 
 The low target stays at least `min_gap` below the high one (1 degree at
 least, also the default). Setting one moves the other: a heating setpoint
@@ -156,6 +170,14 @@ they go to two sources and are kept as they were given, like the single
 target of the other modes.
 The entity shows the target of the active source (except right after
 entering a mode, see below).
+A source that refuses the target (error) gets it again once, 5 seconds
+later, with the targets of that time; if it refuses again, a warning is
+logged (`Could not set temperature 21.0 on climate.heater: ...`) and the
+monitoring reports the target it does not show (see "Monitoring").
+Every 30 minutes, the targets the active source does not show (a command
+lost by the device, or a device that went back to its own target without
+reporting it as a change) are sent again. A target taken from the source,
+even outside the limits, is not sent back.
 
 A target changed on the active source (remote control, app) becomes the
 target of the entity: the user took over from the source, which has the
@@ -224,6 +246,13 @@ another mode elsewhere (remote control, app), the entity leaves heat/cool
 and follows the source. After switching source itself, the entity waits up
 to 12 seconds for the source to show its new mode before judging it.
 
+A source in use that becomes unavailable (connection lost, device
+restarting) does not end heat/cool: the entity stays in heat/cool and waits
+for it (the other source still starts if the room asks for it). Back in its
+mode, it gets the targets of the entity; back off, it was turned off
+meanwhile, and the entity is off. The mode needs both sources to be turned
+on, not to keep running.
+
 ### Temperature range
 
 The minimum and maximum temperatures follow the sources: those of the
@@ -284,12 +313,22 @@ is unavailable, or out of the range of the target (logged as a warning).
 
 ### Monitoring
 
-A source that does not read the room temperature keeps the room away from
-the target. The integration creates a problem binary sensor
-(`binary_sensor.<name>_monitoring`) that turns on when readings disagree:
+The integration creates a problem binary sensor
+(`binary_sensor.<name>_monitoring`) that turns on while the entity and its
+sources disagree:
 
-- the room `temperature_sensor` and what a source reads,
-- two sources (different entities) with each other.
+- **Temperatures**: a source that does not read the room temperature keeps
+  the room away from the target. Compared: the room `temperature_sensor`
+  and what a source reads, and two sources (different entities) with each
+  other.
+- **Targets**: the active source shows another target than the one sent to
+  it (plus its offset, rounded to its step, in its range), for example a
+  command lost by the device. A target changed on the source is not a
+  problem: the entity takes it (see "Target temperature"), even outside the limits.
+  Not judged while off, while switching modes, or during the 12 s after
+  entering a mode.
+- **Exclusivity**: a source does not turn off while another one runs (only
+  one source runs at a time, see above). Reported at once, until it stops.
 
 Each reading is minus the offset of its mode (see "Temperature offset"): a
 well set offset turns the problem off. An entity serving several modes
@@ -297,13 +336,14 @@ with the same offset is one reading; with different offsets, one reading
 per offset, never compared together. A source that is unavailable or
 reads no temperature is left out.
 
-A gap is a problem when it is above `monitoring_gap` (2 degrees by
-default) for `monitoring_duration` minutes (15 by default, 0: at once). A
-gap that goes away starts from zero when it comes back, and after a
-restart. The sensor is created only when there is something to compare: a
-`temperature_sensor`, or at least two different source entities.
+A temperature gap is a problem when it is above `monitoring_gap` (2
+degrees by default) for `monitoring_duration` minutes (15 by default, 0: at
+once). A target the source does not show is a problem after
+`monitoring_duration` too, 30 s at least (a device may take that long to
+show it). A problem that goes away starts from zero when it comes back,
+and after a restart.
 
-Its attributes are `max_gap` and `problems`, one per gap:
+Its attributes are `max_gap` and `problems`, one per problem:
 
 ```yaml
 problems:
@@ -317,12 +357,60 @@ problems:
   - type: sources           # two sources against each other
     gap: 4.5
     sources: [...]
+  - type: target            # the active source does not show the target
+    entity_id: climate.heater
+    mode: heat
+    attribute: temperature  # or target_temp_low / target_temp_high
+    expected: 21.0          # as the source should show it
+    actual: 19.0
+  - type: exclusivity       # a source does not turn off
+    entity_id: climate.heater
+    mode: heat
+    running: climate.ac     # the source that should run alone
+    error: Device unreachable
 ```
 
-A problem is logged once when it starts, as a warning, for example
-`Living room: temperatures disagree for 15 min, above 2.0: climate.heater
-(heat) reads 19.5, the room sensor 23.5: gap 4.0`, and at info level when
-it ends (`temperatures agree again`).
+A problem is logged once when it starts, as a warning, and at info level
+when it ends, for example:
+
+- `Living room: temperatures disagree for 15 min, above 2.0: climate.heater
+  (heat) reads 19.5, the room sensor 23.5: gap 4.0` /
+  `temperatures agree again: ...`
+- `Living room: climate.heater (heat) shows temperature 19.0 instead of
+  21.0 for 15 min` / `climate.heater shows the temperature sent to it again`
+- `Living room: climate.heater (heat) does not turn off while climate.ac
+  runs (Device unreachable); tried again every minute` / `climate.heater no
+  longer runs along with another source`
+
+Each start and end also fires an `adaptative_climate_problem` event, for
+automations (notifications):
+
+```yaml
+event_type: adaptative_climate_problem
+data:
+  entry_id: 01J...
+  name: Living room
+  entity_id: binary_sensor.living_room_monitoring
+  status: started           # or ended
+  message: "climate.heater (heat) shows temperature 19.0 instead of 21.0 for 15 min"
+  problem: {type: target, entity_id: climate.heater, ...}   # as in problems
+```
+
+For example, to be notified:
+
+```yaml
+automation:
+  - triggers:
+      - trigger: event
+        event_type: adaptative_climate_problem
+        event_data:
+          status: started
+    actions:
+      - action: notify.notify
+        data:
+          title: "{{ trigger.event.data.name }}"
+          message: "{{ trigger.event.data.message }}"
+```
 
 To show it next to the thermostat card, use a dashboard badge, a tile
 card, or a conditional card on `state: "on"`.
