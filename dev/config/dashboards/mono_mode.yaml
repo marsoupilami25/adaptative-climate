@@ -39,6 +39,14 @@ views:
           suffix: °C
         - entity: climate.adaptative_heat
           type: attribute
+          attribute: saved_targets
+          name: Consignes enregistrées
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
+        - entity: climate.adaptative_heat
+          type: attribute
           attribute: fan_mode
           name: Fan
         - entity: climate.adaptative_heat
@@ -107,14 +115,16 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios
 
       Partir de **Tout remettre à zéro**.
 
       1. **Marche / arrêt** : allumer Adaptative HEAT. HEAT Virtuel passe en *heat* ; éteindre, il repasse à *off*.
-      2. **Modes proposés** : seuls *off* et *heat* sont proposés.
-      3. **Consigne** : changer la consigne d'Adaptative HEAT. *Consigne HEAT* suit.
-      4. **Changement externe** : Adaptative HEAT éteint, mettre *Consigne HEAT* à une autre valeur (Adaptative HEAT ne bouge pas), puis régler HEAT Virtuel sur *heat* depuis sa carte. Adaptative HEAT suit et *Consigne HEAT* revient à la consigne d'Adaptative HEAT.
+      2. **Modes proposés** : seuls *off* et *heat* sont proposés. Allumé ou éteint, le thermostat montre une seule consigne, pas de plage basse–haute.
+      3. **Consigne** : Adaptative HEAT éteint, changer sa consigne : *Consigne HEAT* ne bouge pas, *Consignes enregistrées* prend la valeur. L'allumer : *Consigne HEAT* la prend. Changer à nouveau la consigne : *Consigne HEAT* suit.
+      4. **Changement externe** : Adaptative HEAT éteint, mettre *Consigne HEAT* à une autre valeur (Adaptative HEAT ne bouge pas), puis régler HEAT Virtuel sur *heat* depuis sa carte. Adaptative HEAT s'allume en *heat* et prend la consigne de HEAT Virtuel ; *Consigne HEAT* garde sa valeur (rien n'est envoyé).
       5. **Action** : allumer Adaptative HEAT, consigne 20 (la pièce est à 20) : *idle*. Pièce à 18 : *heating* ; pièce à 22 : *idle*.
       6. **Source indisponible** : couper *HEAT disponible*. Adaptative HEAT devient indisponible.
       7. **Fan et swing** : allumer Adaptative HEAT, puis changer son fan, son swing et son swing horizontal. *Fan HEAT*, *Swing HEAT* et *Swing horizontal HEAT* suivent.
@@ -123,8 +133,10 @@ views:
          - Min/Max d'Adaptative HEAT affichent 5–25 °C, et son thermostat ne monte pas au-delà de 25.
          - Allumer Adaptative HEAT. Dans *Outils de développement > Actions*, en mode YAML, lancer :
            `action: climate.set_temperature`, `target: {entity_id: climate.adaptative_heat}`, `data: {temperature: 28}`.
-           Home Assistant refuse avec une erreur (plage acceptée 5 à 25). *Consigne HEAT* et la consigne d'Adaptative HEAT ne bougent pas.
+           Home Assistant refuse avec une erreur (plage acceptée 5 à 25), écrite deux fois dans le journal (`websocket_api_script` et `websocket_api.http.connection`) : c'est normal, Home Assistant journalise ainsi toute action refusée lancée depuis les outils de développement. *Consigne HEAT* et la consigne d'Adaptative HEAT ne bougent pas.
       10. **Consigne au-delà de la borne sur la source** : allumer Adaptative HEAT, attendre 12 s, puis mettre *Consigne HEAT* à 28. La source a la main : *Consigne HEAT* reste à 28 et Adaptative HEAT affiche 28.
+
+      </small>
     view_layout:
       position: sidebar
 - title: COOL
@@ -161,6 +173,14 @@ views:
           attribute: temperature
           name: Consigne
           suffix: °C
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: saved_targets
+          name: Consignes enregistrées
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
         - entity: climate.adaptative_cool
           type: attribute
           attribute: fan_mode
@@ -231,18 +251,22 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios
 
       Partir de **Tout remettre à zéro**.
 
       1. **Marche / arrêt** : allumer Adaptative COOL. COOL Virtuel passe en *cool* ; éteindre, il repasse à *off*.
-      2. **Modes proposés** : seuls *off* et *cool* sont proposés.
-      3. **Consigne** : changer la consigne d'Adaptative COOL. *Consigne COOL* suit.
-      4. **Changement externe** : Adaptative COOL éteint, mettre *Consigne COOL* à une autre valeur (Adaptative COOL ne bouge pas), puis régler COOL Virtuel sur *cool* depuis sa carte. Adaptative COOL suit et *Consigne COOL* revient à la consigne d'Adaptative COOL.
+      2. **Modes proposés** : seuls *off* et *cool* sont proposés. Allumé ou éteint, le thermostat montre une seule consigne, pas de plage basse–haute.
+      3. **Consigne** : Adaptative COOL éteint, changer sa consigne : *Consigne COOL* ne bouge pas, *Consignes enregistrées* prend la valeur. L'allumer : *Consigne COOL* la prend. Changer à nouveau la consigne : *Consigne COOL* suit.
+      4. **Changement externe** : Adaptative COOL éteint, mettre *Consigne COOL* à une autre valeur (Adaptative COOL ne bouge pas), puis régler COOL Virtuel sur *cool* depuis sa carte. Adaptative COOL s'allume en *cool* et prend la consigne de COOL Virtuel ; *Consigne COOL* garde sa valeur (rien n'est envoyé).
       5. **Action** : allumer Adaptative COOL, consigne 20 (la pièce est à 20) : *idle*. Pièce à 22 : *cooling* ; pièce à 18 : *idle*.
       6. **Source indisponible** : couper *COOL disponible*. Adaptative COOL devient indisponible.
       7. **Fan et swing** : allumer Adaptative COOL, puis changer son fan, son swing et son swing horizontal. *Fan COOL*, *Swing COOL* et *Swing horizontal COOL* suivent.
       8. **Fan/swing absents** : couper *Fan COOL actif*. Le fan disparaît d'Adaptative COOL, le swing reste ; le rallumer, il revient. Idem avec *Swing COOL actif* et *Swing horizontal COOL actif*. Éteint, Adaptative COOL n'affiche ni fan ni swing.
+
+      </small>
     view_layout:
       position: sidebar
 - title: DRY
@@ -279,6 +303,14 @@ views:
           attribute: temperature
           name: Consigne
           suffix: °C
+        - entity: climate.adaptative_dry
+          type: attribute
+          attribute: saved_targets
+          name: Consignes enregistrées
+        - entity: climate.adaptative_dry
+          type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
         - entity: climate.adaptative_dry
           type: attribute
           attribute: fan_mode
@@ -349,18 +381,22 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios
 
       Partir de **Tout remettre à zéro**.
 
       1. **Marche / arrêt** : allumer Adaptative DRY. DRY Virtuel passe en *dry* ; éteindre, il repasse à *off*.
-      2. **Modes proposés** : seuls *off* et *dry* sont proposés.
-      3. **Consigne** : changer la consigne d'Adaptative DRY. *Consigne DRY* suit.
-      4. **Changement externe** : Adaptative DRY éteint, mettre *Consigne DRY* à une autre valeur (Adaptative DRY ne bouge pas), puis régler DRY Virtuel sur *dry* depuis sa carte. Adaptative DRY suit et *Consigne DRY* revient à la consigne d'Adaptative DRY.
+      2. **Modes proposés** : seuls *off* et *dry* sont proposés. Allumé ou éteint, le thermostat montre une seule consigne, pas de plage basse–haute.
+      3. **Consigne** : Adaptative DRY éteint, changer sa consigne : *Consigne DRY* ne bouge pas, *Consignes enregistrées* prend la valeur. L'allumer : *Consigne DRY* la prend. Changer à nouveau la consigne : *Consigne DRY* suit.
+      4. **Changement externe** : Adaptative DRY éteint, mettre *Consigne DRY* à une autre valeur (Adaptative DRY ne bouge pas), puis régler DRY Virtuel sur *dry* depuis sa carte. Adaptative DRY s'allume en *dry* et prend la consigne de DRY Virtuel ; *Consigne DRY* garde sa valeur (rien n'est envoyé).
       5. **Action** : allumer Adaptative DRY : *drying*, quelle que soit la température de la pièce.
       6. **Source indisponible** : couper *DRY disponible*. Adaptative DRY devient indisponible.
       7. **Fan et swing** : allumer Adaptative DRY, puis changer son fan, son swing et son swing horizontal. *Fan DRY*, *Swing DRY* et *Swing horizontal DRY* suivent.
       8. **Fan/swing absents** : couper *Fan DRY actif*. Le fan disparaît d'Adaptative DRY, le swing reste ; le rallumer, il revient. Idem avec *Swing DRY actif* et *Swing horizontal DRY actif*. Éteint, Adaptative DRY n'affiche ni fan ni swing.
+
+      </small>
     view_layout:
       position: sidebar
 - title: Sans consigne
@@ -395,6 +431,14 @@ views:
           attribute: temperature
           name: Consigne
           suffix: °C
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: saved_targets
+          name: Consignes enregistrées
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
         - entity: climate.adaptative_deshum
           type: attribute
           attribute: fan_mode
@@ -439,6 +483,8 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios
 
       DESHUM Virtuel est une source *dry* et *auto* sans consigne de température : dans ces deux
@@ -449,6 +495,8 @@ views:
       3. **Changement externe** : Adaptative DESHUM éteint, régler DESHUM Virtuel sur *dry* depuis sa carte, puis sur *auto*. Adaptative DESHUM suit, toujours sans consigne.
       4. **Fan** : en *dry*, changer le fan d'Adaptative DESHUM. *Fan DESHUM* suit.
       5. **Source indisponible** : couper *DESHUM disponible*. Adaptative DESHUM devient indisponible.
+
+      </small>
     view_layout:
       position: sidebar
 - title: FAN_ONLY
@@ -485,6 +533,14 @@ views:
           attribute: temperature
           name: Consigne
           suffix: °C
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: saved_targets
+          name: Consignes enregistrées
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
         - entity: climate.adaptative_fan_only
           type: attribute
           attribute: fan_mode
@@ -555,6 +611,8 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios
 
       Partir de **Tout remettre à zéro**.
@@ -567,6 +625,8 @@ views:
       6. **Source indisponible** : couper *FAN_ONLY disponible*. Adaptative FAN_ONLY devient indisponible.
       7. **Fan et swing** : allumer Adaptative FAN_ONLY, puis changer son fan, son swing et son swing horizontal. *Fan FAN_ONLY*, *Swing FAN_ONLY* et *Swing horizontal FAN_ONLY* suivent.
       8. **Fan/swing absents** : couper *Fan FAN_ONLY actif*. Le fan disparaît d'Adaptative FAN_ONLY, le swing reste ; le rallumer, il revient. Idem avec *Swing FAN_ONLY actif* et *Swing horizontal FAN_ONLY actif*. Éteint, Adaptative FAN_ONLY n'affiche ni fan ni swing.
+
+      </small>
     view_layout:
       position: sidebar
 - title: AUTO
@@ -603,6 +663,14 @@ views:
           attribute: temperature
           name: Consigne
           suffix: °C
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: saved_targets
+          name: Consignes enregistrées
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
         - entity: climate.adaptative_auto
           type: attribute
           attribute: fan_mode
@@ -673,18 +741,22 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios
 
       Partir de **Tout remettre à zéro**.
 
       1. **Marche / arrêt** : allumer Adaptative AUTO. AUTO Virtuel passe en *auto* ; éteindre, il repasse à *off*.
       2. **Modes proposés** : seuls *off* et *auto* sont proposés.
-      3. **Consigne** : changer la consigne d'Adaptative AUTO. *Consigne AUTO* suit.
-      4. **Changement externe** : Adaptative AUTO éteint, mettre *Consigne AUTO* à une autre valeur (Adaptative AUTO ne bouge pas), puis régler AUTO Virtuel sur *auto* depuis sa carte. Adaptative AUTO suit et *Consigne AUTO* revient à la consigne d'Adaptative AUTO.
+      3. **Consigne** : Adaptative AUTO éteint, changer sa consigne : *Consigne AUTO* ne bouge pas, *Consignes enregistrées* prend la valeur. L'allumer : *Consigne AUTO* la prend. Changer à nouveau la consigne : *Consigne AUTO* suit.
+      4. **Changement externe** : Adaptative AUTO éteint, mettre *Consigne AUTO* à une autre valeur (Adaptative AUTO ne bouge pas), puis régler AUTO Virtuel sur *auto* depuis sa carte. Adaptative AUTO s'allume en *auto* et prend la consigne de AUTO Virtuel ; *Consigne AUTO* garde sa valeur (rien n'est envoyé).
       5. **Action** : allumer Adaptative AUTO, consigne 20 (la pièce est à 20) : *idle*. Pièce à 18 : *heating* ; pièce à 22 : *cooling*.
       6. **Source indisponible** : couper *AUTO disponible*. Adaptative AUTO devient indisponible.
       7. **Fan et swing** : allumer Adaptative AUTO, puis changer son fan, son swing et son swing horizontal. *Fan AUTO*, *Swing AUTO* et *Swing horizontal AUTO* suivent.
       8. **Fan/swing absents** : couper *Fan AUTO actif*. Le fan disparaît d'Adaptative AUTO, le swing reste ; le rallumer, il revient. Idem avec *Swing AUTO actif* et *Swing horizontal AUTO actif*. Éteint, Adaptative AUTO n'affiche ni fan ni swing.
+
+      </small>
     view_layout:
       position: sidebar
 - title: HEAT_COOL
@@ -727,6 +799,10 @@ views:
           type: attribute
           attribute: saved_targets
           name: Consignes enregistrées
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
         - entity: climate.adaptative_heat_cool
           type: attribute
           attribute: min_temp
@@ -780,6 +856,8 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios
 
       Partir de **Tout remettre à zéro** (HEAT_COOL Virtuel à 19–25 °C).
@@ -788,13 +866,15 @@ views:
       1. **Marche / arrêt** : allumer Adaptative HEAT_COOL. HEAT_COOL Virtuel passe en *heat_cool* ; éteindre, il repasse à *off*.
       2. **Modes proposés** : seuls *off* et *heat_cool* sont proposés. Allumé ou éteint, le thermostat montre une plage.
       3. **Plage** : régler la plage d'Adaptative HEAT_COOL à 20–24. *Consigne HEAT_COOL basse* et *haute* suivent.
-      4. **Changement externe** : Adaptative HEAT_COOL éteint, mettre *Consigne HEAT_COOL basse* à 17 (Adaptative HEAT_COOL ne bouge pas), puis régler HEAT_COOL Virtuel sur *heat_cool* depuis sa carte. Adaptative HEAT_COOL suit et la consigne basse revient à 20.
+      4. **Changement externe** : Adaptative HEAT_COOL éteint, mettre *Consigne HEAT_COOL basse* à 17 (Adaptative HEAT_COOL ne bouge pas), puis régler HEAT_COOL Virtuel sur *heat_cool* depuis sa carte. Adaptative HEAT_COOL s'allume en *heat_cool* et prend la consigne basse 17 ; *Consigne HEAT_COOL basse* reste à 17 (rien n'est envoyé).
       5. **Changement sur la source** : allumé, attendre 12 s, puis mettre *Consigne HEAT_COOL haute* à 26. Adaptative HEAT_COOL affiche 20–26.
       6. **Plage changée juste après le mode** : éteindre puis rallumer : la source a déjà la plage, rien ne confirme le mode. Dans les 12 s, mettre *Consigne HEAT_COOL basse* à 15 : Adaptative HEAT_COOL affiche toujours sa plage. Au bout des 12 s, la consigne basse y revient.
       7. **Action** : allumé, plage 19–25 (la pièce est à 20) : *idle*. Pièce à 18 : *heating* ; pièce à 26 : *cooling*.
       8. **Bornes** : Min/Max affichent 10–30 °C, ceux de la source.
       9. **Source indisponible** : couper *HEAT_COOL disponible*. Adaptative HEAT_COOL devient indisponible.
       10. **Après un redémarrage** : allumé, plage 21–23, puis **Tout remettre à zéro** (source à 19–25). Redémarrer Home Assistant, allumer : la source passe à 21–23.
+
+      </small>
     view_layout:
       position: sidebar
 - title: HEAT+COOL
@@ -848,6 +928,10 @@ views:
           type: attribute
           attribute: saved_targets
           name: Consignes enregistrées
+        - entity: climate.adaptative_combine
+          type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
         - entity: climate.adaptative_combine
           type: attribute
           attribute: fan_mode
@@ -921,6 +1005,8 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios
 
       Partir de **Tout remettre à zéro** (consignes et températures de RADIATEUR et CLIM à 20 °C ; CLIM au pas de 1 °C).
@@ -946,6 +1032,8 @@ views:
       12. **Écart minimal** : plage 19–25. En *heat*, consigne 24 : la consigne haute passe à 26 (*Consigne CLIM* y passe à l'entrée en *cool*). En *cool*, consigne 20 : la consigne basse passe à 18. En *heat_cool*, régler la plage à 20–21 : Adaptative COMBINE affiche 20–22. Changer *Consigne RADIATEUR* depuis sa carte (après 12 s en *heat*) à 25 : Adaptative COMBINE prend 25 sans corriger la haute (la source a la main).
       13. **Sources contradictoires** : plage 19–25, *Température RADIATEUR* et *Température CLIM* à 18, passer en *heat_cool* : RADIATEUR s'allume. *Température RADIATEUR* à 26 (près du radiateur il fait chaud) : RADIATEUR reste allumé, CLIM lit 18. *Température CLIM* à 22 : toujours RADIATEUR. *Température CLIM* à 26 : bascule sur CLIM. *Température CLIM* à 18 : CLIM reste allumée (RADIATEUR lit 26).
       14. **Mode non géré** : CLIM offre aussi *fan_only*, qu'Adaptative COMBINE n'utilise pas. Passer en *heat*, puis mettre *Mode CLIM* à *fan_only* : RADIATEUR reste en *heat*, Adaptative COMBINE reste en *heat* (source active RADIATEUR) et *Modes non gérés* montre `climate.clim_virtuel_mono: fan_only` ; un warning « runs in the fan_only mode » est dans le journal. Éteindre Adaptative COMBINE : RADIATEUR et CLIM s'éteignent, *Modes non gérés* est vide. Mettre *Mode CLIM* à *fan_only* : Adaptative COMBINE reste *off*. L'allumer : il passe en *heat*, CLIM s'éteint.
+
+      </small>
     view_layout:
       position: sidebar
 - title: OFFSET
@@ -980,6 +1068,14 @@ views:
           attribute: temperature
           name: Consigne
           suffix: °C
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: saved_targets
+          name: Consignes enregistrées
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
         - entity: climate.adaptative_offset
           type: attribute
           attribute: min_temp
@@ -1030,6 +1126,8 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios
 
       Partir de **Tout remettre à zéro** (PAC éteinte, température et consigne à 20 °C).
@@ -1044,6 +1142,8 @@ views:
       5. **Limite** : consigne 26 (le maximum) : *Consigne PAC* passe à 28.
       6. **Offset par mode** : passer en *dry*, consigne 21 : *Consigne PAC* passe à 21, Température 20 (pas d'offset). Repasser en *heat* : *Consigne PAC* reprend 28 (26 + 2).
       7. **Allumée ailleurs** : éteindre, mettre *Consigne PAC* à 25, puis *Mode PAC* à *heat* depuis sa carte : Adaptative OFFSET passe en *heat* avec la consigne 23, et rien n'est envoyé à la PAC.
+
+      </small>
     view_layout:
       position: sidebar
 - title: TRV
@@ -1074,6 +1174,14 @@ views:
           attribute: temperature
           name: Consigne
           suffix: °C
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: saved_targets
+          name: Consignes enregistrées
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
         - binary_sensor.adaptative_trv_monitoring
       - type: tile
         entity: climate.adaptative_trv
@@ -1115,6 +1223,8 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios
 
       Partir de **Tout remettre à zéro** (pièce, externe et consigne TRV à 20 °C, TRV éteinte).
@@ -1129,5 +1239,7 @@ views:
       5. **Hors plage** : *Température pièce TRV* à 45 : *Température externe TRV* ne bouge pas (maximum 40), un warning « out of the range » est dans les journaux.
       6. **Renvoi** (long) : mettre *Température externe TRV* à 10 à la main : elle revient à la température de la pièce au plus 30 min après la dernière écriture.
       7. **Démarrage** : changer *Température externe TRV*, redémarrer Home Assistant : elle reprend la température de la pièce au démarrage.
+
+      </small>
     view_layout:
       position: sidebar

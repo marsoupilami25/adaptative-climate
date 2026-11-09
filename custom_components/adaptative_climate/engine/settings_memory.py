@@ -16,8 +16,13 @@ them back when the entity switches to it.
   longer common is replaced by the current value of the source. Errors
   are logged, the mode switch goes on.
 - restore / as_dict: saved across restarts, for the configured modes only.
+- by_mode: shown by the entity, per configured mode.
 - options: what a source offers for a setting, also used by the entity
-  for its supported features.
+  for the options it shows.
+- offered_features: the settings at least one source offers, kept while a
+  source is unavailable (its last known options) and across restarts, so
+  the entity features only change when a usable source changes. Unknown
+  only for a source never seen.
 """
 
 from __future__ import annotations
@@ -25,7 +30,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import ClimateEntityFeature, HVACMode
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 
@@ -49,9 +54,12 @@ class SettingsMemory:
         self._coordinator = coordinator
         self._sources = sources
         self._data: MemoryData = {}
+        # Settings each source offered when last usable.
+        self._offered: dict[str, ClimateEntityFeature] = {}
 
     def restore(self, data: dict[str, Any]) -> None:
         """Read the settings saved before a restart, dropping bad values."""
+        self._restore_offered(data.get("offered"))
         raw = data.get("memory")
         if not isinstance(raw, dict):
             self._data = {}
@@ -67,16 +75,49 @@ class SettingsMemory:
             if isinstance(values, dict)
         }
 
+    def _restore_offered(self, raw: Any) -> None:
+        """Read the settings each source offered before a restart, dropping bad values."""
+        self._offered = {}
+        if not isinstance(raw, dict):
+            return
+        for entity_id, attrs in raw.items():
+            if not isinstance(attrs, list):
+                continue
+            offered = ClimateEntityFeature(0)
+            for setting in SETTINGS:
+                if setting.attr in attrs:
+                    offered |= setting.feature
+            self._offered[entity_id] = offered
+
     def as_dict(self) -> dict[str, Any]:
-        """Return the data saved across restarts: the configured modes only."""
+        """Return the data saved across restarts: the configured modes and sources only."""
         sync = self._coordinator.sync_modes
         keys = {str(mode) for mode in self._sources.mode_sources if mode not in sync}
         if sync:
             keys.add(SYNC_KEY)
+        entity_ids = set(self._sources.mode_sources.values())
         return {
             "memory": {
                 key: values for key, values in self._data.items() if key in keys and values
-            }
+            },
+            # Settings each source offers, by attribute name.
+            "offered": {
+                entity_id: [
+                    setting.attr for setting in SETTINGS if setting.feature in offered
+                ]
+                for entity_id, offered in self._offered.items()
+                if entity_id in entity_ids
+            },
+        }
+
+    def by_mode(self) -> dict[str, dict[str, str]]:
+        """Return the remembered settings of each configured mode.
+
+        The synchronized modes each show the memory they share.
+        """
+        return {
+            str(mode): dict(self._data.get(self.key(mode), {}))
+            for mode in self._sources.mode_sources
         }
 
     def key(self, mode: HVACMode) -> str:
@@ -88,6 +129,24 @@ class SettingsMemory:
         if setting.feature not in self._sources.features(entity_id):
             return []
         return self._sources.attr(entity_id, setting.options_attr) or []
+
+    def offered_features(self) -> ClimateEntityFeature:
+        """Return the fan and swing features at least one source offers.
+
+        An unusable source counts with what it offered when last usable,
+        even before a restart: the entity keeps showing the setting, without
+        options, while it is away.
+        """
+        features = ClimateEntityFeature(0)
+        for entity_id in set(self._sources.mode_sources.values()):
+            if self._sources.state(entity_id) is not None:
+                offered = ClimateEntityFeature(0)
+                for setting in SETTINGS:
+                    if self.options(entity_id, setting):
+                        offered |= setting.feature
+                self._offered[entity_id] = offered
+            features |= self._offered.get(entity_id, ClimateEntityFeature(0))
+        return features
 
     def common_options(self, setting: Setting) -> set[str]:
         """Return the options, in lower case, shared by the synchronized sources.

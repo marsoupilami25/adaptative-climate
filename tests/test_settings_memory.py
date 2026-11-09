@@ -22,7 +22,7 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.const import ATTR_ENTITY_ID, CONF_NAME
+from homeassistant.const import ATTR_ENTITY_ID, ATTR_SUPPORTED_FEATURES, CONF_NAME
 from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
@@ -351,6 +351,88 @@ async def test_memory_of_removed_modes_not_saved(hass: HomeAssistant) -> None:
     await _setup(hass, [_heat_pump(), _ac()], HEAT_PUMP)
 
     assert _memory(hass) == {}
+
+
+async def test_saved_settings_attribute(hass: HomeAssistant) -> None:
+    """Each configured mode shows its remembered settings; synchronized modes share theirs."""
+    await _setup(hass, [_heat_pump(), _ac()], HEAT_PUMP, sync=["cool", "dry"])
+    await _mode(hass, HVACMode.COOL)
+    await _call(hass, SERVICE_SET_FAN_MODE, fan_mode="low")
+
+    saved = hass.states.get(ENTITY_ID).attributes["saved_settings"]
+    assert saved == {
+        "heat": {},
+        "cool": {ATTR_FAN_MODE: "low", ATTR_SWING_MODE: "off"},
+        "dry": {ATTR_FAN_MODE: "low", ATTR_SWING_MODE: "off"},
+    }
+
+
+async def test_saved_settings_not_recorded(hass: HomeAssistant) -> None:
+    """The remembered settings stay out of the history; the saved targets do not."""
+    await _setup(hass, [_heat_pump(), _ac()], HEAT_PUMP)
+    entity = hass.data[CLIMATE_DOMAIN].get_entity(ENTITY_ID)
+
+    unrecorded = entity._Entity__combined_unrecorded_attributes
+    assert "saved_settings" in unrecorded
+    assert "saved_targets" not in unrecorded
+
+
+def _features(hass: HomeAssistant) -> ClimateEntityFeature:
+    return ClimateEntityFeature(
+        hass.states.get(ENTITY_ID).attributes[ATTR_SUPPORTED_FEATURES]
+    )
+
+
+def _offered(hass: HomeAssistant) -> dict[str, list[str]]:
+    """Return the settings offered by each source, as the entity would save them."""
+    entity = hass.data[CLIMATE_DOMAIN].get_entity(ENTITY_ID)
+    return entity.extra_restore_state_data.as_dict()["offered"]
+
+
+async def test_offered_settings_saved(hass: HomeAssistant) -> None:
+    """The settings each source offers are saved, also for a source without any."""
+    await _setup(hass, [_heater(), _ac()], HEATER)
+
+    assert _offered(hass) == {AC: [ATTR_FAN_MODE, ATTR_SWING_MODE], HEATER: []}
+
+
+async def test_offered_settings_restored_after_restart(hass: HomeAssistant) -> None:
+    """A source unavailable at startup keeps the settings it offered before.
+
+    A source no longer configured is neither counted nor saved.
+    """
+    mock_restore_cache_with_extra_data(
+        hass,
+        (
+            (
+                State(ENTITY_ID, HVACMode.OFF),
+                {
+                    "offered": {
+                        AC: [ATTR_FAN_MODE, ATTR_SWING_MODE, "bad"],
+                        "climate.old": ["swing_horizontal_mode"],
+                        HEATER: "bad",
+                    }
+                },
+            ),
+        ),
+    )
+    # The AC is not loaded: its state is unknown.
+    await _setup(hass, [_heater()], HEATER)
+
+    features = _features(hass)
+    assert ClimateEntityFeature.FAN_MODE in features
+    assert ClimateEntityFeature.SWING_MODE in features
+    assert ClimateEntityFeature.SWING_HORIZONTAL_MODE not in features
+    assert hass.states.get(ENTITY_ID).attributes[ATTR_FAN_MODES] == []
+    assert _offered(hass) == {AC: [ATTR_FAN_MODE, ATTR_SWING_MODE], HEATER: []}
+
+
+async def test_offered_settings_unknown_without_restore(hass: HomeAssistant) -> None:
+    """A source never seen offers nothing yet."""
+    await _setup(hass, [_heater()], HEATER)
+
+    assert ClimateEntityFeature.FAN_MODE not in _features(hass)
+    assert _offered(hass) == {HEATER: []}
 
 
 async def test_source_error_does_not_fail_mode_change(

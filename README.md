@@ -138,7 +138,9 @@ source without one (a dehumidifier without thermostat): the source gets no
 target, a target changed on it is ignored, and a target set in that mode is
 kept for the next one. While off, the entity shows both setpoints (low and
 high) so they can be set before turning on; a single
-`temperature` set then goes to the mode `turn_on` goes to.
+`temperature` set then goes to the mode `turn_on` goes to. When no mode uses
+low/high (only heat, cool, dry...), the entity has no low/high targets, even
+off: it shows the target of the mode `turn_on` goes to.
 
 The targets belong to the entity, not to the sources: switching mode keeps
 them, and the source of the new mode gets them. They are sent once the

@@ -255,6 +255,10 @@ views:
         name: Consignes enregistrées
       - entity: climate.adaptative_manuel
         type: attribute
+        attribute: saved_settings
+        name: Réglages enregistrés
+      - entity: climate.adaptative_manuel
+        type: attribute
         attribute: fan_mode
         name: Fan
       - entity: climate.adaptative_manuel

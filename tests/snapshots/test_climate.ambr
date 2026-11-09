@@ -6,6 +6,8 @@
     ]),
     'area_id': None,
     'capabilities': dict({
+      <ClimateEntityCapabilityAttribute.FAN_MODES: 'fan_modes'>: list([
+      ]),
       <ClimateEntityCapabilityAttribute.HVAC_MODES: 'hvac_modes'>: list([
         <HVACMode.OFF: 'off'>,
         <HVACMode.HEAT: 'heat'>,
@@ -15,6 +17,10 @@
       ]),
       <ClimateEntityCapabilityAttribute.MAX_TEMP: 'max_temp'>: 32.0,
       <ClimateEntityCapabilityAttribute.MIN_TEMP: 'min_temp'>: 5.0,
+      <ClimateEntityCapabilityAttribute.SWING_HORIZONTAL_MODES: 'swing_horizontal_modes'>: list([
+      ]),
+      <ClimateEntityCapabilityAttribute.SWING_MODES: 'swing_modes'>: list([
+      ]),
       <ClimateEntityCapabilityAttribute.TARGET_TEMP_STEP: 'target_temp_step'>: 0.5,
     }),
     'config_entry_id': <ANY>,
@@ -41,7 +47,7 @@
     'platform': 'adaptative_climate',
     'previous_unique_id': None,
     'suggested_object_id': None,
-    'supported_features': <ClimateEntityFeature: 387>,
+    'supported_features': <ClimateEntityFeature: 939>,
     'translation_key': None,
     'unique_id': '01JTESTENTRY000000000000000',
     'unit_of_measurement': None,
@@ -52,6 +58,9 @@
     'attributes': ReadOnlyDict({
       'active_entity_id': None,
       <ClimateEntityStateAttribute.CURRENT_TEMPERATURE: 'current_temperature'>: 19.5,
+      <ClimateEntityStateAttribute.FAN_MODE: 'fan_mode'>: None,
+      <ClimateEntityCapabilityAttribute.FAN_MODES: 'fan_modes'>: list([
+      ]),
       'foreign_modes': dict({
       }),
       <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living room',
@@ -70,12 +79,26 @@
         'dry': 'climate.ac',
         'heat': 'climate.heater',
       }),
+      'saved_settings': dict({
+        'cool': dict({
+        }),
+        'dry': dict({
+        }),
+        'heat': dict({
+        }),
+      }),
       'saved_targets': dict({
         'target_temp_high': 24.0,
         'target_temp_low': 20.0,
         'temperature': 20.0,
       }),
-      <EntityStateAttribute.SUPPORTED_FEATURES: 'supported_features'>: <ClimateEntityFeature: 387>,
+      <EntityStateAttribute.SUPPORTED_FEATURES: 'supported_features'>: <ClimateEntityFeature: 939>,
+      <ClimateEntityStateAttribute.SWING_HORIZONTAL_MODE: 'swing_horizontal_mode'>: None,
+      <ClimateEntityCapabilityAttribute.SWING_HORIZONTAL_MODES: 'swing_horizontal_modes'>: list([
+      ]),
+      <ClimateEntityStateAttribute.SWING_MODE: 'swing_mode'>: None,
+      <ClimateEntityCapabilityAttribute.SWING_MODES: 'swing_modes'>: list([
+      ]),
       <ClimateEntityStateAttribute.TARGET_TEMP_HIGH: 'target_temp_high'>: 24.0,
       <ClimateEntityStateAttribute.TARGET_TEMP_LOW: 'target_temp_low'>: 20.0,
       <ClimateEntityCapabilityAttribute.TARGET_TEMP_STEP: 'target_temp_step'>: 0.5,

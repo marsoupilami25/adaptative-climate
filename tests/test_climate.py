@@ -490,24 +490,34 @@ def _features(hass: HomeAssistant) -> int:
     return hass.states.get(ENTITY_ID).attributes[ATTR_SUPPORTED_FEATURES]
 
 
+def _assert_no_setting(hass: HomeAssistant) -> None:
+    """Fan and swing are shown, without any option to choose."""
+    attributes = hass.states.get(ENTITY_ID).attributes
+    assert attributes[ATTR_FAN_MODES] == []
+    assert attributes[ATTR_FAN_MODE] is None
+    assert attributes[ATTR_SWING_MODES] == []
+    assert attributes[ATTR_SWING_MODE] is None
+    assert attributes[ATTR_SWING_HORIZONTAL_MODES] == []
+    assert attributes[ATTR_SWING_HORIZONTAL_MODE] is None
+
+
 @pytest.mark.usefixtures("init_integration")
 async def test_supported_features(hass: HomeAssistant) -> None:
-    """When off, features combine the sources, without fan or swing.
+    """Features combine the sources, fan and swing included, even off.
 
-    heat_cool (heat and cool sources) needs the low/high targets.
+    heat_cool (heat and cool sources) needs the low/high targets. The AC
+    offers fan and swing: they stay shown when off, with no option.
     """
-    assert _features(hass) == BASE_FEATURES
-    attributes = hass.states.get(ENTITY_ID).attributes
-    assert ATTR_FAN_MODES not in attributes
-    assert ATTR_SWING_MODES not in attributes
-    assert ATTR_SWING_HORIZONTAL_MODES not in attributes
+    assert _features(hass) == BASE_FEATURES | FAN_SWING
+    _assert_no_setting(hass)
 
 
 @pytest.mark.usefixtures("init_integration")
 async def test_fan_swing_follow_active_source(hass: HomeAssistant) -> None:
-    """Fan and swing are shown only when the active source has them."""
+    """Fan and swing stay shown; their options come from the active source."""
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
-    assert _features(hass) == BASE_FEATURES
+    assert _features(hass) == BASE_FEATURES | FAN_SWING
+    _assert_no_setting(hass)
 
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
     assert _features(hass) == BASE_FEATURES | FAN_SWING
@@ -520,7 +530,8 @@ async def test_fan_swing_follow_active_source(hass: HomeAssistant) -> None:
     assert attributes[ATTR_SWING_HORIZONTAL_MODE] == "off"
 
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
-    assert _features(hass) == BASE_FEATURES
+    assert _features(hass) == BASE_FEATURES | FAN_SWING
+    _assert_no_setting(hass)
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -534,15 +545,18 @@ async def test_fan_swing_in_heat_mode(
 
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
 
-    assert _features(hass) == BASE_FEATURES | ClimateEntityFeature.FAN_MODE
-    assert hass.states.get(ENTITY_ID).attributes[ATTR_FAN_MODES] == ["low", "high"]
+    assert _features(hass) == BASE_FEATURES | FAN_SWING
+    attributes = hass.states.get(ENTITY_ID).attributes
+    assert attributes[ATTR_FAN_MODES] == ["low", "high"]
+    assert attributes[ATTR_FAN_MODE] == "low"
+    assert attributes[ATTR_SWING_MODES] == []
 
 
 @pytest.mark.usefixtures("init_integration")
 async def test_fan_swing_hidden_without_options(
     hass: HomeAssistant, ac: FakeClimate
 ) -> None:
-    """A source with the feature but no option to choose does not show it."""
+    """Without any source listing an option, fan and swing are not shown."""
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.COOL)
 
     ac._attr_fan_modes = []
@@ -552,6 +566,16 @@ async def test_fan_swing_hidden_without_options(
     await hass.async_block_till_done()
 
     assert _features(hass) == BASE_FEATURES
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_fan_swing_kept_while_source_unavailable(hass: HomeAssistant) -> None:
+    """A source that becomes unavailable keeps its fan and swing shown."""
+    hass.states.async_set(AC, STATE_UNAVAILABLE)
+    await hass.async_block_till_done()
+
+    assert _features(hass) == BASE_FEATURES | FAN_SWING
+    _assert_no_setting(hass)
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -583,10 +607,20 @@ async def test_set_fan_and_swing_forward_to_active_source(
 @pytest.mark.usefixtures("init_integration")
 async def test_set_fan_mode_when_off(hass: HomeAssistant) -> None:
     """Setting a fan mode while off is refused with a clear message."""
-    entity = hass.data[CLIMATE_DOMAIN].get_entity(ENTITY_ID)
     with pytest.raises(ServiceValidationError) as err:
-        await entity.async_set_fan_mode("auto")
+        await _call(hass, SERVICE_SET_FAN_MODE, fan_mode="auto")
     assert err.value.translation_key == "no_active_mode"
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_set_swing_mode_not_in_mode(hass: HomeAssistant, ac: FakeClimate) -> None:
+    """Setting a swing the current mode does not offer is refused."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    ac.calls.clear()
+    with pytest.raises(ServiceValidationError) as err:
+        await _call(hass, SERVICE_SET_SWING_MODE, swing_mode="on")
+    assert err.value.translation_key == "setting_not_in_mode"
+    assert ac.calls == []
 
 
 @pytest.mark.usefixtures("init_integration")

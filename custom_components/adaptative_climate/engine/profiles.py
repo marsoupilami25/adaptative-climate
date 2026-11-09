@@ -10,7 +10,8 @@ testing the mode itself. A profile answers:
   as {source attribute: target}.
 - shown_target: which target the entity shows in a target attribute.
 - target_mode: the only source mode a low/high target goes to, if any.
-- features: what the mode adds to the entity, whatever its sources offer.
+- target_features: the target features the mode uses (single target,
+  low/high), which make those of the entity.
 
 Profiles:
 - ModeProfile: off. The single target goes to the single target of the
@@ -55,9 +56,6 @@ _TARGET = ClimateEntityFeature.TARGET_TEMPERATURE
 class ModeProfile:
     """A mode with a source of its own and the single target: OFF."""
 
-    # Features the mode adds to the entity, whatever its sources offer.
-    features = ClimateEntityFeature(0)
-
     def __init__(self, mode: HVACMode, sources: Sources) -> None:
         """Initialize the profile of a mode."""
         self.mode = mode
@@ -86,6 +84,10 @@ class ModeProfile:
         """Return the only source mode a low/high target goes to, if any."""
         return None
 
+    def target_features(self) -> ClimateEntityFeature:
+        """Return the target features the mode uses."""
+        return _TARGET
+
 
 class FanOnlyProfile(ModeProfile):
     """Fan only: the fan alone, without target.
@@ -101,6 +103,10 @@ class FanOnlyProfile(ModeProfile):
     def shown_target(self, attr: str, mapping: dict[str, str]) -> str | None:
         """Show no target."""
         return None
+
+    def target_features(self) -> ClimateEntityFeature:
+        """Use no target."""
+        return ClimateEntityFeature(0)
 
 
 class SourceTargetsProfile(ModeProfile):
@@ -136,6 +142,13 @@ class SourceTargetsProfile(ModeProfile):
         if target != ATTR_TEMPERATURE and target in self._targets():
             return self.mode
         return None
+
+    def target_features(self) -> ClimateEntityFeature:
+        """Use the targets the source gets."""
+        targets = self._targets()
+        if ATTR_TARGET_TEMP_LOW in targets:
+            return _RANGE
+        return _TARGET if targets else ClimateEntityFeature(0)
 
 
 class DryProfile(SourceTargetsProfile):
@@ -197,6 +210,10 @@ class RangeHeatCoolProfile(ModeProfile):
         """Both low/high targets go to the source, when it has them."""
         return self.mode if self._has_range() else None
 
+    def target_features(self) -> ClimateEntityFeature:
+        """Use low/high when the source has them, else the single target."""
+        return _RANGE if self._has_range() else _TARGET
+
 
 class CombinedHeatCoolProfile(ModeProfile):
     """HEAT_COOL without a source of its own: it runs the heat or cool source.
@@ -205,8 +222,6 @@ class CombinedHeatCoolProfile(ModeProfile):
     to the heat source and the high one to the cool source, as their single
     target.
     """
-
-    features = _RANGE
 
     def source_modes(self) -> tuple[HVACMode, ...]:
         """Use the heat and cool sources."""
@@ -231,6 +246,10 @@ class CombinedHeatCoolProfile(ModeProfile):
     def target_mode(self, target: str) -> HVACMode | None:
         """The low target goes to the heat source, the high one to the cool source."""
         return HVACMode.HEAT if target == ATTR_TARGET_TEMP_LOW else HVACMode.COOL
+
+    def target_features(self) -> ClimateEntityFeature:
+        """Use the low/high targets."""
+        return _RANGE
 
 
 def build_profiles(sources: Sources, combined: bool) -> dict[HVACMode, ModeProfile]:

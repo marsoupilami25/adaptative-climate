@@ -100,26 +100,25 @@ class Setting:
 
 # Settings taken from the source of the current mode only: a heater has no
 # fan, an AC has one. Each mode remembers them (see SettingsMemory).
-SETTINGS: tuple[Setting, ...] = (
-    Setting(
-        ClimateEntityFeature.FAN_MODE,
-        ATTR_FAN_MODE,
-        ATTR_FAN_MODES,
-        SERVICE_SET_FAN_MODE,
-    ),
-    Setting(
-        ClimateEntityFeature.SWING_MODE,
-        ATTR_SWING_MODE,
-        ATTR_SWING_MODES,
-        SERVICE_SET_SWING_MODE,
-    ),
-    Setting(
-        ClimateEntityFeature.SWING_HORIZONTAL_MODE,
-        ATTR_SWING_HORIZONTAL_MODE,
-        ATTR_SWING_HORIZONTAL_MODES,
-        SERVICE_SET_SWING_HORIZONTAL_MODE,
-    ),
+FAN = Setting(
+    ClimateEntityFeature.FAN_MODE,
+    ATTR_FAN_MODE,
+    ATTR_FAN_MODES,
+    SERVICE_SET_FAN_MODE,
 )
+SWING = Setting(
+    ClimateEntityFeature.SWING_MODE,
+    ATTR_SWING_MODE,
+    ATTR_SWING_MODES,
+    SERVICE_SET_SWING_MODE,
+)
+SWING_HORIZONTAL = Setting(
+    ClimateEntityFeature.SWING_HORIZONTAL_MODE,
+    ATTR_SWING_HORIZONTAL_MODE,
+    ATTR_SWING_HORIZONTAL_MODES,
+    SERVICE_SET_SWING_HORIZONTAL_MODE,
+)
+SETTINGS: tuple[Setting, ...] = (FAN, SWING, SWING_HORIZONTAL)
 
 # Memory key shared by the synchronized modes. Other modes use their own name.
 SYNC_KEY = "sync"

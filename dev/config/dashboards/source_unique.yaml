@@ -54,6 +54,10 @@ views:
           name: Consignes enregistrées
         - entity: climate.adaptative_all
           type: attribute
+          attribute: saved_settings
+          name: Réglages enregistrés
+        - entity: climate.adaptative_all
+          type: attribute
           attribute: fan_mode
           name: Fan
         - entity: climate.adaptative_all
@@ -124,6 +128,8 @@ views:
           name: Tout remettre à zéro
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios (1/2) : base et mémoire des réglages
 
       Partir de **Tout remettre à zéro**.
@@ -133,11 +139,11 @@ views:
       1. **Changement de mode** : passer de *heat* à *cool* puis *dry*. ALL Virtuel change de mode sans passer par *off*.
       2. **heat_cool** : passer en *heat_cool*. ALL Virtuel passe en *heat_cool* ; le thermostat d'Adaptative ALL montre une plage (basse–haute) au lieu de la consigne.
       3. **Changement externe** : éteindre, puis mettre ALL Virtuel en *heat_cool* depuis sa carte. Adaptative ALL passe en *heat_cool*.
-      4. **Consigne** : changer la consigne. *Consigne ALL* suit.
+      4. **Consigne** : éteindre, régler la consigne basse (éteint, le thermostat montre la plage) : *Consigne ALL* ne bouge pas, *Consignes enregistrées* prend la valeur. Passer en *heat* : *Consigne ALL* la prend. Changer la consigne : *Consigne ALL* suit.
       5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
       6. **Source indisponible** : couper *ALL disponible*. Adaptative ALL devient indisponible.
       7. **Fan et swing** : changer le fan, le swing et le swing horizontal d'Adaptative ALL. *Fan ALL*, *Swing ALL* et *Swing horizontal ALL* suivent.
-      8. **Fan/swing absents** : couper *Fan ALL actif*. Le fan disparaît dans tous les modes ; le rallumer, il revient. Idem avec *Swing ALL actif* et *Swing horizontal ALL actif*.
+      8. **Fan/swing absents** : couper *Fan ALL actif*. Le fan disparaît dans tous les modes (plus aucune source ne le propose) ; le rallumer, il revient. Idem avec *Swing ALL actif* et *Swing horizontal ALL actif*. Éteint, fan et swing restent affichés mais vides.
 
       ### Mémoire des réglages
 
@@ -153,6 +159,8 @@ views:
       5. **Changement sur la source** : en *dry*, mettre *Fan ALL* à *medium* depuis sa carte. Passer en *fan_only*, puis en *heat* : *medium*.
       6. **Swing synchronisé** : en *heat*, swing *on* et swing horizontal *left*. Passer en *fan_only*, puis en *cool* : *on* et *left* reviennent.
       7. **Après un redémarrage** : en *cool*, fan *high*, puis passer en *auto* : *medium*. Redémarrer Home Assistant, passer en *heat* : le fan revient à *high*.
+
+      </small>
     view_layout:
       position: sidebar
 - title: Consignes
@@ -162,6 +170,8 @@ views:
   - *pilotage
   - type: markdown
     content: |
+      <small>
+
       ## Scénarios (2/2) : consignes et plage basse/haute
 
       Partir de **Tout remettre à zéro**.
@@ -191,5 +201,7 @@ views:
       5. **Après un redémarrage** : en *heat_cool*, plage 21–23, puis **Tout remettre à zéro** (source à 19–25). Redémarrer Home Assistant, passer en *heat_cool* : la source passe à 21–23.
       6. **auto comme heat_cool** : en *auto*, Adaptative ALL montre une plage, pas de consigne simple. La régler à 21–23 : *Consigne ALL basse* et *haute* suivent, *Consigne ALL* ne bouge pas. Passer en *heat* : *Consigne ALL* prend 21 ; en *cool* : 23 ; en *heat_cool* : toujours 21–23.
       7. **Changement sur la source en auto** : en *auto*, attendre 12 s, puis mettre *Consigne ALL haute* à 26 depuis sa carte : Adaptative ALL affiche 21–26. Passer en *cool* : *Consigne ALL* prend 26 ; en *heat_cool* : 21–26.
+
+      </small>
     view_layout:
       position: sidebar

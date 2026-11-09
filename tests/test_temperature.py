@@ -1068,3 +1068,28 @@ async def test_source_back_after_user_mode_change(
 
     assert heater.target_temperature == 18.0
     assert _saved(hass, LOW) == 18.0
+
+
+async def test_off_single_target_modes(
+    hass: HomeAssistant,
+    sources: None,
+    mock_config_entry: MockConfigEntry,
+    ac: FakeClimate,
+) -> None:
+    """Modes that all use a single target show a single target, even off.
+
+    The AC has low/high targets, but cool and dry do not use them.
+    """
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry, data={"name": "Living room", "cool_entity": AC, "dry_entity": AC}
+    )
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    features = ClimateEntityFeature(hass.states.get(ENTITY_ID).attributes[ATTR_SUPPORTED_FEATURES])
+    assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE not in features
+    assert hass.states.get(ENTITY_ID).state == HVACMode.OFF
+    # Off: the target of the mode turn_on goes to (cool: the cooling setpoint).
+    assert _target(hass) == 24.0
+    assert "target_temp_low" not in hass.states.get(ENTITY_ID).attributes

@@ -23,13 +23,10 @@ from typing import Any
 
 from homeassistant.components.climate import (
     ATTR_FAN_MODE,
-    ATTR_FAN_MODES,
     ATTR_HVAC_ACTION,
     ATTR_HVAC_MODE,
     ATTR_SWING_HORIZONTAL_MODE,
-    ATTR_SWING_HORIZONTAL_MODES,
     ATTR_SWING_MODE,
-    ATTR_SWING_MODES,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     ATTR_TARGET_TEMP_STEP,
@@ -47,7 +44,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import AdaptativeClimateConfigEntry, AdaptativeClimateCoordinator
-from .engine.model import SETTINGS, TARGETS, TargetKey
+from .engine.model import FAN, SETTINGS, SWING, SWING_HORIZONTAL, TARGETS, Setting, TargetKey
 from .engine.modes import ModeTracker
 from .engine.phase import CombinedPhase, wanted_phase
 from .engine.profiles import build_profiles
@@ -57,15 +54,6 @@ from .engine.target_sync import TargetSync
 from .engine.targets import TargetStore
 
 _LOGGER = logging.getLogger(__name__)
-
-# Features this entity implements. Other features of the sources
-# (presets, humidity...) are dropped: exposing them without implementing
-# them makes Home Assistant fail when the entity is added.
-SOURCE_FEATURES = (
-    ClimateEntityFeature.TARGET_TEMPERATURE
-    | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
-)
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -102,6 +90,9 @@ class AdaptativeClimateEntity(
     """
 
     _attr_has_entity_name = True
+    # The remembered fan and swing settings are not kept in the history.
+    # The saved targets are, to follow them over time.
+    _unrecorded_attributes = frozenset({"saved_settings"})
 
     def __init__(self, coordinator: AdaptativeClimateCoordinator) -> None:
         """Initialize the entity and its engine."""
@@ -333,22 +324,21 @@ class AdaptativeClimateEntity(
     def supported_features(self) -> ClimateEntityFeature:
         """Return the features of the sources this entity implements.
 
-        Temperature features are combined over every source, so they do not
-        change with the mode. The combined HEAT_COOL adds the low/high
-        targets. Fan and swing (vertical and horizontal) come from the source
-        of the current mode, when it lists at least one option.
+        Target features are combined over the configured modes (what each
+        mode uses, see ModeProfile.target_features), so they do not change
+        with the mode: an entity whose modes all use a single target never
+        shows low/high, even off. Other features of the sources (presets,
+        humidity...) are dropped: exposing them without implementing them
+        makes Home Assistant fail when the entity is added. Fan and swing
+        (vertical and horizontal) are shown when at least one source lists an
+        option, even while unavailable (see SettingsMemory.offered_features),
+        so the card keeps its size across modes; a mode whose source lacks
+        them shows no option (see _setting_options).
         """
         features = ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
-        for entity_id in self._sources.entity_ids:
-            features |= self._sources.features(entity_id) & SOURCE_FEATURES
         for mode in self._modes.modes[1:]:
-            features |= self._modes.profile(mode).features
-
-        active = self._modes.active_source()
-        for setting in SETTINGS:
-            if self._memory.options(active, setting):
-                features |= setting.feature
-        return features
+            features |= self._modes.profile(mode).target_features()
+        return features | self._memory.offered_features()
 
     @property
     def native_temperature_unit(self) -> str:
@@ -437,35 +427,45 @@ class AdaptativeClimateEntity(
         """Read an attribute from the active source."""
         return self._sources.attr(self._modes.active_source(), attr)
 
+    def _setting_options(self, setting: Setting) -> list[Any]:
+        """Return the options of the active source for a setting (empty when off or missing)."""
+        return self._memory.options(self._modes.active_source(), setting)
+
+    def _setting_value(self, setting: Setting) -> Any:
+        """Return the value of the active source for a setting, None when it has no option."""
+        if not self._setting_options(setting):
+            return None
+        return self._active_attr(setting.attr)
+
     @property
     def fan_mode(self) -> str | None:
         """Return the fan mode of the active source."""
-        return self._active_attr(ATTR_FAN_MODE)
+        return self._setting_value(FAN)
 
     @property
-    def fan_modes(self) -> list[str] | None:
+    def fan_modes(self) -> list[str]:
         """Return the fan modes of the active source."""
-        return self._active_attr(ATTR_FAN_MODES)
+        return self._setting_options(FAN)
 
     @property
     def swing_mode(self) -> str | None:
         """Return the swing mode of the active source."""
-        return self._active_attr(ATTR_SWING_MODE)
+        return self._setting_value(SWING)
 
     @property
-    def swing_modes(self) -> list[str] | None:
+    def swing_modes(self) -> list[str]:
         """Return the swing modes of the active source."""
-        return self._active_attr(ATTR_SWING_MODES)
+        return self._setting_options(SWING)
 
     @property
     def swing_horizontal_mode(self) -> str | None:
         """Return the horizontal swing mode of the active source."""
-        return self._active_attr(ATTR_SWING_HORIZONTAL_MODE)
+        return self._setting_value(SWING_HORIZONTAL)
 
     @property
-    def swing_horizontal_modes(self) -> list[str] | None:
+    def swing_horizontal_modes(self) -> list[str]:
         """Return the horizontal swing modes of the active source."""
-        return self._active_attr(ATTR_SWING_HORIZONTAL_MODES)
+        return self._setting_options(SWING_HORIZONTAL)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -487,6 +487,9 @@ class AdaptativeClimateEntity(
             # Every target kept by the entity, also those the current mode
             # does not show, as set (before offset and rounding).
             "saved_targets": {target: self._target_store[target] for target in TARGETS},
+            # Fan and swing settings remembered by each configured mode,
+            # sent back when the entity switches to it.
+            "saved_settings": self._memory.by_mode(),
         }
 
     # Commands
@@ -528,6 +531,41 @@ class AdaptativeClimateEntity(
             self.async_write_ha_state()
         finally:
             self._force_write = False
+
+    def _check_setting(self, setting: Setting) -> None:
+        """Refuse a fan or swing change the current mode does not offer.
+
+        Runs before the check of Home Assistant, whose message would only
+        list no valid option.
+        """
+        if self._modes.active_source() is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="no_active_mode",
+            )
+        if not self._setting_options(setting):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="setting_not_in_mode",
+                translation_placeholders={"hvac_mode": str(self._modes.current())},
+            )
+
+    async def async_handle_set_fan_mode_service(self, fan_mode: str) -> None:
+        """Check the current mode has a fan, then let Home Assistant check the value."""
+        self._check_setting(FAN)
+        await super().async_handle_set_fan_mode_service(fan_mode)
+
+    async def async_handle_set_swing_mode_service(self, swing_mode: str) -> None:
+        """Check the current mode has a swing, then let Home Assistant check the value."""
+        self._check_setting(SWING)
+        await super().async_handle_set_swing_mode_service(swing_mode)
+
+    async def async_handle_set_swing_horizontal_mode_service(
+        self, swing_horizontal_mode: str
+    ) -> None:
+        """Check the current mode has a horizontal swing, then let Home Assistant check the value."""
+        self._check_setting(SWING_HORIZONTAL)
+        await super().async_handle_set_swing_horizontal_mode_service(swing_horizontal_mode)
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set the fan mode of the active source.
