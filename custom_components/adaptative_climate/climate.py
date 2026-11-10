@@ -135,10 +135,11 @@ class AdaptativeClimateEntity(
         self._lost: tuple[str, HVACMode] | None = None
 
     async def async_added_to_hass(self) -> None:
-        """Restore the remembered settings, the targets and the combined mode."""
+        """Restore the sources seen with low/high, the settings, targets and phase."""
         await super().async_added_to_hass()
         if (last := await self.async_get_last_extra_data()) is not None:
             data = last.as_dict()
+            self._sources.restore(data)
             self._memory.restore(data)
             self._target_store.restore(data)
             self._targets.apply_gap([ATTR_TARGET_TEMP_LOW])
@@ -155,9 +156,10 @@ class AdaptativeClimateEntity(
 
     @property
     def extra_restore_state_data(self) -> RestoredExtraData:
-        """Save the remembered settings, the targets and the combined mode."""
+        """Save the sources seen with low/high, the settings, targets and phase."""
         return RestoredExtraData(
             {
+                **self._sources.as_dict(),
                 **self._memory.as_dict(),
                 **self._target_store.as_dict(),
                 **self._phase.as_dict(),

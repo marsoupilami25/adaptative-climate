@@ -494,6 +494,36 @@ async def test_source_error_does_not_fail_mode_change(
 
 
 @pytest.mark.usefixtures("init_integration")
+async def test_source_script_error_does_not_fail(
+    hass: HomeAssistant,
+    ac: FakeClimate,
+    caplog: pytest.LogCaptureFixture,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """An error that is not a HomeAssistantError (a script schema error) is handled the same way."""
+    tries: list[dict[str, Any]] = []
+
+    async def invalid(**kwargs: Any) -> None:
+        tries.append(kwargs)
+        raise ValueError("expected float at 'value'")
+
+    ac.async_set_temperature = invalid
+    await _call(
+        hass, SERVICE_SET_TEMPERATURE, target_temp_low=20.0, target_temp_high=22.0
+    )
+    await _mode(hass, HVACMode.COOL)
+
+    assert hass.states.get(ENTITY_ID).state == HVACMode.COOL
+    assert len(tries) == 1
+    await _settle(hass, freezer, 5)
+    assert len(tries) == 2
+    assert (
+        "Could not set temperature 22.0 on climate.ac: ValueError: expected float"
+        in caplog.text
+    )
+
+
+@pytest.mark.usefixtures("init_integration")
 async def test_send_tried_again_works(
     hass: HomeAssistant,
     heater: FakeClimate,
@@ -888,6 +918,30 @@ async def test_auto_with_single_target(
     ac._attr_supported_features = (
         ac.supported_features & ~ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
     )
+    await _setup_auto(hass, mock_config_entry, ac)
+
+    await _mode(hass, HVACMode.DRY)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=23.0)
+    await _mode(hass, HVACMode.AUTO)
+    assert _target(hass) == 23.0
+    assert _range(hass) == (None, None)
+    assert _sent(ac)[-1] == 23.0
+    assert _sent_range(ac) == []
+
+
+async def test_auto_with_unused_range(
+    hass: HomeAssistant,
+    sources: None,
+    mock_config_entry: MockConfigEntry,
+    ac: FakeClimate,
+) -> None:
+    """A source with the low/high feature but no low/high value works with its single target.
+
+    Like a template climate with set_temperature and no low/high templates:
+    its card shows the single target.
+    """
+    ac._attr_target_temperature_low = None
+    ac._attr_target_temperature_high = None
     await _setup_auto(hass, mock_config_entry, ac)
 
     await _mode(hass, HVACMode.DRY)

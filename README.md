@@ -142,6 +142,19 @@ high) so they can be set before turning on; a single
 low/high (only heat, cool, dry...), the entity has no low/high targets, even
 off: it shows the target of the mode `turn_on` goes to.
 
+A source "has low/high targets" when it supports them and uses them. A
+source that also has a single target and no heat/cool mode only counts as
+having low/high once it has shown low/high values. For example, a template
+climate with `set_temperature` and no low/high templates supports
+low/high but never shows them: its card shows a single target, and so does
+the entity. Once seen, low/high are remembered for that source, even if it
+hides them later (some devices do while off), and across restarts. The
+memory is kept per source entity: a new source starts from scratch. The
+only drawback: if the device behind an entity is replaced by one that
+supports low/high but does not use them, and the entity id stays the same,
+the entity keeps using low/high. Delete and recreate the Adaptative Climate
+entity to clear that memory. This case seemed too rare to need an option.
+
 The targets belong to the entity, not to the sources: switching mode keeps
 them, and the source of the new mode gets them. They are sent once the
 source shows its new mode, so a device that first shows its own target for

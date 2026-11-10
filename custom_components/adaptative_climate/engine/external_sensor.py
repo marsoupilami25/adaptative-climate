@@ -22,8 +22,6 @@ from __future__ import annotations
 from datetime import datetime
 import logging
 
-import voluptuous as vol
-
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_UNIT_OF_MEASUREMENT,
@@ -31,7 +29,6 @@ from homeassistant.const import (
     STATE_UNKNOWN,
 )
 from homeassistant.core import CALLBACK_TYPE, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_conversion import TemperatureConverter
 
@@ -128,7 +125,7 @@ class ExternalSensorWriter:
                     {ATTR_ENTITY_ID: entity_id, "value": target_value},
                     blocking=True,
                 )
-            except (HomeAssistantError, vol.Invalid) as err:
+            except Exception as err:  # noqa: BLE001 - schema errors are not HomeAssistantError
                 _LOGGER.warning(
                     "Could not write the room temperature %s to %s: %s",
                     target_value,

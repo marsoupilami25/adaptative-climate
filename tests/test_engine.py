@@ -14,7 +14,7 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.const import ATTR_TEMPERATURE
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 import pytest
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
@@ -29,6 +29,7 @@ from custom_components.adaptative_climate.engine.profiles import (
     SetpointProfile,
     build_profiles,
 )
+from custom_components.adaptative_climate.engine.sources import Sources
 from custom_components.adaptative_climate.engine.targets import TargetStore
 from custom_components.adaptative_climate.engine.timer import Timer
 from custom_components.adaptative_climate.engine.util import (
@@ -503,3 +504,69 @@ async def test_phase_restore(hass: HomeAssistant) -> None:
 
     phase.leave()
     assert phase.phase is None
+
+
+def _range_sources(**attrs: Any) -> tuple[Sources, dict[str, State]]:
+    """Return Sources over one auto source with both target features."""
+    data: dict[str, State] = {}
+    coordinator = SimpleNamespace(
+        hass=None,
+        data=data,
+        mode_sources={HVACMode.AUTO: "climate.auto"},
+        source_entity_ids=["climate.auto"],
+        config_entry=SimpleNamespace(data={}, options={}),
+    )
+    sources = Sources(coordinator)  # type: ignore[arg-type]
+    _set_range_source(data, **attrs)
+    return sources, data
+
+
+def _set_range_source(data: dict[str, State], **attrs: Any) -> None:
+    """Set the auto source: single target and low/high features, no heat_cool."""
+    data["climate.auto"] = State(
+        "climate.auto",
+        HVACMode.OFF,
+        {
+            "supported_features": ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE,
+            "hvac_modes": [HVACMode.OFF, HVACMode.AUTO],
+            "temperature": 20.0,
+            "target_temp_low": None,
+            "target_temp_high": None,
+            **attrs,
+        },
+    )
+
+
+def test_range_unused_until_seen() -> None:
+    """Low/high count once the source showed them, even hidden again later."""
+    sources, data = _range_sources()
+    assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE not in sources.features("climate.auto")
+    assert sources.as_dict() == {"range_seen": []}
+
+    _set_range_source(data, target_temp_low=19.0, target_temp_high=25.0)
+    assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in sources.features("climate.auto")
+
+    # Hidden while off: still counted.
+    _set_range_source(data)
+    assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in sources.features("climate.auto")
+    assert sources.as_dict() == {"range_seen": ["climate.auto"]}
+
+
+def test_range_with_heat_cool() -> None:
+    """A source with heat_cool uses low/high even before showing them."""
+    sources, _ = _range_sources(hvac_modes=[HVACMode.OFF, HVACMode.HEAT_COOL])
+    assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in sources.features("climate.auto")
+
+
+def test_range_seen_restore() -> None:
+    """The sources seen with low/high are restored, if still configured."""
+    sources, _ = _range_sources()
+    sources.restore({"range_seen": ["climate.auto", "climate.old"]})
+    assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in sources.features("climate.auto")
+    assert sources.as_dict() == {"range_seen": ["climate.auto"]}
+
+    # Bad data: nothing restored.
+    sources, _ = _range_sources()
+    sources.restore({"range_seen": "climate.auto"})
+    assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE not in sources.features("climate.auto")

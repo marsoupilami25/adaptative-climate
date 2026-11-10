@@ -755,6 +755,7 @@ views:
       6. **Source indisponible** : couper *AUTO disponible*. Adaptative AUTO devient indisponible.
       7. **Fan et swing** : allumer Adaptative AUTO, puis changer son fan, son swing et son swing horizontal. *Fan AUTO*, *Swing AUTO* et *Swing horizontal AUTO* suivent.
       8. **Fan/swing absents** : couper *Fan AUTO actif*. Le fan disparaît d'Adaptative AUTO, le swing reste ; le rallumer, il revient. Idem avec *Swing AUTO actif* et *Swing horizontal AUTO actif*. Éteint, Adaptative AUTO n'affiche ni fan ni swing.
+      9. **Consigne unique** : AUTO Virtuel est une template climate ; elle annonce les consignes basse/haute sans les utiliser (sa carte n'affiche qu'une consigne). Adaptative AUTO n'affiche aussi qu'une consigne, éteint comme allumé, et changer la consigne ne donne aucune erreur dans les logs.
 
       </small>
     view_layout:
