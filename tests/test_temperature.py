@@ -24,7 +24,12 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.const import ATTR_ENTITY_ID, ATTR_SUPPORTED_FEATURES, ATTR_TEMPERATURE
+from homeassistant.const import (
+    ATTR_ENTITY_ID,
+    ATTR_SUPPORTED_FEATURES,
+    ATTR_TEMPERATURE,
+    STATE_UNKNOWN,
+)
 from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
@@ -1109,7 +1114,7 @@ async def test_source_back_in_its_mode_gets_targets(
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=22.0)
     await _settle(hass, freezer, 13)
     await _lose(hass, HEATER)
-    assert hass.states.get(ENTITY_ID).state == HVACMode.OFF
+    assert hass.states.get(ENTITY_ID).state == STATE_UNKNOWN
 
     await _back(hass, heater, HVACMode.HEAT, 16.0)
 

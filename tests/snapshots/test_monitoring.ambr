@@ -53,6 +53,60 @@
     'state': 'off',
   })
 # ---
+# name: test_snapshot[binary_sensor.living_room_source_unavailable-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.living_room_source_unavailable',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Living room source unavailable',
+    'options': dict({
+    }),
+    'original_device_class': <BinarySensorDeviceClass.PROBLEM: 'problem'>,
+    'original_icon': 'mdi:lan-disconnect',
+    'original_name': 'Living room source unavailable',
+    'platform': 'adaptative_climate',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': None,
+    'unique_id': '01JTESTENTRY000000000000000_source_unavailable',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_snapshot[binary_sensor.living_room_source_unavailable-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'problem',
+      'entity_ids': list([
+      ]),
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Living room source unavailable',
+      <EntityStateAttribute.ICON: 'icon'>: 'mdi:lan-disconnect',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.living_room_source_unavailable',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
 # name: test_snapshot[binary_sensor.living_room_target_gap-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([

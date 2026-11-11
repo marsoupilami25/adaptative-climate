@@ -22,7 +22,7 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -30,6 +30,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_heat_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_heat_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_heat_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state
@@ -145,7 +147,7 @@ views:
       3. **Consigne** : Adaptative HEAT éteint, changer sa consigne : *Consigne HEAT* ne bouge pas, *Consignes enregistrées* prend la valeur. L'allumer : *Consigne HEAT* la prend. Changer à nouveau la consigne : *Consigne HEAT* suit.
       4. **Changement externe** : Adaptative HEAT éteint, mettre *Consigne HEAT* à une autre valeur (Adaptative HEAT ne bouge pas), puis régler HEAT Virtuel sur *heat* depuis sa carte. Adaptative HEAT s'allume en *heat* et prend la consigne de HEAT Virtuel ; *Consigne HEAT* garde sa valeur (rien n'est envoyé).
       5. **Action** : allumer Adaptative HEAT, consigne 20 (la pièce est à 20) : *idle*. Pièce à 18 : *heating* ; pièce à 22 : *idle*.
-      6. **Source indisponible** : couper *HEAT disponible*. Adaptative HEAT devient indisponible.
+      6. **Source indisponible** : couper *HEAT disponible*. Adaptative HEAT devient indisponible. S'il était allumé, le voyant *Source indisponible* passe au rouge ; éteint, il reste vert. Rallumer la source : il repasse au vert, dans le même mode.
       7. **Fan et swing** : allumer Adaptative HEAT, puis changer son fan, son swing et son swing horizontal. *Fan HEAT*, *Swing HEAT* et *Swing horizontal HEAT* suivent.
       8. **Fan/swing absents** : couper *Fan HEAT actif*. Le fan disparaît d'Adaptative HEAT, le swing reste ; le rallumer, il revient. Idem avec *Swing HEAT actif* et *Swing horizontal HEAT actif*. Éteint, Adaptative HEAT n'affiche ni fan ni swing.
       9. **Bornes** : HEAT Virtuel va de 5 à 30 °C, mais Adaptative HEAT a `max_temp: 25`.
@@ -177,7 +179,7 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -185,6 +187,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_cool_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_cool_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_cool_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state
@@ -300,7 +304,7 @@ views:
       3. **Consigne** : Adaptative COOL éteint, changer sa consigne : *Consigne COOL* ne bouge pas, *Consignes enregistrées* prend la valeur. L'allumer : *Consigne COOL* la prend. Changer à nouveau la consigne : *Consigne COOL* suit.
       4. **Changement externe** : Adaptative COOL éteint, mettre *Consigne COOL* à une autre valeur (Adaptative COOL ne bouge pas), puis régler COOL Virtuel sur *cool* depuis sa carte. Adaptative COOL s'allume en *cool* et prend la consigne de COOL Virtuel ; *Consigne COOL* garde sa valeur (rien n'est envoyé).
       5. **Action** : allumer Adaptative COOL, consigne 20 (la pièce est à 20) : *idle*. Pièce à 22 : *cooling* ; pièce à 18 : *idle*.
-      6. **Source indisponible** : couper *COOL disponible*. Adaptative COOL devient indisponible.
+      6. **Source indisponible** : couper *COOL disponible*. Adaptative COOL devient indisponible. S'il était allumé, le voyant *Source indisponible* passe au rouge ; éteint, il reste vert. Rallumer la source : il repasse au vert, dans le même mode.
       7. **Fan et swing** : allumer Adaptative COOL, puis changer son fan, son swing et son swing horizontal. *Fan COOL*, *Swing COOL* et *Swing horizontal COOL* suivent.
       8. **Fan/swing absents** : couper *Fan COOL actif*. Le fan disparaît d'Adaptative COOL, le swing reste ; le rallumer, il revient. Idem avec *Swing COOL actif* et *Swing horizontal COOL actif*. Éteint, Adaptative COOL n'affiche ni fan ni swing.
 
@@ -326,7 +330,7 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -334,6 +338,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_dry_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_dry_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_dry_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state
@@ -449,7 +455,7 @@ views:
       3. **Consigne** : Adaptative DRY éteint, changer sa consigne : *Consigne DRY* ne bouge pas, *Consignes enregistrées* prend la valeur. L'allumer : *Consigne DRY* la prend. Changer à nouveau la consigne : *Consigne DRY* suit.
       4. **Changement externe** : Adaptative DRY éteint, mettre *Consigne DRY* à une autre valeur (Adaptative DRY ne bouge pas), puis régler DRY Virtuel sur *dry* depuis sa carte. Adaptative DRY s'allume en *dry* et prend la consigne de DRY Virtuel ; *Consigne DRY* garde sa valeur (rien n'est envoyé).
       5. **Action** : allumer Adaptative DRY : *drying*, quelle que soit la température de la pièce.
-      6. **Source indisponible** : couper *DRY disponible*. Adaptative DRY devient indisponible.
+      6. **Source indisponible** : couper *DRY disponible*. Adaptative DRY devient indisponible. S'il était allumé, le voyant *Source indisponible* passe au rouge ; éteint, il reste vert. Rallumer la source : il repasse au vert, dans le même mode.
       7. **Fan et swing** : allumer Adaptative DRY, puis changer son fan, son swing et son swing horizontal. *Fan DRY*, *Swing DRY* et *Swing horizontal DRY* suivent.
       8. **Fan/swing absents** : couper *Fan DRY actif*. Le fan disparaît d'Adaptative DRY, le swing reste ; le rallumer, il revient. Idem avec *Swing DRY actif* et *Swing horizontal DRY actif*. Éteint, Adaptative DRY n'affiche ni fan ni swing.
 
@@ -473,7 +479,7 @@ views:
         features:
         - type: climate-hvac-modes
         - type: climate-fan-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -481,6 +487,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_deshum_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_deshum_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_deshum_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state
@@ -570,7 +578,7 @@ views:
       2. **Marche / arrêt** : passer Adaptative DESHUM en *dry* puis en *auto* : DESHUM Virtuel suit ; éteindre, il repasse à *off*.
       3. **Changement externe** : Adaptative DESHUM éteint, régler DESHUM Virtuel sur *dry* depuis sa carte, puis sur *auto*. Adaptative DESHUM suit, toujours sans consigne.
       4. **Fan** : en *dry*, changer le fan d'Adaptative DESHUM. *Fan DESHUM* suit.
-      5. **Source indisponible** : couper *DESHUM disponible*. Adaptative DESHUM devient indisponible.
+      5. **Source indisponible** : couper *DESHUM disponible*. Adaptative DESHUM devient indisponible. S'il était allumé, le voyant *Source indisponible* passe au rouge ; éteint, il reste vert. Rallumer la source : il repasse au vert, dans le même mode.
 
       </small>
     view_layout:
@@ -594,7 +602,7 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -602,6 +610,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_fan_only_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_fan_only_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_fan_only_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state
@@ -717,7 +727,7 @@ views:
       3. **Pas de consigne** : allumé comme éteint, Adaptative FAN_ONLY n'affiche aucune consigne. Allumé, attendre 12 s, puis mettre *Consigne FAN_ONLY* à 25 : Adaptative FAN_ONLY n'affiche toujours aucune consigne.
       4. **Changement externe** : Adaptative FAN_ONLY éteint, régler FAN_ONLY Virtuel sur *fan_only* depuis sa carte. Adaptative FAN_ONLY suit ; *Consigne FAN_ONLY* ne bouge pas (rien ne lui est envoyé).
       5. **Action** : allumer Adaptative FAN_ONLY : *fan*, quelle que soit la température de la pièce.
-      6. **Source indisponible** : couper *FAN_ONLY disponible*. Adaptative FAN_ONLY devient indisponible.
+      6. **Source indisponible** : couper *FAN_ONLY disponible*. Adaptative FAN_ONLY devient indisponible. S'il était allumé, le voyant *Source indisponible* passe au rouge ; éteint, il reste vert. Rallumer la source : il repasse au vert, dans le même mode.
       7. **Fan et swing** : allumer Adaptative FAN_ONLY, puis changer son fan, son swing et son swing horizontal. *Fan FAN_ONLY*, *Swing FAN_ONLY* et *Swing horizontal FAN_ONLY* suivent.
       8. **Fan/swing absents** : couper *Fan FAN_ONLY actif*. Le fan disparaît d'Adaptative FAN_ONLY, le swing reste ; le rallumer, il revient. Idem avec *Swing FAN_ONLY actif* et *Swing horizontal FAN_ONLY actif*. Éteint, Adaptative FAN_ONLY n'affiche ni fan ni swing.
 
@@ -743,7 +753,7 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -751,6 +761,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_auto_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_auto_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_auto_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state
@@ -866,7 +878,7 @@ views:
       3. **Consigne** : Adaptative AUTO éteint, changer sa consigne : *Consigne AUTO* ne bouge pas, *Consignes enregistrées* prend la valeur. L'allumer : *Consigne AUTO* la prend. Changer à nouveau la consigne : *Consigne AUTO* suit.
       4. **Changement externe** : Adaptative AUTO éteint, mettre *Consigne AUTO* à une autre valeur (Adaptative AUTO ne bouge pas), puis régler AUTO Virtuel sur *auto* depuis sa carte. Adaptative AUTO s'allume en *auto* et prend la consigne de AUTO Virtuel ; *Consigne AUTO* garde sa valeur (rien n'est envoyé).
       5. **Action** : allumer Adaptative AUTO, consigne 20 (la pièce est à 20) : *idle*. Pièce à 18 : *heating* ; pièce à 22 : *cooling*.
-      6. **Source indisponible** : couper *AUTO disponible*. Adaptative AUTO devient indisponible.
+      6. **Source indisponible** : couper *AUTO disponible*. Adaptative AUTO devient indisponible. S'il était allumé, le voyant *Source indisponible* passe au rouge ; éteint, il reste vert. Rallumer la source : il repasse au vert, dans le même mode.
       7. **Fan et swing** : allumer Adaptative AUTO, puis changer son fan, son swing et son swing horizontal. *Fan AUTO*, *Swing AUTO* et *Swing horizontal AUTO* suivent.
       8. **Fan/swing absents** : couper *Fan AUTO actif*. Le fan disparaît d'Adaptative AUTO, le swing reste ; le rallumer, il revient. Idem avec *Swing AUTO actif* et *Swing horizontal AUTO actif*. Éteint, Adaptative AUTO n'affiche ni fan ni swing.
       9. **Consigne unique** : AUTO Virtuel est une template climate ; elle annonce les consignes basse/haute sans les utiliser (sa carte n'affiche qu'une consigne). Adaptative AUTO n'affiche aussi qu'une consigne, éteint comme allumé, et changer la consigne ne donne aucune erreur dans les logs.
@@ -890,7 +902,7 @@ views:
         entity: climate.adaptative_heat_cool
         features:
         - type: climate-hvac-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -898,6 +910,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_heat_cool_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_heat_cool_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_heat_cool_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state
@@ -1005,7 +1019,7 @@ views:
       6. **Plage changée juste après le mode** : éteindre puis rallumer : la source a déjà la plage, rien ne confirme le mode. Dans les 12 s, mettre *Consigne HEAT_COOL basse* à 15 : Adaptative HEAT_COOL affiche toujours sa plage. Au bout des 12 s, la consigne basse y revient.
       7. **Action** : allumé, plage 19–25 (la pièce est à 20) : *idle*. Pièce à 18 : *heating* ; pièce à 26 : *cooling*.
       8. **Bornes** : Min/Max affichent 10–30 °C, ceux de la source.
-      9. **Source indisponible** : couper *HEAT_COOL disponible*. Adaptative HEAT_COOL devient indisponible.
+      9. **Source indisponible** : couper *HEAT_COOL disponible*. Adaptative HEAT_COOL devient indisponible. S'il était allumé, le voyant *Source indisponible* passe au rouge ; éteint, il reste vert. Rallumer la source : il repasse au vert, dans le même mode.
       10. **Après un redémarrage** : allumé, plage 21–23, puis **Tout remettre à zéro** (source à 19–25). Redémarrer Home Assistant, allumer : la source passe à 21–23.
 
       </small>
@@ -1028,7 +1042,7 @@ views:
         features:
         - type: climate-hvac-modes
         - type: climate-fan-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -1036,6 +1050,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_combine_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_combine_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_combine_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state
@@ -1179,8 +1195,8 @@ views:
       2. **Entrée** : *Température RADIATEUR* à 15, passer en *heat_cool* : RADIATEUR passe en *heat*. Régler la plage à 19–25 : *Consigne RADIATEUR* passe à 19. Adaptative COMBINE affiche *heat_cool*, source active RADIATEUR, Température 15. *Monitoring* est à *Problème* (écart 5 : CLIM lit 20).
       3. **Bascules** : *Température CLIM* à 30 : rien ne change (RADIATEUR lit 15, les sources se contredisent) ; *Monitoring* reste à *Problème*, écart 15. Le journal a un warning « temperatures disagree for 0 min » (depuis le scénario 2). *Température RADIATEUR* à 26 : les deux sont au-dessus de 25, CLIM passe en *cool*, RADIATEUR s'éteint, *Consigne CLIM* à 25 ; Adaptative COMBINE reste en *heat_cool* et lit maintenant 30. *Température CLIM* à 18 : CLIM reste allumée (RADIATEUR lit encore 26). *Température RADIATEUR* à 18 : retour sur RADIATEUR, *Monitoring* repasse aussitôt à *OK*. Remettre *Température RADIATEUR* à 20 : il reste allumé (entre les deux), *Monitoring* reste *OK* (écart de 2, pas un problème).
       4. **Départ au plus proche** : éteindre (plage 19–25 gardée), *Température CLIM* à 22. *Température RADIATEUR* à 24, passer en *heat_cool* : CLIM s'allume (la moyenne des deux, 23, est plus près de 25). Éteindre, *Température RADIATEUR* à 20, passer en *heat_cool* : RADIATEUR s'allume.
-      5. **Arrondi et bornes** : Min/Max en *heat_cool* : 5–32 °C. Sur RADIATEUR (*Température RADIATEUR* à 18, *Température CLIM* à 22), régler la plage à 19–24,5 : Adaptative COMBINE affiche 19–24,5, *Consignes enregistrées* garde 24,5. *Température CLIM* et *Température RADIATEUR* à 26 : bascule sur CLIM, *Consigne CLIM* à 25 (arrondie à son pas de 1 °C) ; Adaptative COMBINE affiche toujours 19–24,5, et son thermostat garde le pas de 0,5 (celui de RADIATEUR, le plus fin). Plage 10–14 : *Consigne CLIM* passe à 16 (son minimum), Adaptative COMBINE affiche 10–16.
-      6. **Changement sur la source** : sur RADIATEUR, attendre 12 s, puis mettre *Consigne RADIATEUR* à 20 : la consigne basse d'Adaptative COMBINE passe à 20.
+      5. **Arrondi et bornes** : Min/Max en *heat_cool* : 5–32 °C. Sur RADIATEUR (*Température RADIATEUR* à 18, *Température CLIM* à 22), régler la plage à 19–24,5 : Adaptative COMBINE affiche 19–24,5, *Consignes enregistrées* garde 24,5. *Température CLIM* et *Température RADIATEUR* à 26 : bascule sur CLIM, *Consigne CLIM* à 25 (arrondie à son pas de 1 °C) ; Adaptative COMBINE affiche toujours 19–24,5, et son thermostat garde le pas de 0,5 (celui de RADIATEUR, le plus fin). Plage 10–14 : la consigne haute ne va qu'à CLIM, dont le minimum est 16 : elle est enregistrée à 16 (*Consignes enregistrées* garde 10–16), *Consigne CLIM* passe à 16 et Adaptative COMBINE affiche 10–16. *Écart consigne* reste vert (enregistré et affiché valent 16).
+      6. **Changement sur la source** : on est encore sur CLIM (scénario 5). Régler la plage à 19–25, puis *Température CLIM* et *Température RADIATEUR* à 18 : retour sur RADIATEUR, *Consigne RADIATEUR* à 19. Attendre 12 s, puis mettre *Consigne RADIATEUR* à 20 : la consigne basse d'Adaptative COMBINE passe à 20.
       7. **Source éteinte ailleurs** : sur RADIATEUR, l'éteindre depuis sa carte : Adaptative COMBINE passe à *off*. *Température RADIATEUR* à 30 : rien ne s'allume.
       8. **Autre mode allumé ailleurs** : sur RADIATEUR, allumer CLIM depuis sa carte : RADIATEUR s'éteint, Adaptative COMBINE passe en *cool* (plus en *heat_cool*). *Température CLIM* à 15 : CLIM reste allumée.
       9. **Source indisponible** : couper *CLIM disponible* : *heat_cool* apparaît dans *Modes indisponibles*, et le choisir est refusé, sans rien éteindre.
@@ -1209,7 +1225,7 @@ views:
         entity: climate.adaptative_offset
         features:
         - type: climate-hvac-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -1217,6 +1233,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_offset_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_offset_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_offset_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state
@@ -1338,7 +1356,7 @@ views:
         entity: climate.adaptative_trv
         features:
         - type: climate-hvac-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -1346,6 +1364,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_trv_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_trv_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_trv_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state

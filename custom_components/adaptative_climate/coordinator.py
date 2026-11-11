@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
@@ -40,6 +40,7 @@ from .const import (
     mode_sources,
     sync_modes,
 )
+from .known import KnownCapabilities
 
 if TYPE_CHECKING:
     from .engine.model import TargetGap
@@ -61,18 +62,6 @@ def is_running(state: State | None) -> bool:
         STATE_UNAVAILABLE,
         STATE_UNKNOWN,
     }
-
-
-def lacks_mode(state: State | None, mode: HVACMode) -> bool:
-    """Return True when a usable source does not offer a mode.
-
-    A source that is missing, unknown (still starting) or unavailable may not
-    list its real modes, so it is not judged.
-    """
-    if state is None or state.state in {STATE_UNAVAILABLE, STATE_UNKNOWN}:
-        return False
-    modes = state.attributes.get(ATTR_HVAC_MODES)
-    return modes is not None and mode not in modes
 
 
 def foreign_mode(state: State | None, served: set[HVACMode]) -> str | None:
@@ -123,6 +112,9 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
                 [*self.source_entity_ids, *filter(None, [self.temperature_sensor])]
             )
         )
+        # What each source showed it offers, kept while it is away and
+        # across restarts (saved by the climate entity).
+        self.known = KnownCapabilities(self.source_entity_ids)
         self._unsub_state_change: CALLBACK_TYPE | None = None
         # Source most recently switched to a running mode. Modes are
         # exclusive: it wins over the other sources.
@@ -142,6 +134,10 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         # of reach of the active source). Reported by the target gap sensor.
         self.target_gaps: list[TargetGap] = []
         self._gap_listeners: list[CALLBACK_TYPE] = []
+        # Sources of the selected mode that are unavailable, from the climate
+        # entity. Reported by the source unavailable sensor.
+        self.missing_sources: list[str] = []
+        self._missing_listeners: list[CALLBACK_TYPE] = []
         # One exclusivity check at a time: a mode change and a source turned
         # on elsewhere would both turn the same sources off.
         self._exclusive_lock = asyncio.Lock()
@@ -176,17 +172,33 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         return f"{self.config_entry.entry_id}_{mode}_not_supported"
 
     @callback
+    def async_restore_known(self, data: dict[str, Any]) -> None:
+        """Read what the sources offered before a restart, and check the modes again."""
+        self.known.restore(data)
+        self._async_check_modes()
+
+    def _lacks_mode(self, mode: HVACMode, entity_id: str) -> bool:
+        """Return True when a source is known not to offer a mode.
+
+        Judged on the modes it showed when last usable: a source never seen
+        (still starting) is not judged.
+        """
+        modes = self.known.get(entity_id, ATTR_HVAC_MODES)
+        return modes is not None and mode not in modes
+
+    @callback
     def _async_check_modes(self) -> None:
-        """Check that every usable source offers the modes it serves.
+        """Check that every source offers the modes it serves.
 
         The config check accepts a source that is still starting, so this runs
         again on every source update. A Repairs issue is raised for each mode
-        its source does not offer, and removed once it does.
+        its source does not offer, and removed once it does. A source away
+        is judged on what it offered when last usable.
         """
         unsupported = {
             mode
             for mode, entity_id in self.mode_sources.items()
-            if lacks_mode(self.hass.states.get(entity_id), mode)
+            if self._lacks_mode(mode, entity_id)
         }
         for mode in unsupported - self.unsupported_modes:
             entity_id = self.mode_sources[mode]
@@ -227,10 +239,13 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
 
     async def _async_update_data(self) -> SourceStates:
         """Fetch the state of every source entity and of the sensor."""
-        return {
+        states = {
             entity_id: self.hass.states.get(entity_id)
             for entity_id in self.tracked_entity_ids
         }
+        for entity_id, state in states.items():
+            self.known.record(entity_id, state)
+        return states
 
     async def _async_turn_off(self, entity_id: str) -> None:
         """Turn a source off."""
@@ -369,6 +384,26 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
 
         return _remove
 
+    @callback
+    def async_set_missing_sources(self, missing: list[str]) -> None:
+        """Keep the unavailable sources of the selected mode, and tell the sensor."""
+        if missing == self.missing_sources:
+            return
+        self.missing_sources = missing
+        for listener in list(self._missing_listeners):
+            listener()
+
+    @callback
+    def async_add_missing_listener(self, listener: CALLBACK_TYPE) -> CALLBACK_TYPE:
+        """Call listener when the unavailable sources of the selected mode change."""
+        self._missing_listeners.append(listener)
+
+        @callback
+        def _remove() -> None:
+            self._missing_listeners.remove(listener)
+
+        return _remove
+
     async def _async_enforce_on(self, entity_id: str) -> None:
         """Turn off the other sources, unless another source was turned on since."""
         if self.last_on_source == entity_id:
@@ -388,6 +423,7 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         entity_id = event.data["entity_id"]
         old_state = event.data["old_state"]
         new_state = event.data["new_state"]
+        self.known.record(entity_id, new_state)
 
         mode_changed = (
             entity_id in self.source_entity_ids

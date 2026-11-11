@@ -23,7 +23,7 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
-      # Monitoring and target gap sensors, as lights on one line.
+      # Monitoring, target gap and source unavailable sensors, as lights on one line.
       - type: markdown
         text_only: true
         content: >-
@@ -31,6 +31,8 @@ views:
           {{ light.get(states('binary_sensor.adaptative_multi_monitoring'), '⚪') }} Monitoring
           &nbsp;&nbsp;&nbsp;
           {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_multi_target_gap'), '⚪') }} Écart consigne
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_multi_source_unavailable'), '⚪') }} Source indisponible
       - type: markdown
         visibility:
         - condition: state
@@ -160,16 +162,19 @@ views:
       3. **Changement externe** : éteint, régler la plage d'Adaptative MULTI à 23–26. Allumer HEAT Virtuel depuis sa carte (vue Sources). Adaptative MULTI passe en *heat* et prend la consigne de la source : il affiche 20, *Consigne HEAT* reste à 20 (rien n'est envoyé).
       4. **Deuxième source allumée** : HEAT Virtuel allumé (scénario 3), allumer aussi COOL Virtuel à la main. HEAT Virtuel s'éteint et Adaptative MULTI passe en *cool* : la dernière source allumée l'emporte.
       5. **Marche / arrêt** : éteindre puis rallumer. Le dernier mode utilisé revient.
-      6. **Source indisponible** : couper *HEAT disponible*. *heat* n'est plus détecté ; l'entité reste disponible tant qu'une autre source l'est. **Toutes les sources indisponibles** : l'entité devient indisponible ; **Toutes les sources disponibles** les rétablit.
-      7. **Bornes** : Min/Max suivent la source du mode actif. En *heat* : 5–30 °C, en *cool* : 16–32 °C, en *dry* : 18–30 °C, en *fan_only* : 10–35 °C, en *auto* : 10–30 °C. Éteint : la plage la plus large, 5–35 °C.
+      6. **Source indisponible** : éteint, couper *HEAT disponible* : Adaptative MULTI reste *off*, *heat* apparaît dans *Modes indisponibles*, le voyant *Source indisponible* reste vert ; l'entité reste disponible tant qu'une autre source l'est. **Toutes les sources indisponibles** : l'entité devient indisponible ; **Toutes les sources disponibles** les rétablit.
+      7. **Bornes** : Min/Max suivent la source du mode actif. En *heat* : 5–30 °C, en *cool* : 16–32 °C, en *dry* : 18–30 °C, en *fan_only* : 10–35 °C, en *auto* : 10–30 °C. Éteint : la plage la plus large, 5–35 °C. En *cool*, couper *COOL disponible* : toujours 16–32 °C (la plage connue de la source est gardée) ; la rallumer.
       8. **Fan et swing par source** : en *fan_only*, changer le fan. Seul *Fan FAN_ONLY* bouge. Passer en *auto* : le fan affiché est celui d'AUTO Virtuel.
       9. **Fan/swing absents** : couper *Fan HEAT actif*, *Swing HEAT actif* et *Swing horizontal HEAT actif*. En *heat*, fan et swing restent affichés mais vides (aucune option, la carte garde sa taille) ; choisir un fan depuis *Outils de développement > Actions* est refusé avec « Le mode heat ne propose pas ce réglage ». En *cool*, leurs options reviennent. Éteint : affichés, vides. Couper *COOL disponible* (seule source restante avec fan et swing) : ils restent affichés.
       10. **Source en panne à l'allumage** : en *heat*, activer *Panne COOL* (vue Sources), passer en *cool* : une erreur s'affiche, HEAT Virtuel reste en *heat* et Adaptative MULTI aussi. Désactiver *Panne COOL*.
       11. **Source qui ne s'éteint pas** : en *heat*, activer *Panne HEAT*, passer en *cool* : pas d'erreur, COOL Virtuel passe en *cool*, Adaptative MULTI aussi, HEAT Virtuel reste en *heat*. Dans le journal, un seul warning « climate.heat_virtuel_multi (heat) does not turn off while climate.cool_virtuel_multi runs » (et un problème *exclusivity* dans la vue Monitoring). Attendre 1 min : pas de nouveau warning (HEAT Virtuel est retenté, toujours en panne). Désactiver *Panne HEAT* : dans la minute, HEAT Virtuel passe à *off* et une info « no longer runs along with another source » est dans le journal.
       12. **Source bloquée éteinte à la main** : refaire le 11 jusqu'au warning, puis remettre *Mode HEAT* à *off* à la main : l'info « no longer runs along with another source » arrive tout de suite. Désactiver *Panne HEAT*.
-      13. **Retour de la source active** : en *heat*, consigne 22, attendre 12 s. Couper *HEAT disponible* : Adaptative MULTI passe à *off*. Mettre *Consigne HEAT* à 16 (comme un appareil qui redémarre avec sa propre consigne), rallumer *HEAT disponible* : Adaptative MULTI repasse en *heat* et *Consigne HEAT* revient à 22.
-      14. **Retour éteint** : en *heat*, couper *HEAT disponible*, mettre *Mode HEAT* à *off*, rallumer *HEAT disponible* : Adaptative MULTI reste *off*. Mettre *Consigne HEAT* à 18 puis *Mode HEAT* à *heat* (allumage à la télécommande) : Adaptative MULTI passe en *heat* et prend 18.
-      15. **Autre mode pendant l'absence** : en *heat*, couper *HEAT disponible*, passer Adaptative MULTI en *cool*. Rallumer *HEAT disponible* (*Mode HEAT* est resté à *heat*) : HEAT Virtuel est éteint aussitôt, Adaptative MULTI reste en *cool*.
+      13. **Retour de la source active** : en *heat*, consigne 22, attendre 12 s. Couper *HEAT disponible* : Adaptative MULTI passe à *Inconnu* (pas *off*), affiche toujours la consigne 22 et les bornes 5–30 °C, et le voyant *Source indisponible* passe au rouge (climate.heat_virtuel_multi). Mettre *Consigne HEAT* à 16 (comme un appareil qui redémarre avec sa propre consigne), rallumer *HEAT disponible* : Adaptative MULTI repasse en *heat*, *Consigne HEAT* revient à 22, le voyant repasse au vert.
+      14. **Retour éteint** : en *heat*, couper *HEAT disponible* (*Inconnu*), mettre *Mode HEAT* à *off*, rallumer *HEAT disponible* : Adaptative MULTI passe à *off*. Mettre *Consigne HEAT* à 18 puis *Mode HEAT* à *heat* (allumage à la télécommande) : Adaptative MULTI passe en *heat* et prend 18.
+      15. **Autre mode pendant l'absence** : en *heat*, couper *HEAT disponible*, passer Adaptative MULTI en *cool* : il quitte *Inconnu*, le voyant repasse au vert. Rallumer *HEAT disponible* (*Mode HEAT* est resté à *heat*) : HEAT Virtuel est éteint aussitôt, Adaptative MULTI reste en *cool*.
+      16. **Réglages pendant l'absence** : en *cool*, fan *low*, attendre 12 s. Couper *COOL disponible* : *Inconnu*, la carte garde les options de fan et swing de COOL Virtuel, fan *low*. Choisir le fan *high* et la consigne 23 : affichés, rien n'est envoyé. Rallumer *COOL disponible* : Adaptative MULTI repasse en *cool*, *Fan COOL* passe à *high* et *Consigne COOL* à 23.
+      17. **Arrêt pendant l'absence** : en *heat*, couper *HEAT disponible* (*Inconnu*). Le bouton marche ne fait rien. Éteindre : *off*, voyant vert. Rallumer *HEAT disponible*.
+      18. **Redémarrage pendant l'absence** : en *heat*, couper *HEAT disponible*, redémarrer Home Assistant (*HEAT disponible* reste coupé) : Adaptative MULTI est *Inconnu*, bornes 5–30 °C, voyant rouge. Rallumer *HEAT disponible* : il repasse en *heat*.
 
       ### Mémoire des réglages
 
@@ -265,7 +270,7 @@ views:
       13. **Marche / arrêt** : en *heat_cool*, éteindre puis rallumer : *heat_cool* revient.
       14. **Après un redémarrage** : en *heat_cool* sur HEAT Virtuel, plage 19–25. Redémarrer Home Assistant : Adaptative MULTI est toujours en *heat_cool*, avec la plage 19–25.
       15. **Durée minimale** : plage 19–25, capteur à 15, passer en *heat_cool* : HEAT Virtuel s'allume. Capteur à 26 : HEAT reste allumé ; 1 min après l'entrée, sans toucher au capteur, bascule sur COOL Virtuel. Aussitôt, capteur à 15 puis à 22 avant la fin de la minute : COOL reste allumé (22 est entre les deux). Capteur à 15, la minute passée : bascule tout de suite sur HEAT. Aussitôt, capteur à 26 : HEAT attend sa minute ; régler la plage à 10–14 pendant ce temps : bascule tout de suite sur COOL (changement de plage).
-      16. **Source indisponible en heat_cool** : plage 19–25, capteur à 15, passer en *heat_cool* : HEAT Virtuel s'allume. Couper *HEAT disponible* (vue Sources) : Adaptative MULTI reste en *heat_cool* (avant, il passait à *off*). Mettre *Consigne HEAT* à 16, rallumer *HEAT disponible* : toujours *heat_cool* sur HEAT Virtuel, *Consigne HEAT* revient à 19.
+      16. **Source indisponible en heat_cool** : plage 19–25, capteur à 15, passer en *heat_cool* : HEAT Virtuel s'allume. Couper *HEAT disponible* (vue Sources) : Adaptative MULTI reste en *heat_cool* (pas *Inconnu*), bornes 5–32 °C inchangées, le voyant *Source indisponible* passe au rouge. Pareil en coupant *COOL disponible* à la place : la source qui ne tourne pas compte aussi. Mettre *Consigne HEAT* à 16, rallumer *HEAT disponible* : toujours *heat_cool* sur HEAT Virtuel, *Consigne HEAT* revient à 19.
       17. **Retour éteint en heat_cool** : refaire le 16 jusqu'à couper *HEAT disponible*, mettre *Mode HEAT* à *off*, rallumer *HEAT disponible* : Adaptative MULTI passe à *off*.
       18. **Bascule pendant l'absence** : refaire le 16 jusqu'à couper *HEAT disponible*, puis capteur à 26 : 1 min après l'entrée, COOL Virtuel passe en *cool*, Adaptative MULTI reste en *heat_cool* sur COOL. Rallumer *HEAT disponible* (*Mode HEAT* encore à *heat*) : HEAT Virtuel est éteint aussitôt, Adaptative MULTI reste en *heat_cool* sur COOL.
 

@@ -39,6 +39,7 @@ from custom_components.adaptative_climate.engine.util import (
     same_temperature,
     same_value,
 )
+from custom_components.adaptative_climate.known import KnownCapabilities
 
 LOW = ATTR_TARGET_TEMP_LOW
 HIGH = ATTR_TARGET_TEMP_HIGH
@@ -526,6 +527,7 @@ def _range_sources(**attrs: Any) -> tuple[Sources, dict[str, State]]:
         mode_sources={HVACMode.AUTO: "climate.auto"},
         source_entity_ids=["climate.auto"],
         config_entry=SimpleNamespace(data={}, options={}),
+        known=KnownCapabilities(["climate.auto"]),
     )
     sources = Sources(coordinator)  # type: ignore[arg-type]
     _set_range_source(data, **attrs)
@@ -553,7 +555,6 @@ def test_range_unused_until_seen() -> None:
     """Low/high count once the source showed them, even hidden again later."""
     sources, data = _range_sources()
     assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE not in sources.features("climate.auto")
-    assert sources.as_dict() == {"range_seen": []}
 
     _set_range_source(data, target_temp_low=19.0, target_temp_high=25.0)
     assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in sources.features("climate.auto")
@@ -561,7 +562,7 @@ def test_range_unused_until_seen() -> None:
     # Hidden while off: still counted.
     _set_range_source(data)
     assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in sources.features("climate.auto")
-    assert sources.as_dict() == {"range_seen": ["climate.auto"]}
+    assert sources._known.as_dict()["range_seen"] == ["climate.auto"]
 
 
 def test_range_with_heat_cool() -> None:
@@ -573,11 +574,74 @@ def test_range_with_heat_cool() -> None:
 def test_range_seen_restore() -> None:
     """The sources seen with low/high are restored, if still configured."""
     sources, _ = _range_sources()
-    sources.restore({"range_seen": ["climate.auto", "climate.old"]})
+    sources._known.restore({"range_seen": ["climate.auto", "climate.old"]})
     assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in sources.features("climate.auto")
-    assert sources.as_dict() == {"range_seen": ["climate.auto"]}
+    assert sources._known.as_dict()["range_seen"] == ["climate.auto"]
 
     # Bad data: nothing restored.
     sources, _ = _range_sources()
-    sources.restore({"range_seen": "climate.auto"})
+    sources._known.restore({"range_seen": "climate.auto"})
     assert ClimateEntityFeature.TARGET_TEMPERATURE_RANGE not in sources.features("climate.auto")
+
+
+# Known capabilities
+
+
+def test_known_kept_while_away() -> None:
+    """A source away keeps the range, step, features, options and modes it showed."""
+    sources, data = _range_sources(
+        min_temp=10.0,
+        max_temp=28.0,
+        target_temp_step=0.5,
+        fan_modes=["low", "high"],
+    )
+    sources.features("climate.auto")
+    data["climate.auto"] = State("climate.auto", "unavailable", {})
+    assert sources.state("climate.auto") is None
+    assert sources.attr("climate.auto", "min_temp") == 10.0
+    assert sources.attr("climate.auto", "max_temp") == 28.0
+    assert sources.attr("climate.auto", "target_temp_step") == 0.5
+    assert sources.attr("climate.auto", "fan_modes") == ["low", "high"]
+    assert sources.attr("climate.auto", "hvac_modes") == ["off", "auto"]
+    # Not a capability: unknown while away.
+    assert sources.attr("climate.auto", "temperature") is None
+    assert TARGET in sources.features("climate.auto")
+
+
+def test_known_last_seen_wins() -> None:
+    """A usable source showing other values replaces them."""
+    known = KnownCapabilities(["climate.a"])
+    known.record("climate.a", State("climate.a", "heat", {"min_temp": 7, "fan_modes": ["a"]}))
+    known.record("climate.a", State("climate.a", "heat", {"min_temp": 12}))
+    assert known.get("climate.a", "min_temp") == 12
+    assert known.get("climate.a", "fan_modes") is None
+    # Away: nothing changes.
+    known.record("climate.a", State("climate.a", "unavailable", {}))
+    known.record("climate.a", State("climate.a", "unknown", {}))
+    assert known.get("climate.a", "min_temp") == 12
+    # Not configured: ignored.
+    known.record("climate.b", State("climate.b", "heat", {"min_temp": 7}))
+    assert not known.seen("climate.b")
+
+
+def test_known_restore() -> None:
+    """Restored for the configured sources not seen yet, bad values dropped."""
+    known = KnownCapabilities(["climate.a", "climate.b"])
+    known.record("climate.b", State("climate.b", "heat", {"min_temp": 15}))
+    known.restore(
+        {
+            "known": {
+                "climate.a": {"min_temp": 5, "max_temp": "x", "fan_modes": ["low", 1]},
+                "climate.b": {"min_temp": 7},
+                "climate.old": {"min_temp": 7},
+            }
+        }
+    )
+    assert known.get("climate.a", "min_temp") == 5
+    assert known.get("climate.a", "max_temp") is None
+    assert known.get("climate.a", "fan_modes") is None
+    # Seen since the start: kept.
+    assert known.get("climate.b", "min_temp") == 15
+    assert "climate.old" not in known.as_dict()["known"]
+    known.restore({"known": "bad"})
+    assert known.get("climate.a", "min_temp") == 5

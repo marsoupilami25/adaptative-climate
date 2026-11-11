@@ -8,6 +8,12 @@ sources each time.
   HEAT_COOL even if the sources still show off or the other phase; and
   while the source of the phase is unavailable (phase_lost), with no
   source running.
+- waiting, waiting_mode, selected: a mode whose source became
+  unavailable while it ran is waited for (the entity shows an unknown
+  mode, with the targets and settings of that mode) until its source is
+  back, another source runs, or the user picks a mode. Not for the
+  combined HEAT_COOL, which stays HEAT_COOL (see current). selected is
+  the current mode, else the one waited for. Saved across restarts.
 - source_mode, active_mode / active_source, display_mode /
   display_source: what is sent to the source, the source mode of the
   current mode and its source, the one read for display (the active one,
@@ -36,6 +42,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
+from typing import Any
 
 from homeassistant.components.climate import ATTR_HVAC_MODE, HVACMode
 from homeassistant.exceptions import ServiceValidationError
@@ -82,6 +89,72 @@ class ModeTracker:
         self.last_on_mode: HVACMode | None = None
         # Source, mode asked of it and when, until the source shows it.
         self._request: tuple[str, HVACMode, datetime] | None = None
+        # Source that became unavailable while the entity ran with it, the
+        # mode it runs in and the mode of the entity: back in that mode, it
+        # gets the targets and settings of the entity.
+        self.waiting: tuple[str, HVACMode, HVACMode] | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return the mode waited for, saved across restarts."""
+        return {"waiting": list(self.waiting) if self.waiting is not None else None}
+
+    def restore(self, data: dict[str, Any]) -> None:
+        """Read the mode waited for before a restart, if its source still serves it."""
+        raw = data.get("waiting")
+        if not isinstance(raw, list) or len(raw) != 3:
+            return
+        entity_id, source_mode, mode = raw
+        if (
+            source_mode in self._sources.mode_sources
+            and self._sources.mode_sources[source_mode] == entity_id
+            and mode in self._profiles
+        ):
+            self.waiting = (entity_id, HVACMode(source_mode), HVACMode(mode))
+
+    @property
+    def waiting_mode(self) -> HVACMode | None:
+        """Return the mode waited for: its source is away and no source runs.
+
+        The combined HEAT_COOL is never waited for: it stays HEAT_COOL.
+        """
+        if self.waiting is None:
+            return None
+        entity_id, _, mode = self.waiting
+        if (
+            mode is HVACMode.HEAT_COOL and self._phase.enabled
+        ) or self._sources.state(entity_id) is not None:
+            return None
+        if self._sources.running_mode() is not HVACMode.OFF:
+            return None
+        return mode
+
+    def selected(self) -> HVACMode:
+        """Return the mode the user is in: the current one, else the one waited for."""
+        return self.waiting_mode or self.current()
+
+    def selected_source_mode(self) -> HVACMode | None:
+        """Return the source mode of the selected mode (None when off)."""
+        mode = self.source_mode(self.selected())
+        return mode if mode in self._sources.mode_sources else None
+
+    def selected_source(self) -> str | None:
+        """Return the source of the selected mode (None when off)."""
+        return self._sources.mode_sources.get(self.source_mode(self.selected()))
+
+    def missing_sources(self) -> list[str]:
+        """Return the sources of the selected mode that are unavailable.
+
+        Both sources of the combined HEAT_COOL count.
+        """
+        mode = self.selected()
+        if mode is HVACMode.OFF:
+            return []
+        missing: list[str] = []
+        for source_mode in self.profile(mode).source_modes():
+            entity_id = self._sources.mode_sources[source_mode]
+            if self._sources.state(entity_id) is None and entity_id not in missing:
+                missing.append(entity_id)
+        return missing
 
     @property
     def switching(self) -> bool:
@@ -190,11 +263,12 @@ class ModeTracker:
     def temperature_range(self) -> tuple[float, float]:
         """Return the range of the entity.
 
-        On: the range of the sources of the current mode (heat and cool for
-        the combined HEAT_COOL). Off: the widest range of the sources. Each
-        source minus its offset, narrowed by the configured limits.
+        On, or waiting for a mode: the range of the sources of that mode
+        (heat and cool for the combined HEAT_COOL), known from when they
+        were last usable. Off: the widest range of the sources. Each source
+        minus its offset, narrowed by the configured limits.
         """
-        mode = self.current()
+        mode = self.selected()
         return self._sources.limited_range(
             list(self._sources.mode_sources)
             if mode is HVACMode.OFF

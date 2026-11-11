@@ -35,8 +35,8 @@ TargetSync uses the TargetStore and the profiles to:
   sent again (resync).
 - Show (shown): what the entity shows in each target attribute. A target
   the active source gets is read from it, except during the settle time.
-  Off, low/high are shown when supported, else the targets of the mode
-  turn_on goes to.
+  Waiting for the source of a mode, the targets of that mode. Off, low/high
+  are shown when supported, else the targets of the mode turn_on goes to.
 - Gaps (gaps): the targets shown otherwise than kept, for the target gap
   sensor.
 """
@@ -137,8 +137,15 @@ class TargetSync:
         """Return which target each target attribute of the active source gets."""
         return self._modes.profile(self._modes.current()).target_map(self._phase.phase)
 
+    def selected_mapping(self) -> dict[str, str]:
+        """Return the target map of the selected mode (also the one waited for)."""
+        return self._modes.profile(self._modes.selected()).target_map(self._phase.phase)
+
     def target_modes(self, target: str) -> list[HVACMode]:
-        """Return the source modes a target goes to, in any mode, with a usable source.
+        """Return the source modes a target goes to, in any mode, with a known source.
+
+        A source away counts with what it offered when last usable; one
+        never seen does not.
 
         Low goes to heat, high to cool, low/high to the sources that have
         them (HEAT_COOL, auto), the single target to the others (dry, and
@@ -148,7 +155,10 @@ class TargetSync:
         for mode in self._modes.modes[1:]:
             for source_mode in self._modes.profile(mode).target_modes(target):
                 entity_id = self._sources.mode_sources[source_mode]
-                if source_mode not in found and self._sources.state(entity_id) is not None:
+                if source_mode not in found and (
+                    self._sources.state(entity_id) is not None
+                    or self._sources.known(entity_id)
+                ):
                     found.append(source_mode)
         return found
 
@@ -162,7 +172,7 @@ class TargetSync:
 
         On the step of the entity: to the nearest step, or away from the
         other target (outward: low down, high up, so a gap is kept). Then in
-        the widest range of the usable sources it goes to (see target_modes),
+        the widest range of the known sources it goes to (see target_modes),
         narrowed by the configured limits: a value one of them can reach. A
         source that cannot reach it gets it in its own range (see applied),
         the kept value stays.
@@ -496,14 +506,14 @@ class TargetSync:
 
     def shown_target(self, attr: str, range_supported: bool) -> str | None:
         """Return the target a target attribute of the entity shows, if any (see shown)."""
-        mode = self._modes.current()
+        mode = self._modes.selected()
         if mode is HVACMode.OFF and range_supported:
             # Off, both setpoints are shown, to be set before turning on.
             return None if attr == ATTR_TEMPERATURE else attr
         if mode is HVACMode.OFF:
             # No low/high targets: those of the mode turn_on goes to.
             mode = self._modes.next_mode()
-        return self._modes.profile(mode).shown_target(attr, self.mapping())
+        return self._modes.profile(mode).shown_target(attr, self.selected_mapping())
 
     def shown(self, attr: str, range_supported: bool) -> float | None:
         """Return a target attribute as shown by the entity.
@@ -511,9 +521,10 @@ class TargetSync:
         Heat shows the low target as the single target and cool the high one;
         the low/high attributes are empty. HEAT_COOL shows low/high and no
         single target. Fan only shows none. Dry and auto show the targets
-        their source has (auto: low/high first). While off, the low/high
-        targets are shown when the entity has them (range_supported), else
-        the targets of the mode turn_on goes to.
+        their source has (auto: low/high first). Waiting for the source of
+        a mode, the targets of that mode, as its source would get them.
+        While off, the low/high targets are shown when the entity has them
+        (range_supported), else the targets of the mode turn_on goes to.
 
         The entity shows its own targets, on its step, not as the sources
         get them (rounded to their step): a target changed on the active
@@ -532,9 +543,9 @@ class TargetSync:
         value = self._store[target]
         if value is None:
             return None
-        active_mode = self._modes.active_mode()
-        if active_mode is not None and target in self.mapping().values():
-            return self._sources.clamp(value, [active_mode], limits=False)
+        source_mode = self._modes.selected_source_mode()
+        if source_mode is not None and target in self.selected_mapping().values():
+            return self._sources.clamp(value, [source_mode], limits=False)
         modes = self.target_modes(target)
         if not modes:
             return self._modes.fit(value, None)

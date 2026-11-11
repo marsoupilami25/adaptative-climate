@@ -11,9 +11,15 @@ Home Assistant properties.
 - Combined HEAT_COOL: the phase is chosen by wanted_phase and switched in
   the background, under the mode lock. A new phase is held for the minimum
   phase duration, unless the user sets new targets.
+- Waiting: the source of the mode became unavailable. The mode is unknown
+  (hvac_mode None), the entity shows the targets, range and settings of
+  the mode waited for, and keeps the changes for its source (see
+  ModeTracker.waiting). The combined HEAT_COOL stays HEAT_COOL.
 - Commands: set_temperature (targets, optional mode), set_hvac_mode,
-  turn_on/off, fan and swing (sent to the active source).
+  turn_on/off, fan and swing (sent to the active source, or remembered
+  for the mode when no source can get them).
 - Restore: the parts save and read their own data; the entity merges it.
+  What the sources offer is kept by the coordinator (coordinator.known).
 """
 
 from __future__ import annotations
@@ -22,11 +28,8 @@ import logging
 from typing import Any
 
 from homeassistant.components.climate import (
-    ATTR_FAN_MODE,
     ATTR_HVAC_ACTION,
     ATTR_HVAC_MODE,
-    ATTR_SWING_HORIZONTAL_MODE,
-    ATTR_SWING_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     ClimateEntity,
@@ -129,16 +132,14 @@ class AdaptativeClimateEntity(
         # The next state write is sent even when nothing changed (see
         # async_set_temperature).
         self._force_write = False
-        # Active source that became unavailable, and its mode: back in that
-        # mode, it gets the targets of the entity (see _observe_sources).
-        self._lost: tuple[str, HVACMode] | None = None
 
     async def async_added_to_hass(self) -> None:
-        """Restore the sources seen with low/high, the settings, targets and phase."""
+        """Restore what the sources offer, the settings, targets, phase and mode waited for."""
         await super().async_added_to_hass()
         if (last := await self.async_get_last_extra_data()) is not None:
             data = last.as_dict()
-            self._sources.restore(data)
+            self.coordinator.async_restore_known(data)
+            self._modes.restore(data)
             self._memory.restore(data)
             self._target_store.restore(data)
             self._targets.apply_gap([ATTR_TARGET_TEMP_LOW])
@@ -155,10 +156,11 @@ class AdaptativeClimateEntity(
 
     @property
     def extra_restore_state_data(self) -> RestoredExtraData:
-        """Save the sources seen with low/high, the settings, targets and phase."""
+        """Save what the sources offer, the settings, targets, phase and mode waited for."""
         return RestoredExtraData(
             {
-                **self._sources.as_dict(),
+                **self.coordinator.known.as_dict(),
+                **self._modes.as_dict(),
                 **self._memory.as_dict(),
                 **self._target_store.as_dict(),
                 **self._phase.as_dict(),
@@ -211,32 +213,40 @@ class AdaptativeClimateEntity(
 
         before = None if previous is None or previous[0] != key else previous[1]
         # Entering a mode: asked by this entity, or the active source back
-        # in its mode after being unavailable, which get the targets of the
-        # entity. Otherwise the source was turned on elsewhere (remote, app),
-        # and gives its targets.
+        # in its mode after being unavailable, which get the targets (and
+        # the settings) of the entity. Otherwise the source was turned on
+        # elsewhere (remote, app), and gives its targets.
         requested = False
         if before is None:
-            back = self._lost == (source, source_mode)
-            self._lost = None
+            waiting = self._modes.waiting
+            back = waiting is not None and waiting[:2] == (source, source_mode)
+            self._modes.waiting = None
             requested = self._modes.take_request(source, source_mode) or back
+            if back:
+                self.coordinator.config_entry.async_create_task(
+                    self.hass,
+                    self._memory.async_send(source_mode, source),
+                    f"{DOMAIN} settings {source}",
+                )
         self._memory.observe(source_mode, values, before)
         self._targets.observe(key, source_mode, values, before, requested=requested)
 
     @callback
     def _follow_lost(self) -> None:
-        """Remember the active source when it becomes unavailable.
+        """Wait for the active source when it becomes unavailable.
 
         Forgotten once it is back in another mode or off (it was changed
         meanwhile), or when the user switches modes.
         """
+        waiting = self._modes.waiting
         if self._observed is not None:
             key = self._observed[0]
             source_mode = key[1] or key[0]
             entity_id = self._sources.mode_sources.get(source_mode)
             if entity_id is not None and self._sources.state(entity_id) is None:
-                self._lost = (entity_id, source_mode)
-        elif self._lost is not None and self._sources.state(self._lost[0]) is not None:
-            self._lost = None
+                self._modes.waiting = (entity_id, source_mode, key[0])
+        elif waiting is not None and self._sources.state(waiting[0]) is not None:
+            self._modes.waiting = None
 
     # Combined HEAT_COOL
 
@@ -305,13 +315,15 @@ class AdaptativeClimateEntity(
 
     @callback
     def async_write_ha_state(self) -> None:
-        """Tell the sensors the target mismatches and gaps, then write the state.
+        """Tell the sensors the target mismatches, gaps and missing sources, then write the state.
 
         The monitoring gets the targets the source does not show, the target
-        gap sensor those shown otherwise than kept.
+        gap sensor those shown otherwise than kept, the source unavailable
+        sensor the sources of the selected mode that are unavailable.
         """
         self.coordinator.async_set_target_mismatches(self._targets.mismatches())
         self.coordinator.async_set_target_gaps(self._targets.gaps(self._range_supported()))
+        self.coordinator.async_set_missing_sources(self._modes.missing_sources())
         super().async_write_ha_state()
 
     # Entity properties
@@ -407,8 +419,10 @@ class AdaptativeClimateEntity(
         return self._modes.temperature_range()[1]
 
     @property
-    def hvac_mode(self) -> HVACMode:
-        """Return the current mode."""
+    def hvac_mode(self) -> HVACMode | None:
+        """Return the current mode, unknown (None) while waiting for the source of a mode."""
+        if self._modes.waiting_mode is not None:
+            return None
         return self._modes.current()
 
     @property
@@ -418,7 +432,9 @@ class AdaptativeClimateEntity(
 
     @property
     def hvac_action(self) -> HVACAction | None:
-        """Return the current action of the active source."""
+        """Return the current action of the active source (unknown while waiting)."""
+        if self._modes.waiting_mode is not None:
+            return None
         if self._modes.current() is HVACMode.OFF:
             return HVACAction.OFF
 
@@ -434,15 +450,44 @@ class AdaptativeClimateEntity(
         """Read an attribute from the active source."""
         return self._sources.attr(self._modes.active_source(), attr)
 
+    def _setting_mode(self) -> HVACMode | None:
+        """Return the mode whose settings are shown.
+
+        The selected mode (waited for too). Off, the first mode when every
+        mode is synchronized (they share their settings), else none.
+        """
+        mode = self._modes.selected()
+        if mode is not HVACMode.OFF:
+            return self._modes.selected_source_mode()
+        if self._memory.all_synchronized():
+            return next(iter(self._sources.mode_sources), None)
+        return None
+
     def _setting_options(self, setting: Setting) -> list[Any]:
-        """Return the options of the active source for a setting (empty when off or missing)."""
-        return self._memory.options(self._modes.active_source(), setting)
+        """Return the options shown for a setting (empty when none).
+
+        Those of the source of the selected mode, known from when it was
+        last usable while it is away. Off, the options shared by the sources
+        when every mode is synchronized, else none.
+        """
+        if self._modes.selected() is HVACMode.OFF:
+            if self._memory.all_synchronized():
+                return self._memory.shared_options(setting)
+            return []
+        return self._memory.options(self._modes.selected_source(), setting)
 
     def _setting_value(self, setting: Setting) -> Any:
-        """Return the value of the active source for a setting, None when it has no option."""
+        """Return the value shown for a setting, None when it has no option.
+
+        That of the active source; with no source running (waiting, or off
+        with every mode synchronized), the one remembered for the mode.
+        """
         if not self._setting_options(setting):
             return None
-        return self._active_attr(setting.attr)
+        if self._modes.active_source() is not None and self._modes.waiting_mode is None:
+            return self._active_attr(setting.attr)
+        mode = self._setting_mode()
+        return None if mode is None else self._memory.value(mode, setting)
 
     @property
     def fan_mode(self) -> str | None:
@@ -518,7 +563,7 @@ class AdaptativeClimateEntity(
                 translation_key="unsupported_hvac_mode",
                 translation_placeholders={"hvac_mode": str(hvac_mode)},
             )
-        mode = HVACMode(hvac_mode) if hvac_mode is not None else self._modes.current()
+        mode = HVACMode(hvac_mode) if hvac_mode is not None else self._modes.selected()
         if mode is HVACMode.OFF:
             mode = self._modes.next_mode()
         self._targets.set(
@@ -526,7 +571,7 @@ class AdaptativeClimateEntity(
             mode,
         )
 
-        if hvac_mode is not None and HVACMode(hvac_mode) != self._modes.current():
+        if hvac_mode is not None and HVACMode(hvac_mode) != self._modes.selected():
             await self.async_set_hvac_mode(HVACMode(hvac_mode))
         elif self._modes.current() is not HVACMode.OFF:
             self._check_phase(forced=True)
@@ -541,12 +586,12 @@ class AdaptativeClimateEntity(
             self._force_write = False
 
     def _check_setting(self, setting: Setting) -> None:
-        """Refuse a fan or swing change the current mode does not offer.
+        """Refuse a fan or swing change the selected mode does not offer.
 
         Runs before the check of Home Assistant, whose message would only
         list no valid option.
         """
-        if self._modes.active_source() is None:
+        if self._setting_mode() is None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="no_active_mode",
@@ -555,7 +600,7 @@ class AdaptativeClimateEntity(
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="setting_not_in_mode",
-                translation_placeholders={"hvac_mode": str(self._modes.current())},
+                translation_placeholders={"hvac_mode": str(self._modes.selected())},
             )
 
     async def async_handle_set_fan_mode_service(self, fan_mode: str) -> None:
@@ -576,29 +621,46 @@ class AdaptativeClimateEntity(
         await super().async_handle_set_swing_horizontal_mode_service(swing_horizontal_mode)
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
-        """Set the fan mode of the active source.
+        """Set the fan mode of the active source (or remember it, see _async_set_setting).
 
         Home Assistant has already checked that fan_mode is in fan_modes.
         """
-        await self._async_source_call("set_fan_mode", {ATTR_FAN_MODE: fan_mode})
+        await self._async_set_setting(FAN, fan_mode)
 
     async def async_set_swing_mode(self, swing_mode: str) -> None:
-        """Set the swing mode of the active source.
+        """Set the swing mode of the active source (or remember it, see _async_set_setting).
 
         Home Assistant has already checked that swing_mode is in swing_modes.
         """
-        await self._async_source_call("set_swing_mode", {ATTR_SWING_MODE: swing_mode})
+        await self._async_set_setting(SWING, swing_mode)
 
     async def async_set_swing_horizontal_mode(self, swing_horizontal_mode: str) -> None:
-        """Set the horizontal swing mode of the active source.
+        """Set the horizontal swing mode of the active source (or remember it).
 
         Home Assistant has already checked that swing_horizontal_mode is in
         swing_horizontal_modes.
         """
-        await self._async_source_call(
-            "set_swing_horizontal_mode",
-            {ATTR_SWING_HORIZONTAL_MODE: swing_horizontal_mode},
-        )
+        await self._async_set_setting(SWING_HORIZONTAL, swing_horizontal_mode)
+
+    async def _async_set_setting(self, setting: Setting, value: str) -> None:
+        """Send a fan or swing value to the active source.
+
+        With no source running (waiting for the source of the mode, or off
+        with every mode synchronized), it is remembered for the mode and
+        sent to its source when the mode starts.
+        """
+        source = self._modes.active_source()
+        if source is not None and self._modes.waiting_mode is None:
+            await self._sources.async_call(setting.service, source, {setting.attr: value})
+            return
+        mode = self._setting_mode()
+        if mode is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="no_active_mode",
+            )
+        self._memory.remember(mode, setting, value)
+        self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Switch to a mode.
@@ -617,7 +679,7 @@ class AdaptativeClimateEntity(
         """
         if hvac_mode is not HVACMode.OFF:
             self._modes.check(hvac_mode)
-        self._lost = None
+        self._modes.waiting = None
 
         async with self._modes.lock:
             if hvac_mode is HVACMode.HEAT_COOL and self._phase.enabled:
@@ -641,8 +703,11 @@ class AdaptativeClimateEntity(
         self.async_write_ha_state()
 
     async def async_turn_on(self) -> None:
-        """Turn on in the last used mode, else the first configured mode."""
-        if self._modes.current() is not HVACMode.OFF:
+        """Turn on in the last used mode, else the first configured mode.
+
+        Nothing to do while on, or waiting for the source of a mode.
+        """
+        if self._modes.selected() is not HVACMode.OFF:
             return
 
         mode = self._modes.next_mode()
@@ -652,13 +717,3 @@ class AdaptativeClimateEntity(
     async def async_turn_off(self) -> None:
         """Turn off every source that is on."""
         await self.async_set_hvac_mode(HVACMode.OFF)
-
-    async def _async_source_call(self, service: str, data: dict[str, Any]) -> None:
-        """Call a climate service on the active source, or refuse it when off."""
-        source = self._modes.active_source()
-        if source is None:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="no_active_mode",
-            )
-        await self._sources.async_call(service, source, data)

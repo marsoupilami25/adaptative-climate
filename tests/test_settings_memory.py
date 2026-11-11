@@ -14,7 +14,9 @@ from pytest_homeassistant_custom_component.common import (
 from homeassistant.components.climate import (
     ATTR_FAN_MODE,
     ATTR_FAN_MODES,
+    ATTR_SWING_HORIZONTAL_MODES,
     ATTR_SWING_MODE,
+    ATTR_SWING_MODES,
     DOMAIN as CLIMATE_DOMAIN,
     SERVICE_SET_FAN_MODE,
     SERVICE_SET_HVAC_MODE,
@@ -24,7 +26,7 @@ from homeassistant.components.climate import (
 )
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_SUPPORTED_FEATURES, CONF_NAME
 from homeassistant.core import HomeAssistant, State
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.setup import async_setup_component
 
 from custom_components.adaptative_climate.const import (
@@ -301,6 +303,32 @@ async def test_sync_ignores_source_without_the_setting(hass: HomeAssistant) -> N
     )
 
 
+async def test_off_all_synchronized_shows_shared_options(hass: HomeAssistant) -> None:
+    """Off with every mode synchronized: the shared options, a choice kept for the next mode."""
+    ac = _ac()
+    await _setup(hass, [_heat_pump(), ac], HEAT_PUMP, sync=["heat", "cool", "dry"])
+
+    attrs = hass.states.get(ENTITY_ID).attributes
+    assert attrs[ATTR_FAN_MODES] == ["Auto", "Low", "Medium", "High"]
+    assert attrs[ATTR_SWING_MODES] == ["Off", "On"]
+
+    await _call(hass, SERVICE_SET_FAN_MODE, fan_mode="Low")
+    assert hass.states.get(ENTITY_ID).attributes[ATTR_FAN_MODE] == "Low"
+    assert _fan_calls(ac) == []
+
+    await _mode(hass, HVACMode.COOL)
+    assert _fan_calls(ac) == ["low"]
+
+
+async def test_off_not_all_synchronized_shows_nothing(hass: HomeAssistant) -> None:
+    """Off with a mode not synchronized: no option, a change is refused."""
+    await _setup(hass, [_heat_pump(), _ac()], HEAT_PUMP, sync=["heat", "cool"])
+
+    assert hass.states.get(ENTITY_ID).attributes[ATTR_FAN_MODES] == []
+    with pytest.raises(ServiceValidationError):
+        await _call(hass, SERVICE_SET_FAN_MODE, fan_mode="low")
+
+
 async def test_settings_restored_after_restart(hass: HomeAssistant) -> None:
     """The remembered settings survive a restart."""
     mock_restore_cache_with_extra_data(
@@ -383,21 +411,24 @@ def _features(hass: HomeAssistant) -> ClimateEntityFeature:
     )
 
 
-def _offered(hass: HomeAssistant) -> dict[str, list[str]]:
-    """Return the settings offered by each source, as the entity would save them."""
+def _known(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
+    """Return what each source offers, as the entity would save it."""
     entity = hass.data[CLIMATE_DOMAIN].get_entity(ENTITY_ID)
-    return entity.extra_restore_state_data.as_dict()["offered"]
+    return entity.extra_restore_state_data.as_dict()["known"]
 
 
 async def test_offered_settings_saved(hass: HomeAssistant) -> None:
-    """The settings each source offers are saved, also for a source without any."""
+    """The options each source offers are saved, also for a source without any."""
     await _setup(hass, [_heater(), _ac()], HEATER)
 
-    assert _offered(hass) == {AC: [ATTR_FAN_MODE, ATTR_SWING_MODE], HEATER: []}
+    known = _known(hass)
+    assert known[AC][ATTR_FAN_MODES] == ["auto", "low", "medium", "high"]
+    assert known[AC][ATTR_SWING_MODES] == ["off", "on"]
+    assert known[HEATER][ATTR_FAN_MODES] is None
 
 
 async def test_offered_settings_restored_after_restart(hass: HomeAssistant) -> None:
-    """A source unavailable at startup keeps the settings it offered before.
+    """A source unavailable at startup keeps the options it offered before.
 
     A source no longer configured is neither counted nor saved.
     """
@@ -407,10 +438,14 @@ async def test_offered_settings_restored_after_restart(hass: HomeAssistant) -> N
             (
                 State(ENTITY_ID, HVACMode.OFF),
                 {
-                    "offered": {
-                        AC: [ATTR_FAN_MODE, ATTR_SWING_MODE, "bad"],
-                        "climate.old": ["swing_horizontal_mode"],
-                        HEATER: "bad",
+                    "known": {
+                        AC: {
+                            ATTR_SUPPORTED_FEATURES: int(AC_FEATURES),
+                            ATTR_FAN_MODES: ["low", "high"],
+                            ATTR_SWING_MODES: ["off", "on"],
+                            ATTR_SWING_HORIZONTAL_MODES: "bad",
+                        },
+                        "climate.old": {ATTR_SWING_HORIZONTAL_MODES: ["on"]},
                     }
                 },
             ),
@@ -423,8 +458,12 @@ async def test_offered_settings_restored_after_restart(hass: HomeAssistant) -> N
     assert ClimateEntityFeature.FAN_MODE in features
     assert ClimateEntityFeature.SWING_MODE in features
     assert ClimateEntityFeature.SWING_HORIZONTAL_MODE not in features
+    # Off: no option shown.
     assert hass.states.get(ENTITY_ID).attributes[ATTR_FAN_MODES] == []
-    assert _offered(hass) == {AC: [ATTR_FAN_MODE, ATTR_SWING_MODE], HEATER: []}
+    known = _known(hass)
+    assert known[AC][ATTR_FAN_MODES] == ["low", "high"]
+    assert ATTR_SWING_HORIZONTAL_MODES not in known[AC]
+    assert "climate.old" not in known
 
 
 async def test_offered_settings_unknown_without_restore(hass: HomeAssistant) -> None:
@@ -432,7 +471,7 @@ async def test_offered_settings_unknown_without_restore(hass: HomeAssistant) -> 
     await _setup(hass, [_heater()], HEATER)
 
     assert ClimateEntityFeature.FAN_MODE not in _features(hass)
-    assert _offered(hass) == {HEATER: []}
+    assert AC not in _known(hass)
 
 
 async def test_source_error_does_not_fail_mode_change(

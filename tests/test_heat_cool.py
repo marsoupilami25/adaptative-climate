@@ -1334,6 +1334,30 @@ async def test_combined_kept_while_phase_source_unavailable(
 
 
 @pytest.mark.usefixtures("combined")
+async def test_combined_source_unavailable_keeps_mode_and_range(
+    hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
+) -> None:
+    """A source of the combined mode away: still heat_cool, same range, sensor on."""
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    before = _attrs(hass)
+
+    for entity_id, source, mode in ((AC, ac, HVACMode.OFF), (HEATER, heater, HVACMode.HEAT)):
+        await _lose(hass, entity_id)
+        attrs = _attrs(hass)
+        assert _state(hass) == HVACMode.HEAT_COOL
+        assert (attrs["min_temp"], attrs["max_temp"]) == (
+            before["min_temp"],
+            before["max_temp"],
+        )
+        sensor = hass.states.get("binary_sensor.living_room_source_unavailable")
+        assert sensor.state == STATE_ON
+        assert sensor.attributes["entity_ids"] == [entity_id]
+
+        await _back(hass, source, mode, 19.0)
+        assert _state(hass, "binary_sensor.living_room_source_unavailable") == STATE_OFF
+
+
+@pytest.mark.usefixtures("combined")
 async def test_combined_ends_when_phase_source_back_off(
     hass: HomeAssistant, heater: FakeClimate
 ) -> None:

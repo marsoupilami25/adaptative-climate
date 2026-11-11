@@ -18,11 +18,13 @@ them back when the entity switches to it.
 - restore / as_dict: saved across restarts, for the configured modes only.
 - by_mode: shown by the entity, per configured mode.
 - options: what a source offers for a setting, also used by the entity
-  for the options it shows.
-- offered_features: the settings at least one source offers, kept while a
-  source is unavailable (its last known options) and across restarts, so
-  the entity features only change when a usable source changes. Unknown
-  only for a source never seen.
+  for the options it shows. A source away offers what it offered when
+  last usable, also before a restart (see KnownCapabilities).
+- offered_features: the settings at least one source offers.
+- shared_options: the options shown while off when every mode is
+  synchronized.
+- remember: a value chosen while no source can get it (off, or the
+  source of the mode away), sent when the mode starts again.
 """
 
 from __future__ import annotations
@@ -54,12 +56,9 @@ class SettingsMemory:
         self._coordinator = coordinator
         self._sources = sources
         self._data: MemoryData = {}
-        # Settings each source offered when last usable.
-        self._offered: dict[str, ClimateEntityFeature] = {}
 
     def restore(self, data: dict[str, Any]) -> None:
         """Read the settings saved before a restart, dropping bad values."""
-        self._restore_offered(data.get("offered"))
         raw = data.get("memory")
         if not isinstance(raw, dict):
             self._data = {}
@@ -75,38 +74,15 @@ class SettingsMemory:
             if isinstance(values, dict)
         }
 
-    def _restore_offered(self, raw: Any) -> None:
-        """Read the settings each source offered before a restart, dropping bad values."""
-        self._offered = {}
-        if not isinstance(raw, dict):
-            return
-        for entity_id, attrs in raw.items():
-            if not isinstance(attrs, list):
-                continue
-            offered = ClimateEntityFeature(0)
-            for setting in SETTINGS:
-                if setting.attr in attrs:
-                    offered |= setting.feature
-            self._offered[entity_id] = offered
-
     def as_dict(self) -> dict[str, Any]:
         """Return the data saved across restarts: the configured modes and sources only."""
         sync = self._coordinator.sync_modes
         keys = {str(mode) for mode in self._sources.mode_sources if mode not in sync}
         if sync:
             keys.add(SYNC_KEY)
-        entity_ids = set(self._sources.mode_sources.values())
         return {
             "memory": {
                 key: values for key, values in self._data.items() if key in keys and values
-            },
-            # Settings each source offers, by attribute name.
-            "offered": {
-                entity_id: [
-                    setting.attr for setting in SETTINGS if setting.feature in offered
-                ]
-                for entity_id, offered in self._offered.items()
-                if entity_id in entity_ids
             },
         }
 
@@ -133,26 +109,59 @@ class SettingsMemory:
     def offered_features(self) -> ClimateEntityFeature:
         """Return the fan and swing features at least one source offers.
 
-        An unusable source counts with what it offered when last usable,
-        even before a restart: the entity keeps showing the setting, without
-        options, while it is away.
+        A source away counts with what it offered when last usable, even
+        before a restart: the features only change when a source shows
+        other options.
         """
         features = ClimateEntityFeature(0)
         for entity_id in set(self._sources.mode_sources.values()):
-            if self._sources.state(entity_id) is not None:
-                offered = ClimateEntityFeature(0)
-                for setting in SETTINGS:
-                    if self.options(entity_id, setting):
-                        offered |= setting.feature
-                self._offered[entity_id] = offered
-            features |= self._offered.get(entity_id, ClimateEntityFeature(0))
+            for setting in SETTINGS:
+                if self.options(entity_id, setting):
+                    features |= setting.feature
         return features
+
+    def all_synchronized(self) -> bool:
+        """Return True when every configured mode shares the settings."""
+        modes = set(self._sources.mode_sources)
+        return bool(modes) and modes <= self._coordinator.sync_modes
+
+    def shared_options(self, setting: Setting) -> list[Any]:
+        """Return the options shared by the synchronized sources, as the first one spells them.
+
+        Shown while off when every mode is synchronized.
+        """
+        common = self.common_options(setting)
+        found: list[Any] = []
+        for mode in self._sources.mode_sources:
+            if mode not in self._coordinator.sync_modes:
+                continue
+            for option in self.options(self._sources.mode_sources[mode], setting):
+                if (
+                    isinstance(option, str)
+                    and option.lower() in common
+                    and not any(same_value(option, other) for other in found)
+                ):
+                    found.append(option)
+        return found
+
+    def value(self, mode: HVACMode, setting: Setting) -> str | None:
+        """Return the remembered value of a setting for a mode."""
+        return self._data.get(self.key(mode), {}).get(setting.attr)
+
+    def remember(self, mode: HVACMode, setting: Setting, value: str) -> None:
+        """Remember a value chosen while no source can get it, for a mode.
+
+        Sent to its source when the mode starts (see async_send).
+        """
+        if self.can_remember(mode, setting, value):
+            self._data.setdefault(self.key(mode), {})[setting.attr] = value
 
     def common_options(self, setting: Setting) -> set[str]:
         """Return the options, in lower case, shared by the synchronized sources.
 
-        Only the usable sources that offer the setting count: a radiator
-        without a fan does not empty the fan options of the others.
+        Only the sources that offer the setting count (a source away with
+        what it offered when last usable): a radiator without a fan does
+        not empty the fan options of the others.
         """
         common: set[str] | None = None
         mode_sources = self._sources.mode_sources

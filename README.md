@@ -74,7 +74,8 @@ turned off.
 
 A source must offer the modes it serves. The configuration checks it, except
 for a source that is still starting or unavailable, so it is checked again
-whenever a source becomes usable. A mode its source does not offer stays
+whenever a source becomes usable. A source unavailable later is judged on the
+modes it offered when last usable. A mode its source does not offer stays
 listed, appears in the `unavailable_modes` attribute (like a mode whose source
 is unavailable) and raises a Repairs issue, removed once the source offers it.
 Switching to that mode is refused before anything is turned off.
@@ -92,7 +93,11 @@ source off like any other.
 Fan, swing and horizontal swing come from the source of the current mode:
 they are shown when that source has them, in any mode, with the options of
 that source, and changes are sent to it. A heat pump used for heating keeps
-its fan; a radiator shows none. When the entity is off, none of them is shown.
+its fan; a radiator shows none. When the entity is off, none of them is
+shown, unless every mode is in `sync_modes`: then the options shared by the
+sources are shown, and a value chosen is sent to the source of the next mode
+started. While the entity waits for an unavailable source, the options of
+that source are shown (see "Source unavailable").
 
 Each mode remembers its settings and sends them back to its source when the
 entity switches to that mode, so a mode finds the settings it was left with.
@@ -294,7 +299,8 @@ source of the current mode, or the widest range of the sources when the
 entity is off. A radiator at 5-30 °C and an AC at 16-32 °C give 5-30 °C
 in heat mode and 16-32 °C in cool mode. The heat/cool mode using the heat
 and cool sources has the widest range of both (5-32 °C); each target is
-still limited to the range of the source it goes to.
+still limited to the range of the source it goes to. An unavailable source
+keeps the range and step it showed (see "Source unavailable").
 
 `min_temp` and `max_temp` are optional limits, empty by default. They can
 only narrow the range of the source, never widen it: `max_temp: 23` keeps
@@ -344,6 +350,37 @@ unchanged, since some devices forget it, and when Home Assistant starts.
 It is converted to the unit of the target and rounded to its step.
 Nothing is written while the room sensor is unavailable, to a target that
 is unavailable, or out of the range of the target (logged as a warning).
+
+### Source unavailable
+
+What a source offers is known once it has been seen: its range and step,
+its features, its fan and swing options and its HVAC modes. They are kept
+while it is unavailable and across restarts, until it shows others, so the
+entity does not change when a source goes away. A source never seen offers
+nothing yet.
+
+When the source of the current mode becomes unavailable (connection lost,
+device restarting), the entity waits for it in that mode:
+
+- its mode is unknown, and it still shows the targets, range and fan and
+  swing settings of that mode;
+- a target or a fan or swing setting changed meanwhile is kept, and sent
+  to the source once it is back in its mode, with the other targets;
+- back in another mode, or off, the source was changed meanwhile: the
+  entity follows it. Another source turned on meanwhile wins;
+- turning the entity off, or switching it to another mode, ends the wait;
+  turning it on does nothing;
+- the wait survives a restart.
+
+The combined heat/cool mode does not wait: it stays heat/cool (see
+"Heat/cool mode"). With a single source, the entity is unavailable while its
+source is. While off, an unavailable source changes nothing.
+
+A problem binary sensor (`binary_sensor.<name>_source_unavailable`) is on
+while a source of the selected mode is unavailable: the one of the current
+mode or of the mode waited for, or either source of the combined heat/cool
+mode. It is off while the entity is off. Its `entity_ids` attribute lists
+those sources.
 
 ### Monitoring
 

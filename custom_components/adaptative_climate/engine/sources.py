@@ -1,15 +1,14 @@
 """Access to the source climate entities.
 
 Sources is the only way the engine reads or commands a source. It reads
-what the coordinator received at its last update; it only keeps the
-sources seen with low/high values (see features), saved across restarts.
+what the coordinator received at its last update, and what the sources
+offered when last usable (coordinator.known, see KnownCapabilities).
 
 - Reading: state, attr, features. A source missing, unknown or
-  unavailable is not usable and reads as None everywhere. Low/high count
-  only when the source uses them (see features).
-- as_dict, restore: the sources seen with low/high values, saved across
-  restarts. Only the configured sources are kept: a new source starts
-  unknown.
+  unavailable is not usable: its state and readings are None, but its
+  capabilities (range, step, features, fan and swing options, HVAC
+  modes) are those it showed when last usable, also before a restart.
+  Low/high count only when the source uses them (see features).
 - running_mode: the mode whose source runs in that same mode, else OFF.
   When several do, the one turned on last wins.
 - foreign_modes: the sources running in a mode they do not serve (set
@@ -28,6 +27,7 @@ sources seen with low/high values (see features), saved across restarts.
 - Step: the step of the entity, the largest one every source step is a
   multiple of (0.5 and 1: 0.5). The targets of the entity are on it
   (round_step); each source gets them rounded to its own step (fit).
+  A source never seen does not count.
 - pair: the low/high targets of the first mode source that has both.
 - room_temperature: the sensor when configured and valid (converted to
   the system unit), else the current temperature of a fallback mode
@@ -73,6 +73,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 
 from ..const import CONF_MAX_TEMP, CONF_MIN_TEMP, entry_settings, mode_offsets
 from ..coordinator import AdaptativeClimateCoordinator, foreign_mode
+from ..known import CAPABILITY_ATTRS
 from .model import PHASES
 from .util import is_number
 
@@ -86,7 +87,8 @@ class Sources:
     """Read and command the source climate entities.
 
     Readings come from the coordinator data: a source missing, unknown or
-    unavailable is not usable, and reads as None.
+    unavailable is not usable, and reads as None, except its capabilities,
+    known from when it was last usable.
     """
 
     def __init__(self, coordinator: AdaptativeClimateCoordinator) -> None:
@@ -99,11 +101,8 @@ class Sources:
         self.entity_ids = coordinator.source_entity_ids
         # Temperature offset of each mode source.
         self._offsets = mode_offsets(entry_settings(coordinator.config_entry))
-        # Sources seen with low/high values: their low/high always count.
-        self._range_seen: set[str] = set()
-        # Last step seen on each source: an unavailable source keeps its
-        # step, so the step of the entity stays the same.
-        self._steps: dict[str, float] = {}
+        # What each source offered when last usable.
+        self._known = coordinator.known
 
     def state(self, entity_id: str | None) -> State | None:
         """Return the state of a source entity, if it is usable."""
@@ -116,16 +115,25 @@ class Sources:
         return state
 
     def attr(self, entity_id: str | None, attr: str) -> Any:
-        """Read an attribute from a source entity."""
+        """Read an attribute from a source entity.
+
+        A capability of a source away is the one it showed when last usable.
+        """
         state = self.state(entity_id)
-        return None if state is None else state.attributes.get(attr)
+        if state is not None:
+            return state.attributes.get(attr)
+        return self._known.get(entity_id, attr) if attr in CAPABILITY_ATTRS else None
+
+    def known(self, entity_id: str | None) -> bool:
+        """Return True when a source has been seen usable once (its capabilities are known)."""
+        return self._known.seen(entity_id)
 
     def features(self, entity_id: str | None) -> ClimateEntityFeature:
         """Return the supported features of a source entity.
 
         A source with both the single target and the low/high feature uses
         low/high only if it has heat_cool, or shows low/high values now or
-        did once (remembered, as a source may hide them while off). A
+        did once (known, as a source may hide them while off). A
         template climate with set_temperature has the low/high feature even
         without low/high templates: its card shows its single target, and
         so does this entity.
@@ -133,38 +141,17 @@ class Sources:
         features = ClimateEntityFeature(
             self.attr(entity_id, ATTR_SUPPORTED_FEATURES) or 0
         )
+        if entity_id is not None:
+            self._known.record(entity_id, self.state(entity_id))
         if (
             entity_id is None
             or _RANGE not in features
             or ClimateEntityFeature.TARGET_TEMPERATURE not in features
-            or entity_id in self._range_seen
+            or self._known.range_seen(entity_id)
             or HVACMode.HEAT_COOL in (self.attr(entity_id, ATTR_HVAC_MODES) or ())
         ):
             return features
-        if is_number(self.attr(entity_id, ATTR_TARGET_TEMP_LOW)) or is_number(
-            self.attr(entity_id, ATTR_TARGET_TEMP_HIGH)
-        ):
-            self._range_seen.add(entity_id)
-            return features
         return features & ~_RANGE
-
-    def as_dict(self) -> dict[str, Any]:
-        """Return the configured sources seen with low/high, saved across restarts."""
-        return {
-            "range_seen": [
-                entity_id
-                for entity_id in self.entity_ids
-                if entity_id in self._range_seen
-            ]
-        }
-
-    def restore(self, data: dict[str, Any]) -> None:
-        """Read the sources seen with low/high before a restart, if still configured."""
-        raw = data.get("range_seen")
-        if isinstance(raw, list):
-            self._range_seen = {
-                entity_id for entity_id in raw if entity_id in self.entity_ids
-            }
 
     def running_mode(self) -> HVACMode:
         """Return the mode whose source runs in that mode, else OFF.
@@ -273,21 +260,21 @@ class Sources:
 
         The largest step every source step is a multiple of: 0.5 and 1 give
         0.5, 0.5 and 0.2 give 0.1. A source without step counts as the
-        step the Home Assistant card gives it (0.5 °C, 1 °F). A source not
-        seen yet does not count; none seen: that default.
+        step the Home Assistant card gives it (0.5 °C, 1 °F). A source away
+        counts with the step it showed when last usable; one never seen does
+        not count; none seen: that default.
         """
         default = DEFAULT_STEP.get(self._hass.config.units.temperature_unit, 0.5)
+        steps: list[float] = []
         for entity_id in self.entity_ids:
-            if self.state(entity_id) is None:
+            if self.state(entity_id) is None and not self._known.seen(entity_id):
                 continue
             value = self.attr(entity_id, ATTR_TARGET_TEMP_STEP)
-            self._steps[entity_id] = (
-                float(value) if is_number(value) and value > 0 else default
-            )
-        if not self._steps:
+            steps.append(float(value) if is_number(value) and value > 0 else default)
+        if not steps:
             return default
         # In thousandths of a degree, to compute it on integers.
-        return math.gcd(*(max(round(step * 1000), 1) for step in self._steps.values())) / 1000
+        return math.gcd(*(max(round(step * 1000), 1) for step in steps)) / 1000
 
     def round_step(self, value: float, direction: int = 0) -> float:
         """Return a value of the room on the step of the entity.

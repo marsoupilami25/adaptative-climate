@@ -219,7 +219,7 @@ views:
       - type: climate-swing-horizontal-modes
       grid_options:
         columns: full
-    # Monitoring and target gap sensors, as lights on one line.
+    # Monitoring, target gap and source unavailable sensors, as lights on one line.
     - type: markdown
       text_only: true
       content: >-
@@ -227,6 +227,8 @@ views:
         {{ light.get(states('binary_sensor.adaptative_manuel_monitoring'), '⚪') }} Monitoring
         &nbsp;&nbsp;&nbsp;
         {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_manuel_target_gap'), '⚪') }} Écart consigne
+        &nbsp;&nbsp;&nbsp;
+        {{ {'on': '🔴', 'off': '🟢'}.get(states('binary_sensor.adaptative_manuel_source_unavailable'), '⚪') }} Source indisponible
       grid_options:
         columns: full
     # Shown only while the active source cannot reach a kept target.
