@@ -9,7 +9,7 @@ testing the mode itself. A profile answers:
 - target_map: which target each target attribute of the source gets,
   as {source attribute: target}.
 - shown_target: which target the entity shows in a target attribute.
-- target_mode: the only source mode a low/high target goes to, if any.
+- target_modes: the source modes a target goes to, in any phase.
 - target_features: the target features the mode uses (single target,
   low/high), which make those of the entity.
 
@@ -80,9 +80,9 @@ class ModeProfile:
         """
         return ATTR_TEMPERATURE if attr == ATTR_TEMPERATURE else None
 
-    def target_mode(self, target: str) -> HVACMode | None:
-        """Return the only source mode a low/high target goes to, if any."""
-        return None
+    def target_modes(self, target: str) -> tuple[HVACMode, ...]:
+        """Return the source modes a target goes to, in any phase (off: none)."""
+        return ()
 
     def target_features(self) -> ClimateEntityFeature:
         """Return the target features the mode uses."""
@@ -137,11 +137,9 @@ class SourceTargetsProfile(ModeProfile):
         """Show the targets the source gets."""
         return attr if attr in self._targets() else None
 
-    def target_mode(self, target: str) -> HVACMode | None:
-        """Low/high go to the source, when it gets them."""
-        if target != ATTR_TEMPERATURE and target in self._targets():
-            return self.mode
-        return None
+    def target_modes(self, target: str) -> tuple[HVACMode, ...]:
+        """The targets the source gets go to it."""
+        return (self.mode,) if target in self._targets() else ()
 
     def target_features(self) -> ClimateEntityFeature:
         """Use the targets the source gets."""
@@ -181,6 +179,10 @@ class SetpointProfile(ModeProfile):
         """Show the setpoint as the single target, no low/high."""
         return self.target if attr == ATTR_TEMPERATURE else None
 
+    def target_modes(self, target: str) -> tuple[HVACMode, ...]:
+        """The setpoint goes to the source."""
+        return (self.mode,) if target == self.target else ()
+
 
 class RangeHeatCoolProfile(ModeProfile):
     """HEAT_COOL with a source of its own.
@@ -206,9 +208,9 @@ class RangeHeatCoolProfile(ModeProfile):
         """Show the targets the source gets."""
         return attr if attr in mapping.values() else None
 
-    def target_mode(self, target: str) -> HVACMode | None:
-        """Both low/high targets go to the source, when it has them."""
-        return self.mode if self._has_range() else None
+    def target_modes(self, target: str) -> tuple[HVACMode, ...]:
+        """The targets the source gets (low/high, else the single one) go to it."""
+        return (self.mode,) if target in self.target_map(None).values() else ()
 
     def target_features(self) -> ClimateEntityFeature:
         """Use low/high when the source has them, else the single target."""
@@ -243,9 +245,9 @@ class CombinedHeatCoolProfile(ModeProfile):
             return attr if attr in mapping.values() else None
         return attr
 
-    def target_mode(self, target: str) -> HVACMode | None:
+    def target_modes(self, target: str) -> tuple[HVACMode, ...]:
         """The low target goes to the heat source, the high one to the cool source."""
-        return HVACMode.HEAT if target == ATTR_TARGET_TEMP_LOW else HVACMode.COOL
+        return tuple(phase for phase in PHASES if SINGLE_TARGETS[phase] == target)
 
     def target_features(self) -> ClimateEntityFeature:
         """Use the low/high targets."""

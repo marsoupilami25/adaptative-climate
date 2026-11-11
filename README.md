@@ -187,12 +187,15 @@ Each source gets the target plus its offset (see "Temperature offset"),
 rounded to its own step and kept in its range (and in the
 `min_temp`/`max_temp` limits): with a heater at 0.5 and an AC at 1, a
 cooling setpoint of 24.5 °C stays 24.5 °C, shown as such, and the AC gets
-25 °C. A setpoint that only goes to one source (see "Heat/cool mode") is
-also kept in the range of that source: a high target of 14 °C for an AC
-whose minimum is 16 °C is 16 °C, also to decide when to switch to it. When
-auto sends low/high to another source than heat/cool, they go to two
-sources and are kept as they were given, like the single target of the
-other modes.
+25 °C. Each target (single, low, high) is also kept in the widest range of
+all the sources it goes to, in any mode: low goes to the heat source and to
+the heat/cool or auto source with low/high, high to the cool source and to
+those. With a heater at 5-30 °C for heat and a heat pump at 18-30 °C for
+heat/cool, a low target of 14 °C stays 14 °C: the heater gets 14 °C, the
+heat pump 18 °C, and in heat/cool the entity shows 18 °C (what the active
+source gets) while `saved_targets` keeps 14 °C. A high target of 14 °C that
+only goes to an AC whose minimum is 16 °C is 16 °C, also to decide when to
+switch to it.
 A source that refuses the target (error) gets it again once, 5 seconds
 later, with the targets of that time; if it refuses again, a warning is
 logged (`Could not set temperature 21.0 on climate.heater: ...`) and the

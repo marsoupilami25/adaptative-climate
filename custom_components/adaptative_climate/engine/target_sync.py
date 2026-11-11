@@ -7,10 +7,10 @@ TargetSync uses the TargetStore and the profiles to:
   Each source gets it rounded to its own step (applied). The entity
   shows and computes with its own targets.
 - Route: key (mode and phase), mapping (which target each attribute of
-  the active source gets), target_mode, applied (a target as the source
-  of a mode gets it: plus its offset, rounded to its step, in its range),
-  keep (a target on the step of the entity; a low/high target that goes
-  to one source is kept in its range).
+  the active source gets), target_modes (the sources a target goes to, in
+  any mode), applied (a target as the source of a mode gets it: plus its
+  offset, rounded to its step, in its range), keep (a target on the step
+  of the entity, in the widest range of the sources it goes to).
 - Offsets: the targets are those of the room. A source gets them plus
   its offset, and a target read from it (taken or shown) is minus its
   offset, so a target changed on the source still becomes the target of
@@ -128,21 +128,20 @@ class TargetSync:
         """Return which target each target attribute of the active source gets."""
         return self._modes.profile(self._modes.current()).target_map(self._phase.phase)
 
-    def target_mode(self, target: str) -> HVACMode | None:
-        """Return the only source mode a low/high target goes to, if any.
+    def target_modes(self, target: str) -> list[HVACMode]:
+        """Return the source modes a target goes to, in any mode, with a usable source.
 
-        Low/high go to the source of HEAT_COOL and to that of auto, when it
-        has them. Several sources (or one source with two offsets), or the
-        single target: None.
+        Low goes to heat, high to cool, low/high to the sources that have
+        them (HEAT_COOL, auto), the single target to the others (dry, and
+        HEAT_COOL or auto without low/high).
         """
-        if target == ATTR_TEMPERATURE:
-            return None
-        found = {
-            (self._sources.mode_sources[mode], self._sources.offset(mode)): mode
-            for profile_mode in (HVACMode.HEAT_COOL, HVACMode.AUTO)
-            if (mode := self._modes.profile(profile_mode).target_mode(target)) is not None
-        }
-        return next(iter(found.values())) if len(found) == 1 else None
+        found: list[HVACMode] = []
+        for mode in self._modes.modes[1:]:
+            for source_mode in self._modes.profile(mode).target_modes(target):
+                entity_id = self._sources.mode_sources[source_mode]
+                if source_mode not in found and self._sources.state(entity_id) is not None:
+                    found.append(source_mode)
+        return found
 
     def applied(self, target: str, mode: HVACMode | None) -> float | None:
         """Return a target as the source of a mode gets it (plus its offset)."""
@@ -153,19 +152,18 @@ class TargetSync:
         """Return a value to keep for a target.
 
         On the step of the entity: to the nearest step, or away from the
-        other target (outward: low down, high up, so a gap is kept). A
-        target that only goes to one source (see target_mode) is then kept
-        in the range of that source, so the phase switches where the source
-        works. The source gets it rounded to its own step (see applied).
+        other target (outward: low down, high up, so a gap is kept). Then in
+        the widest range of the usable sources it goes to (see target_modes),
+        narrowed by the configured limits: a value one of them can reach. A
+        source that cannot reach it gets it in its own range (see applied),
+        the kept value stays.
         """
         direction = 0
         if outward:
             direction = {ATTR_TARGET_TEMP_LOW: -1, ATTR_TARGET_TEMP_HIGH: 1}.get(target, 0)
         value = self._sources.round_step(value, direction)
-        mode = self.target_mode(target)
-        if mode is not None and self._sources.state(self._sources.mode_sources[mode]) is not None:
-            return self._sources.clamp(value, mode)
-        return value
+        modes = self.target_modes(target)
+        return self._sources.clamp(value, modes) if modes else value
 
     # Setting the targets
 
@@ -501,10 +499,12 @@ class TargetSync:
         get them (rounded to their step): a target changed on the active
         source is taken (see observe), and a source showing another target
         is a monitoring problem. A target the active source gets is shown
-        in the range of that source (not narrowed by the limits: a target
-        taken from it may be outside them); one no source runs with (off,
-        the other phase of the combined mode) in the range of the source it
-        goes to, else in the range of the entity.
+        as that source can reach it: in its range (not narrowed by the
+        limits: a target taken from it may be outside them), the kept value
+        staying for the other sources (see the saved_targets attribute). One
+        no source runs with (off, the other phase of the combined mode) in
+        the widest range of the sources it goes to, else in the range of the
+        entity.
         """
         mode = self._modes.current()
         mapping = self.mapping()
@@ -525,8 +525,8 @@ class TargetSync:
             return None
         active_mode = self._modes.active_mode()
         if active_mode is not None and target in mapping.values():
-            return self._sources.clamp(value, active_mode, limits=False)
-        target_mode = self.target_mode(target)
-        if target_mode is None:
+            return self._sources.clamp(value, [active_mode], limits=False)
+        modes = self.target_modes(target)
+        if not modes:
             return self._modes.fit(value, None)
-        return self._sources.clamp(value, target_mode)
+        return self._sources.clamp(value, modes)

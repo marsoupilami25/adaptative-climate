@@ -1057,12 +1057,41 @@ async def test_own_source_gets_targets(
         {ATTR_TARGET_TEMP_LOW: 10.0, ATTR_TARGET_TEMP_HIGH: 23.5}
     ]
     attrs = _attrs(hass)
+    # Shown as the heat pump gets it.
     assert attrs[ATTR_TARGET_TEMP_LOW] == 10.0
     assert attrs[ATTR_TARGET_TEMP_HIGH] == 23.5
-    # The targets only go to the heat pump: they are kept in its range, on
-    # the step of the entity (that of the heat pump, 0.5).
-    assert _saved(hass)["target_temperature_low"] == 10.0
+    # Kept on the step of the entity (that of the heat pump, 0.5), in the
+    # widest range of their sources: low also goes to the heater (5 to 30),
+    # high only to the heat pump.
+    assert _saved(hass)["target_temperature_low"] == 5.0
     assert _saved(hass)["target_temperature_high"] == 23.5
+
+
+@pytest.mark.usefixtures("own_source")
+async def test_target_kept_in_widest_source_range(
+    hass: HomeAssistant, heater: FakeClimate, heat_pump: FakeClimate
+) -> None:
+    """A target is kept in the widest range of its sources, each source gets it in its own.
+
+    Low goes to the heater (5 to 30) in heat and to the heat pump (10 to 30)
+    in heat_cool: 7 is kept, the heat pump gets 10 and the entity shows it
+    in heat_cool, the heater gets 7 again back in heat.
+    """
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=7.0)
+    assert _attrs(hass)[ATTR_TEMPERATURE] == 7.0
+    assert heater.target_temperature == 7.0
+    assert _saved(hass)["target_temperature_low"] == 7.0
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    assert heat_pump.target_temperature_low == 10.0
+    assert _attrs(hass)[ATTR_TARGET_TEMP_LOW] == 10.0
+    assert _attrs(hass)["saved_targets"][ATTR_TARGET_TEMP_LOW] == 7.0
+    assert _saved(hass)["target_temperature_low"] == 7.0
+
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
+    assert heater.target_temperature == 7.0
+    assert _attrs(hass)[ATTR_TEMPERATURE] == 7.0
 
 
 @pytest.mark.usefixtures("own_source")

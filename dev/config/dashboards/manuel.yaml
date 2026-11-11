@@ -219,6 +219,20 @@ views:
       - type: climate-swing-horizontal-modes
       grid_options:
         columns: full
+    # Shown only while the active source cannot reach a kept target.
+    - type: markdown
+      visibility:
+      - condition: state
+        entity: binary_sensor.ecart_consigne_manuel
+        state: 'on'
+      content: |
+        {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+        ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+        {% for t, gap in (state_attr('binary_sensor.ecart_consigne_manuel', 'ecarts') or {}).items() %}
+        - {{ names[t] }} : {{ gap }} °C
+        {% endfor %}
+      grid_options:
+        columns: full
     - type: entities
       entities:
       - entity: climate.adaptative_manuel
@@ -286,6 +300,28 @@ views:
       name: Marche / arrêt
       icon_tap_action:
         action: toggle
+      grid_options:
+        columns: full
+    - type: entities
+      entities:
+      - entity: binary_sensor.ecart_consigne_manuel
+        name: Écart consigne
+      - entity: binary_sensor.ecart_consigne_manuel
+        type: attribute
+        attribute: ecarts
+        name: Écarts (enregistrée → affichée)
+      grid_options:
+        columns: full
+    - type: markdown
+      content: |
+        ## Scénario : consigne hors plage de la source
+
+        Chaque consigne est gardée dans la plage la plus large de ses sources ; chaque source la reçoit dans sa propre plage.
+
+        1. Configurer Adaptative Manuel avec *heat* = HEAT Virtuel (5–30) et *heat_cool* = ALL Virtuel (8–32).
+        2. En *heat*, consigne 6 : HEAT reçoit 6, le thermostat affiche 6, *Écart consigne* est *off*.
+        3. Passer en *heat_cool* : ALL reçoit 8 en consigne basse, le thermostat affiche 8, *Consignes enregistrées* garde 6. *Écart consigne* passe à *on*, l'alerte sous le thermostat montre *Consigne basse : 6.0 → 8.0 °C*.
+        4. Repasser en *heat* : HEAT reçoit 6, le thermostat affiche 6, l'alerte disparaît.
       grid_options:
         columns: full
   - type: grid

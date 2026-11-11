@@ -259,13 +259,13 @@ class Sources:
             high = min(high, limit_max)
         return low, high
 
-    def clamp(self, value: float, mode: HVACMode, *, limits: bool = True) -> float:
-        """Return a value of the room in the range of the source of a mode.
+    def clamp(self, value: float, modes: list[HVACMode], *, limits: bool = True) -> float:
+        """Return a value of the room in the widest range of the sources of some modes.
 
         Narrowed by the configured limits (unless limits is False), not
-        rounded to the step of the source (see fit).
+        rounded to the step of the sources (see fit).
         """
-        low, high = self.limited_range([mode]) if limits else self.range([mode])
+        low, high = self.limited_range(modes) if limits else self.range(modes)
         return min(max(value, low), high)
 
     def step(self) -> float:
