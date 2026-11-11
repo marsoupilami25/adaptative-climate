@@ -196,6 +196,14 @@ heat pump 18 °C, and in heat/cool the entity shows 18 °C (what the active
 source gets) while `saved_targets` keeps 14 °C. A high target of 14 °C that
 only goes to an AC whose minimum is 16 °C is 16 °C, also to decide when to
 switch to it.
+
+A target gap sensor (`binary_sensor.<name>_target_gap`) is on while the
+entity shows a target otherwise than it keeps it, like the 18 °C above. Its
+`gaps` attribute lists them, for example
+`[{attribute: target_temp_low, saved: 14, shown: 18}]` (in heat, the
+`temperature` attribute shows the low target). It is not a problem: the
+target comes back when a source that can reach it runs. To warn next to the
+thermostat card, use a conditional card on `state: "on"`.
 A source that refuses the target (error) gets it again once, 5 seconds
 later, with the targets of that time; if it refuses again, a warning is
 logged (`Could not set temperature 21.0 on climate.heater: ...`) and the

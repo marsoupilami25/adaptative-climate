@@ -219,17 +219,27 @@ views:
       - type: climate-swing-horizontal-modes
       grid_options:
         columns: full
+    # Monitoring and target gap sensors, as lights on one line.
+    - type: markdown
+      text_only: true
+      content: >-
+        {% set light = {'on': '🔴', 'off': '🟢'} %}
+        {{ light.get(states('binary_sensor.adaptative_manuel_monitoring'), '⚪') }} Monitoring
+        &nbsp;&nbsp;&nbsp;
+        {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_manuel_target_gap'), '⚪') }} Écart consigne
+      grid_options:
+        columns: full
     # Shown only while the active source cannot reach a kept target.
     - type: markdown
       visibility:
       - condition: state
-        entity: binary_sensor.ecart_consigne_manuel
+        entity: binary_sensor.adaptative_manuel_target_gap
         state: 'on'
       content: |
         {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
         ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
-        {% for t, gap in (state_attr('binary_sensor.ecart_consigne_manuel', 'ecarts') or {}).items() %}
-        - {{ names[t] }} : {{ gap }} °C
+        {% for gap in state_attr('binary_sensor.adaptative_manuel_target_gap', 'gaps') or [] %}
+        - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
         {% endfor %}
       grid_options:
         columns: full
@@ -300,16 +310,6 @@ views:
       name: Marche / arrêt
       icon_tap_action:
         action: toggle
-      grid_options:
-        columns: full
-    - type: entities
-      entities:
-      - entity: binary_sensor.ecart_consigne_manuel
-        name: Écart consigne
-      - entity: binary_sensor.ecart_consigne_manuel
-        type: attribute
-        attribute: ecarts
-        name: Écarts (enregistrée → affichée)
       grid_options:
         columns: full
     - type: markdown

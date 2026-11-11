@@ -305,8 +305,13 @@ class AdaptativeClimateEntity(
 
     @callback
     def async_write_ha_state(self) -> None:
-        """Tell the monitoring which targets the source does not show, then write the state."""
+        """Tell the sensors the target mismatches and gaps, then write the state.
+
+        The monitoring gets the targets the source does not show, the target
+        gap sensor those shown otherwise than kept.
+        """
         self.coordinator.async_set_target_mismatches(self._targets.mismatches())
+        self.coordinator.async_set_target_gaps(self._targets.gaps(self._range_supported()))
         super().async_write_ha_state()
 
     # Entity properties
@@ -355,12 +360,13 @@ class AdaptativeClimateEntity(
         """Return the room temperature: the sensor, else the display source."""
         return self._sources.room_temperature(self._modes.display_mode())
 
+    def _range_supported(self) -> bool:
+        """Return True when the entity has the low/high targets."""
+        return ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in self.supported_features
+
     def _shown_target(self, attr: str) -> float | None:
         """Return a target attribute as shown by the entity (see TargetSync.shown)."""
-        range_supported = (
-            ClimateEntityFeature.TARGET_TEMPERATURE_RANGE in self.supported_features
-        )
-        return self._targets.shown(attr, range_supported)
+        return self._targets.shown(attr, self._range_supported())
 
     @property
     def native_target_temperature(self) -> float | None:

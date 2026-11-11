@@ -23,6 +23,25 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_all_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_all_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_all_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_all_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_all

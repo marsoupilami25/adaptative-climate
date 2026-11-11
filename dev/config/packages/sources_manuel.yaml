@@ -32,39 +32,6 @@ template:
         state_class: measurement
         availability: "{{ is_state('input_boolean.dispo_capteur_manuel', 'on') }}"
         state: "{{ states('input_number.temperature_capteur_manuel') }}"
-  # On while Adaptative Manuel shows another target than the one it keeps
-  # (saved_targets): the active source cannot reach the kept target, it gets
-  # it in its own range. Example: low 6 kept for HEAT (5-30), ALL in heat_cool
-  # (8-32) gets and shows 8.
-  - binary_sensor:
-      - name: Écart consigne (manuel)
-        default_entity_id: binary_sensor.ecart_consigne_manuel
-        icon: mdi:thermometer-alert
-        availability: "{{ state_attr('climate.adaptative_manuel', 'saved_targets') is mapping }}"
-        state: >
-          {% set e = 'climate.adaptative_manuel' %}
-          {% set saved = state_attr(e, 'saved_targets') %}
-          {% set ns = namespace(gap=false) %}
-          {% for t in ['temperature', 'target_temp_low', 'target_temp_high'] %}
-            {% set shown = state_attr(e, t) %}
-            {% if shown is number and saved[t] is number and (saved[t] - shown) | abs > 0.01 %}
-              {% set ns.gap = true %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.gap }}
-        attributes:
-          # The targets with a gap, as "kept → shown".
-          ecarts: >
-            {% set e = 'climate.adaptative_manuel' %}
-            {% set saved = state_attr(e, 'saved_targets') %}
-            {% set ns = namespace(gaps={}) %}
-            {% for t in ['temperature', 'target_temp_low', 'target_temp_high'] %}
-              {% set shown = state_attr(e, t) %}
-              {% if shown is number and saved[t] is number and (saved[t] - shown) | abs > 0.01 %}
-                {% set ns.gaps = dict(ns.gaps, **{t: saved[t] ~ ' → ' ~ shown}) %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.gaps }}
   - climate:
       - name: HEAT Virtuel (manuel)
         default_entity_id: climate.heat_virtuel_manuel

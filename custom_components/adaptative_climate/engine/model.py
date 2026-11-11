@@ -11,6 +11,8 @@ Targets:
   use the single target itself.
 - TARGET_FEATURES: the feature a source needs to get each target.
 - SAVED_TARGETS: the name of each target in the saved data.
+- TargetGap: a target the entity shows otherwise than it keeps it (out of
+  reach of the active source).
 
 Combined HEAT_COOL:
 - PHASES: the modes it switches between (heat, cool).
@@ -84,6 +86,26 @@ SAVED_TARGETS = {
 
 # Modes the combined HEAT_COOL switches between.
 PHASES = (HVACMode.HEAT, HVACMode.COOL)
+
+
+@dataclass(frozen=True)
+class TargetGap:
+    """A target shown otherwise than kept: the active source cannot reach it.
+
+    The target is kept in the widest range of its sources; the active source
+    gets it, and the entity shows it, in the range of that source.
+    """
+
+    # Target attribute of the entity (temperature, target_temp_low,
+    # target_temp_high). In heat, temperature shows the low target.
+    attribute: str
+    # The target shown, as kept.
+    saved: float
+    shown: float
+
+    def as_dict(self) -> dict[str, str | float]:
+        """Return the gap as a state attribute."""
+        return {"attribute": self.attribute, "saved": self.saved, "shown": self.shown}
 
 
 @dataclass(frozen=True)

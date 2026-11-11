@@ -22,6 +22,25 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_heat_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_heat_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_heat_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_heat_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_heat
@@ -158,6 +177,25 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_cool_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_cool_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_cool_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_cool_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_cool
@@ -288,6 +326,25 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_dry_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_dry_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_dry_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_dry_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_dry
@@ -416,6 +473,25 @@ views:
         features:
         - type: climate-hvac-modes
         - type: climate-fan-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_deshum_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_deshum_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_deshum_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_deshum_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_deshum
@@ -518,6 +594,25 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_fan_only_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_fan_only_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_fan_only_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_fan_only_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_fan_only
@@ -648,6 +743,25 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_auto_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_auto_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_auto_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_auto_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_auto
@@ -776,6 +890,25 @@ views:
         entity: climate.adaptative_heat_cool
         features:
         - type: climate-hvac-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_heat_cool_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_heat_cool_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_heat_cool_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_heat_cool_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_heat_cool
@@ -895,6 +1028,25 @@ views:
         features:
         - type: climate-hvac-modes
         - type: climate-fan-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_combine_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_combine_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_combine_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_combine_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_combine
@@ -960,9 +1112,6 @@ views:
         name: Marche / arrêt
         icon_tap_action:
           action: toggle
-      - type: tile
-        entity: binary_sensor.adaptative_combine_monitoring
-        name: Monitoring
     - type: vertical-stack
       cards:
       - type: heading
@@ -1060,6 +1209,25 @@ views:
         entity: climate.adaptative_offset
         features:
         - type: climate-hvac-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_offset_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_offset_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_offset_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_offset_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_offset
@@ -1170,6 +1338,25 @@ views:
         entity: climate.adaptative_trv
         features:
         - type: climate-hvac-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_trv_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_trv_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_trv_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_trv_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_trv

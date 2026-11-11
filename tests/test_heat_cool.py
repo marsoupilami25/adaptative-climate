@@ -33,6 +33,8 @@ from homeassistant.const import (
     ATTR_SUPPORTED_FEATURES,
     ATTR_TEMPERATURE,
     CONF_NAME,
+    STATE_OFF,
+    STATE_ON,
     STATE_UNAVAILABLE,
 )
 from homeassistant.core import HomeAssistant, State
@@ -52,6 +54,7 @@ from custom_components.adaptative_climate.const import (
 from .conftest import AC, ENTITY_ID, HEATER, FakeClimate, _attr_name
 
 HEAT_PUMP = "climate.heat_pump"
+TARGET_GAP = "binary_sensor.living_room_target_gap"
 SENSOR = "sensor.room"
 
 
@@ -1075,23 +1078,31 @@ async def test_target_kept_in_widest_source_range(
 
     Low goes to the heater (5 to 30) in heat and to the heat pump (10 to 30)
     in heat_cool: 7 is kept, the heat pump gets 10 and the entity shows it
-    in heat_cool, the heater gets 7 again back in heat.
+    in heat_cool, the heater gets 7 again back in heat. The target gap
+    sensor is on while 7 is kept and 10 shown.
     """
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=7.0)
     assert _attrs(hass)[ATTR_TEMPERATURE] == 7.0
     assert heater.target_temperature == 7.0
     assert _saved(hass)["target_temperature_low"] == 7.0
+    assert _state(hass, TARGET_GAP) == STATE_OFF
+    assert hass.states.get(TARGET_GAP).attributes["gaps"] == []
 
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
     assert heat_pump.target_temperature_low == 10.0
     assert _attrs(hass)[ATTR_TARGET_TEMP_LOW] == 10.0
     assert _attrs(hass)["saved_targets"][ATTR_TARGET_TEMP_LOW] == 7.0
     assert _saved(hass)["target_temperature_low"] == 7.0
+    assert _state(hass, TARGET_GAP) == STATE_ON
+    assert hass.states.get(TARGET_GAP).attributes["gaps"] == [
+        {"attribute": ATTR_TARGET_TEMP_LOW, "saved": 7.0, "shown": 10.0}
+    ]
 
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT)
     assert heater.target_temperature == 7.0
     assert _attrs(hass)[ATTR_TEMPERATURE] == 7.0
+    assert _state(hass, TARGET_GAP) == STATE_OFF
 
 
 @pytest.mark.usefixtures("own_source")

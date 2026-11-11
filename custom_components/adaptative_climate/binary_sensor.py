@@ -1,4 +1,10 @@
-"""Binary sensor platform for Adaptative Climate: the monitoring.
+"""Binary sensor platform for Adaptative Climate: the monitoring and the target gap.
+
+The target gap sensor, one per entry, is on while the entity shows a target
+otherwise than it keeps it (see TargetSync.gaps): each target is kept in
+the widest range of its sources, and the active source cannot reach it. It
+gets it, and the entity shows it, in its own range. The gaps are listed in
+its attributes.
 
 One problem sensor per entry, on while there is a problem (see
 engine.monitoring):
@@ -58,8 +64,14 @@ async def async_setup_entry(
     entry: AdaptativeClimateConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the monitoring sensor."""
-    async_add_entities([AdaptativeClimateMonitoring(entry.runtime_data)])
+    """Set up the monitoring and target gap sensors."""
+    coordinator = entry.runtime_data
+    async_add_entities(
+        [
+            AdaptativeClimateMonitoring(coordinator),
+            AdaptativeClimateTargetGap(coordinator),
+        ]
+    )
 
 
 class AdaptativeClimateMonitoring(
@@ -191,3 +203,41 @@ class AdaptativeClimateMonitoring(
             "max_gap": self._max_gap,
             "problems": [problem.as_dict() for problem in self._problems.values()],
         }
+
+
+class AdaptativeClimateTargetGap(
+    CoordinatorEntity[AdaptativeClimateCoordinator], BinarySensorEntity
+):
+    """On while the entity shows a target otherwise than it keeps it."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:thermometer-alert"
+
+    def __init__(self, coordinator: AdaptativeClimateCoordinator) -> None:
+        """Initialize from the entry."""
+        super().__init__(coordinator)
+        entry = coordinator.config_entry
+        self._attr_unique_id = f"{entry.entry_id}_target_gap"
+        self._attr_name = f"{entry.title} target gap"
+
+    async def async_added_to_hass(self) -> None:
+        """Follow the target gaps given by the climate entity."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self.coordinator.async_add_gap_listener(self.async_write_ha_state)
+        )
+
+    @property
+    def available(self) -> bool:
+        """Return True: the gaps are known even when a source is not."""
+        return True
+
+    @property
+    def is_on(self) -> bool:
+        """Return True when a target is shown otherwise than kept."""
+        return bool(self.coordinator.target_gaps)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the targets shown otherwise than kept."""
+        return {"gaps": [gap.as_dict() for gap in self.coordinator.target_gaps]}

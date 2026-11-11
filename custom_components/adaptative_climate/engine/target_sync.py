@@ -37,6 +37,8 @@ TargetSync uses the TargetStore and the profiles to:
   the active source gets is read from it, except during the settle time.
   Off, low/high are shown when supported, else the targets of the mode
   turn_on goes to.
+- Gaps (gaps): the targets shown otherwise than kept, for the target gap
+  sensor.
 """
 
 from __future__ import annotations
@@ -57,7 +59,14 @@ from homeassistant.exceptions import HomeAssistantError
 
 from ..const import CONF_MIN_GAP, DOMAIN, MIN_GAP, entry_settings
 from ..coordinator import AdaptativeClimateCoordinator
-from .model import SETTLE_TIME, SINGLE_TARGETS, TARGET_FEATURES, TargetKey
+from .model import (
+    SETTLE_TIME,
+    SINGLE_TARGETS,
+    TARGET_FEATURES,
+    TARGETS,
+    TargetGap,
+    TargetKey,
+)
 from .modes import ModeTracker
 from .monitoring import TargetMismatch
 from .phase import CombinedPhase
@@ -485,6 +494,17 @@ class TargetSync:
 
     # Showing the targets
 
+    def shown_target(self, attr: str, range_supported: bool) -> str | None:
+        """Return the target a target attribute of the entity shows, if any (see shown)."""
+        mode = self._modes.current()
+        if mode is HVACMode.OFF and range_supported:
+            # Off, both setpoints are shown, to be set before turning on.
+            return None if attr == ATTR_TEMPERATURE else attr
+        if mode is HVACMode.OFF:
+            # No low/high targets: those of the mode turn_on goes to.
+            mode = self._modes.next_mode()
+        return self._modes.profile(mode).shown_target(attr, self.mapping())
+
     def shown(self, attr: str, range_supported: bool) -> float | None:
         """Return a target attribute as shown by the entity.
 
@@ -506,27 +526,34 @@ class TargetSync:
         the widest range of the sources it goes to, else in the range of the
         entity.
         """
-        mode = self._modes.current()
-        mapping = self.mapping()
-        target: str | None
-        if mode is HVACMode.OFF and range_supported:
-            # Off, both setpoints are shown, to be set before turning on.
-            target = None if attr == ATTR_TEMPERATURE else attr
-        else:
-            if mode is HVACMode.OFF:
-                # No low/high targets: those of the mode turn_on goes to.
-                mode = self._modes.next_mode()
-            target = self._modes.profile(mode).shown_target(attr, mapping)
+        target = self.shown_target(attr, range_supported)
         if target is None:
             return None
-
         value = self._store[target]
         if value is None:
             return None
         active_mode = self._modes.active_mode()
-        if active_mode is not None and target in mapping.values():
+        if active_mode is not None and target in self.mapping().values():
             return self._sources.clamp(value, [active_mode], limits=False)
         modes = self.target_modes(target)
         if not modes:
             return self._modes.fit(value, None)
         return self._sources.clamp(value, modes)
+
+    def gaps(self, range_supported: bool) -> list[TargetGap]:
+        """Return the target attributes shown otherwise than the target they show is kept.
+
+        A target kept out of the range of the active source: the source gets
+        it, and the entity shows it, in its range. In heat, the single target
+        attribute shows the low target.
+        """
+        found: list[TargetGap] = []
+        for attr in TARGETS:
+            target = self.shown_target(attr, range_supported)
+            shown = self.shown(attr, range_supported)
+            if target is None or shown is None:
+                continue
+            saved = self._store[target]
+            if saved is not None and not same_temperature(shown, saved):
+                found.append(TargetGap(attr, saved, shown))
+        return found

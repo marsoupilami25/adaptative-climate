@@ -42,6 +42,7 @@ from .const import (
 )
 
 if TYPE_CHECKING:
+    from .engine.model import TargetGap
     from .engine.monitoring import TargetMismatch
 
 _LOGGER = logging.getLogger(__name__)
@@ -137,6 +138,10 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         # the climate entity. Reported by the monitoring.
         self.target_mismatches: list[TargetMismatch] = []
         self._problem_listeners: list[CALLBACK_TYPE] = []
+        # Targets the climate entity shows otherwise than it keeps them (out
+        # of reach of the active source). Reported by the target gap sensor.
+        self.target_gaps: list[TargetGap] = []
+        self._gap_listeners: list[CALLBACK_TYPE] = []
         # One exclusivity check at a time: a mode change and a source turned
         # on elsewhere would both turn the same sources off.
         self._exclusive_lock = asyncio.Lock()
@@ -341,6 +346,26 @@ class AdaptativeClimateCoordinator(DataUpdateCoordinator[SourceStates]):
         @callback
         def _remove() -> None:
             self._problem_listeners.remove(listener)
+
+        return _remove
+
+    @callback
+    def async_set_target_gaps(self, gaps: list[TargetGap]) -> None:
+        """Keep the targets shown otherwise than kept, and tell the target gap sensor."""
+        if gaps == self.target_gaps:
+            return
+        self.target_gaps = gaps
+        for listener in list(self._gap_listeners):
+            listener()
+
+    @callback
+    def async_add_gap_listener(self, listener: CALLBACK_TYPE) -> CALLBACK_TYPE:
+        """Call listener when the target gaps change. Return the removal."""
+        self._gap_listeners.append(listener)
+
+        @callback
+        def _remove() -> None:
+            self._gap_listeners.remove(listener)
 
         return _remove
 

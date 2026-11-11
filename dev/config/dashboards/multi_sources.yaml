@@ -23,6 +23,25 @@ views:
         - type: climate-fan-modes
         - type: climate-swing-modes
         - type: climate-swing-horizontal-modes
+      # Monitoring and target gap sensors, as lights on one line.
+      - type: markdown
+        text_only: true
+        content: >-
+          {% set light = {'on': '🔴', 'off': '🟢'} %}
+          {{ light.get(states('binary_sensor.adaptative_multi_monitoring'), '⚪') }} Monitoring
+          &nbsp;&nbsp;&nbsp;
+          {{ {'on': '🟠', 'off': '🟢'}.get(states('binary_sensor.adaptative_multi_target_gap'), '⚪') }} Écart consigne
+      - type: markdown
+        visibility:
+        - condition: state
+          entity: binary_sensor.adaptative_multi_target_gap
+          state: 'on'
+        content: |
+          {% set names = {'temperature': 'Consigne', 'target_temp_low': 'Consigne basse', 'target_temp_high': 'Consigne haute'} %}
+          ⚠️ **La source active n'atteint pas la consigne enregistrée** : elle reçoit la valeur la plus proche dans sa plage (enregistrée → affichée).
+          {% for gap in state_attr('binary_sensor.adaptative_multi_target_gap', 'gaps') or [] %}
+          - {{ names[gap.attribute] }} : {{ gap.saved }} → {{ gap.shown }} °C
+          {% endfor %}
       - type: entities
         entities:
         - entity: climate.adaptative_multi
@@ -203,6 +222,7 @@ views:
       9. **Consignes réglées éteint** : éteindre, régler la plage d'Adaptative MULTI à 18–24. Aucune source ne bouge. Passer en *heat* : *Consigne HEAT* passe de 20 à 18. Éteindre, passer en *cool* : *Consigne COOL* passe à 24.
       10. **Après un redémarrage** : en *heat*, consigne 18 ; en *cool*, consigne 25 ; éteindre, puis **Tout remettre à zéro**. Redémarrer Home Assistant, passer en *heat* : *Consigne HEAT* passe à 18 ; en *cool* : *Consigne COOL* passe à 25.
       11. **fan_only sans consigne** : en *dry*, consigne 24. Passer en *fan_only* : Adaptative MULTI n'affiche aucune consigne et *Consigne FAN_ONLY* reste à 20. Attendre 12 s, mettre *Consigne FAN_ONLY* à 27 (vue Sources) : Adaptative MULTI n'affiche toujours rien. Depuis *Outils de développement > Actions*, appeler `climate.set_temperature` sur Adaptative MULTI avec `temperature: 22` : aucune source ne bouge. Passer en *dry* : *Consigne DRY* passe à 22.
+      12. **Consigne hors plage d'une source** : la consigne simple va à AUTO (10–30) et à DRY (18–30) ; elle est gardée dans la plus large, 10–30. En *auto*, consigne 12 : *Consigne AUTO* passe à 12, *Écart consigne* est *off*. Passer en *dry* : *Consigne DRY* passe à 18, le thermostat affiche 18, *Consignes enregistrées* garde 12. *Écart consigne* passe à *on* et l'alerte sous le thermostat montre *Consigne : 12.0 → 18.0 °C*. Repasser en *auto* : *Consigne AUTO* revient à 12, l'alerte disparaît.
 
       </small>
     view_layout:
