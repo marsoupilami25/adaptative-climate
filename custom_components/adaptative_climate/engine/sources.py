@@ -22,8 +22,12 @@ sources seen with low/high values (see features), saved across restarts.
   one entity serving two modes may have two offsets.
 - Ranges: range (widest of some sources, Home Assistant defaults
   otherwise), limited_range (the range of mode sources minus their offset,
-  narrowed by the configured limits), fit (a value as the source of a mode
-  gets it: plus its offset, rounded to its step, in its range).
+  narrowed by the configured limits), clamp (a value of the room in the
+  range of a mode source), fit (a value as the source of a mode gets it:
+  plus its offset, rounded to its step, in its range).
+- Step: the step of the entity, the largest one every source step is a
+  multiple of (0.5 and 1: 0.5). The targets of the entity are on it
+  (round_step); each source gets them rounded to its own step (fit).
 - pair: the low/high targets of the first mode source that has both.
 - room_temperature: the sensor when configured and valid (converted to
   the system unit), else the current temperature of a fallback mode
@@ -74,6 +78,9 @@ from .util import is_number
 
 _RANGE = ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 
+# Step of a source that has none, as the Home Assistant card takes it.
+DEFAULT_STEP = {UnitOfTemperature.CELSIUS: 0.5, UnitOfTemperature.FAHRENHEIT: 1.0}
+
 
 class Sources:
     """Read and command the source climate entities.
@@ -94,6 +101,9 @@ class Sources:
         self._offsets = mode_offsets(entry_settings(coordinator.config_entry))
         # Sources seen with low/high values: their low/high always count.
         self._range_seen: set[str] = set()
+        # Last step seen on each source: an unavailable source keeps its
+        # step, so the step of the entity stays the same.
+        self._steps: dict[str, float] = {}
 
     def state(self, entity_id: str | None) -> State | None:
         """Return the state of a source entity, if it is usable."""
@@ -248,6 +258,51 @@ class Sources:
         if limit_max is not None and limit_max > low:
             high = min(high, limit_max)
         return low, high
+
+    def clamp(self, value: float, mode: HVACMode, *, limits: bool = True) -> float:
+        """Return a value of the room in the range of the source of a mode.
+
+        Narrowed by the configured limits (unless limits is False), not
+        rounded to the step of the source (see fit).
+        """
+        low, high = self.limited_range([mode]) if limits else self.range([mode])
+        return min(max(value, low), high)
+
+    def step(self) -> float:
+        """Return the step of the entity.
+
+        The largest step every source step is a multiple of: 0.5 and 1 give
+        0.5, 0.5 and 0.2 give 0.1. A source without step counts as the
+        step the Home Assistant card gives it (0.5 °C, 1 °F). A source not
+        seen yet does not count; none seen: that default.
+        """
+        default = DEFAULT_STEP.get(self._hass.config.units.temperature_unit, 0.5)
+        for entity_id in self.entity_ids:
+            if self.state(entity_id) is None:
+                continue
+            value = self.attr(entity_id, ATTR_TARGET_TEMP_STEP)
+            self._steps[entity_id] = (
+                float(value) if is_number(value) and value > 0 else default
+            )
+        if not self._steps:
+            return default
+        # In thousandths of a degree, to compute it on integers.
+        return math.gcd(*(max(round(step * 1000), 1) for step in self._steps.values())) / 1000
+
+    def round_step(self, value: float, direction: int = 0) -> float:
+        """Return a value of the room on the step of the entity.
+
+        To the nearest step, or up (direction 1) or down (-1).
+        """
+        step = self.step()
+        ratio = value / step
+        if direction > 0:
+            count = math.ceil(ratio - 1e-6)
+        elif direction < 0:
+            count = math.floor(ratio + 1e-6)
+        else:
+            count = math.floor(ratio + 0.5)
+        return round(count * step, 6)
 
     def fit(self, value: float, mode: HVACMode) -> float:
         """Return a value of the room as the source of a mode gets it.

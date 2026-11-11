@@ -286,21 +286,47 @@ async def test_target_kept_in_configured_limits(
 
 
 @pytest.mark.usefixtures("init_integration")
-async def test_target_rounded_to_source_step(
+async def test_target_on_entity_step(
     hass: HomeAssistant, heater: FakeClimate, ac: FakeClimate
 ) -> None:
-    """A target is kept rounded to the step of its source."""
-    await _mode(hass, HVACMode.COOL)
-    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=21.3)
-    # The AC has no step.
-    assert _sent(ac)[-1] == 21.3
+    """The targets are on the step of the entity; each source gets its own step.
 
-    # The heater has a 0.5 step.
+    The step of the entity is the largest one the steps of the sources are
+    multiples of: the heater has 0.5, the AC 1, so 0.5. The entity shows
+    its own target, not the one rounded for the source.
+    """
+    ac._attr_target_temperature_step = 1.0
+    ac.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert hass.states.get(ENTITY_ID).attributes["target_temp_step"] == 0.5
+
+    await _mode(hass, HVACMode.COOL)
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=24.5)
+    assert _sent(ac)[-1] == 25.0
+    assert _target(hass) == 24.5
+    assert _saved(hass, HIGH) == 24.5
+
+    # A value off the step is rounded to it.
+    await _call(hass, SERVICE_SET_TEMPERATURE, temperature=24.3)
+    assert _saved(hass, HIGH) == 24.5
+    assert _target(hass) == 24.5
+
     await _mode(hass, HVACMode.HEAT)
     await _call(hass, SERVICE_SET_TEMPERATURE, temperature=21.3)
-    assert _sent(heater) == [21.5]
+    assert _sent(heater)[-1] == 21.5
     assert _target(hass) == 21.5
     assert _saved(hass, LOW) == 21.5
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_entity_step_from_sources(hass: HomeAssistant, heater: FakeClimate) -> None:
+    """A source without step counts as 0.5; 0.5 and 0.2 give 0.1."""
+    # The heater has 0.5, the AC none (0.5).
+    assert hass.states.get(ENTITY_ID).attributes["target_temp_step"] == 0.5
+    heater._attr_target_temperature_step = 0.2
+    heater.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert hass.states.get(ENTITY_ID).attributes["target_temp_step"] == 0.1
 
 
 @pytest.mark.usefixtures("init_integration")

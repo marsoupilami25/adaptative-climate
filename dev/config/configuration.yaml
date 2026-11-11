@@ -71,6 +71,9 @@ adaptative_climate:
     # Switches phase at once, to test the contradicting sources quickly
     # (the minimum phase duration is tested on MULTI).
     min_phase_duration: 0
+    # A gap between the two sources is a problem at once (after 15 minutes
+    # by default), for manual tests.
+    monitoring_duration: 0
   # Temperature offset: the heat pump reads 2 degrees warmer than the room
   # in heat; dry has no offset. The limit applies to the room target.
   - name: Adaptative OFFSET

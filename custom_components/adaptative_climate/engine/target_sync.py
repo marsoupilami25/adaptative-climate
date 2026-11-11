@@ -2,11 +2,15 @@
 
 TargetSync uses the TargetStore and the profiles to:
 
+- Step: every target of the entity is on the step of the entity (see
+  Sources.step), whatever sets it (user, gap, source, first targets).
+  Each source gets it rounded to its own step (applied). The entity
+  shows and computes with its own targets.
 - Route: key (mode and phase), mapping (which target each attribute of
   the active source gets), target_mode, applied (a target as the source
-  of a mode gets it: plus its offset, rounded, in its range), keep (a
-  low/high target that goes to one source is kept as that source gets
-  it).
+  of a mode gets it: plus its offset, rounded to its step, in its range),
+  keep (a target on the step of the entity; a low/high target that goes
+  to one source is kept in its range).
 - Offsets: the targets are those of the room. A source gets them plus
   its offset, and a target read from it (taken or shown) is minus its
   offset, so a target changed on the source still becomes the target of
@@ -145,21 +149,22 @@ class TargetSync:
         value = self._store[target]
         return None if value is None else self._modes.fit(value, mode)
 
-    def _applied_room(self, target: str, mode: HVACMode | None) -> float | None:
-        """Return a target as the source of a mode gets it, minus its offset."""
-        value = self.applied(target, mode)
-        return None if value is None else value - self._sources.offset(mode)
-
-    def keep(self, target: str, value: float) -> float:
+    def keep(self, target: str, value: float, *, outward: bool = False) -> float:
         """Return a value to keep for a target.
 
-        A target that only goes to one source (see target_mode) is kept as
-        that source gets it (minus its offset), so the phase switches where
-        the source works. Otherwise it is kept as is, for every source.
+        On the step of the entity: to the nearest step, or away from the
+        other target (outward: low down, high up, so a gap is kept). A
+        target that only goes to one source (see target_mode) is then kept
+        in the range of that source, so the phase switches where the source
+        works. The source gets it rounded to its own step (see applied).
         """
+        direction = 0
+        if outward:
+            direction = {ATTR_TARGET_TEMP_LOW: -1, ATTR_TARGET_TEMP_HIGH: 1}.get(target, 0)
+        value = self._sources.round_step(value, direction)
         mode = self.target_mode(target)
         if mode is not None and self._sources.state(self._sources.mode_sources[mode]) is not None:
-            return self._modes.fit(value, mode) - self._sources.offset(mode)
+            return self._sources.clamp(value, mode)
         return value
 
     # Setting the targets
@@ -170,7 +175,12 @@ class TargetSync:
 
     def apply_gap(self, changed_targets: list[str], *, give_way: bool = True) -> None:
         """Keep the low target the configured gap below the high one."""
-        self._store.apply_gap(changed_targets, self.min_gap(), self.keep, give_way=give_way)
+        self._store.apply_gap(
+            changed_targets,
+            self.min_gap(),
+            lambda target, value: self.keep(target, value, outward=True),
+            give_way=give_way,
+        )
 
     def set(self, values: dict[str, float], mode: HVACMode) -> None:
         """Set targets asked by the user, for a mode.
@@ -218,6 +228,7 @@ class TargetSync:
                 ),
                 (low + high) / 2,
             )
+            single = sources.round_step(single)
             self._store[ATTR_TEMPERATURE] = single
         if self._store.has_range():
             return
@@ -239,7 +250,7 @@ class TargetSync:
                 value = own[index]
             elif value is None:
                 value = other[index] if other is not None else fallback
-            self._store[target] = float(value)
+            self._store[target] = sources.round_step(float(value))
             filled.append(target)
         self.apply_gap(filled)
 
@@ -310,10 +321,12 @@ class TargetSync:
                 value, self.applied(target, source_mode)
             ):
                 continue
-            # The user took over from the source: it is kept as is, even
-            # outside the range or the limits of this entity. The other
-            # target moves to keep the gap.
-            self._store[target] = float(value) - self._sources.offset(source_mode)
+            # The user took over from the source: it is kept (on the step
+            # of the entity), even outside the range or the limits of this
+            # entity. The other target moves to keep the gap.
+            self._store[target] = self._sources.round_step(
+                float(value) - self._sources.offset(source_mode)
+            )
             taken.append(target)
         self.apply_gap(taken, give_way=False)
 
@@ -484,12 +497,14 @@ class TargetSync:
         targets are shown when the entity has them (range_supported), else
         the targets of the mode turn_on goes to.
 
-        A target the active source gets is read from it: it shows what is
-        applied, even a target set on it outside the limits. During the
-        settle time, or from a source without that target, the target of
-        this entity is shown, as the active source gets it. The target of the
-        other phase of the combined mode is shown as its source gets it.
-        A target read from a source, or as it gets it, is minus its offset.
+        The entity shows its own targets, on its step, not as the sources
+        get them (rounded to their step): a target changed on the active
+        source is taken (see observe), and a source showing another target
+        is a monitoring problem. A target the active source gets is shown
+        in the range of that source (not narrowed by the limits: a target
+        taken from it may be outside them); one no source runs with (off,
+        the other phase of the combined mode) in the range of the source it
+        goes to, else in the range of the entity.
         """
         mode = self._modes.current()
         mapping = self.mapping()
@@ -505,17 +520,13 @@ class TargetSync:
         if target is None:
             return None
 
+        value = self._store[target]
+        if value is None:
+            return None
         active_mode = self._modes.active_mode()
-        active = self._modes.active_source()
-        for source_attr, mapped in mapping.items():
-            if mapped != target:
-                continue
-            value = self._sources.from_source(self._sources.attr(active, source_attr), active_mode)
-            if (
-                not self.settling
-                and TARGET_FEATURES[source_attr] in self._sources.features(active)
-                and value is not None
-            ):
-                return value
-            return self._applied_room(target, active_mode)
-        return self._applied_room(target, self.target_mode(target))
+        if active_mode is not None and target in mapping.values():
+            return self._sources.clamp(value, active_mode, limits=False)
+        target_mode = self.target_mode(target)
+        if target_mode is None:
+            return self._modes.fit(value, None)
+        return self._sources.clamp(value, target_mode)

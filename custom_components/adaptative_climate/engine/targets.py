@@ -1,8 +1,9 @@
 """Targets kept by the entity.
 
 TargetStore holds the targets wanted by the user: single, low (heating
-setpoint) and high (cooling setpoint). The sources get them rounded and
-in their range, but the stored values stay as they are.
+setpoint) and high (cooling setpoint), on the step of the entity (see
+TargetSync.keep). The sources get them rounded to their own step and in
+their range, but the stored values stay as they are.
 
 - Item access: store[target].
 - apply_gap: keeps the low target a gap below the high one. The target
@@ -30,8 +31,8 @@ type KeepFunc = Callable[[str, float], float]
 class TargetStore:
     """Targets wanted by the user, kept across restarts.
 
-    The sources receive them rounded and in their range, but they stay as
-    they are. The low target (heating setpoint) stays a gap below the high
+    On the step of the entity. The sources receive them rounded to their
+    own step and in their range, but they stay as they are. The low target (heating setpoint) stays a gap below the high
     one (cooling setpoint).
     """
 

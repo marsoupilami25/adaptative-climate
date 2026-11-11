@@ -960,6 +960,9 @@ views:
         name: Marche / arrêt
         icon_tap_action:
           action: toggle
+      - type: tile
+        entity: binary_sensor.adaptative_combine_monitoring
+        name: Monitoring
     - type: vertical-stack
       cards:
       - type: heading
@@ -998,6 +1001,9 @@ views:
           {% endfor %}
 
           Adaptative COMBINE lit : **{{ state_attr('climate.adaptative_combine', 'current_temperature') }} °C**
+
+          {% set m = 'binary_sensor.adaptative_combine_monitoring' %}
+          Monitoring : **{{ states(m) }}**{% for p in state_attr(m, 'problems') or [] %}{% if p.type == 'sources' %} · écart {{ p.gap }} entre {% for s in p.sources %}{{ s.entity_id }} ({{ s.temperature }}){{ ' et ' if not loop.last else '' }}{% endfor %}{% else %} · {{ p.type }} ({{ p.entity_id }}){% endif %}{% endfor %}
       - type: entities
         entities:
         - input_number.temperature_radiateur_mono
@@ -1018,12 +1024,13 @@ views:
       Adaptative COMBINE affiche celle de la source active ; éteint, celle de RADIATEUR (la première source).
       Il ne bascule que si les deux sources sont d'accord (toutes deux sous la basse, ou au-dessus de la haute) ;
       si elles se contredisent, la source allumée est gardée. Bascule immédiate (`min_phase_duration: 0`).
+      *Monitoring* passe à *Problème* dès que les deux sources diffèrent de plus de 2 °C (`monitoring_duration: 0`), dans tous les scénarios.
 
       1. **Modes proposés** : *off*, *heat*, *cool* et *heat_cool*.
-      2. **Entrée** : *Température RADIATEUR* à 15, passer en *heat_cool* : RADIATEUR passe en *heat*. Régler la plage à 19–25 : *Consigne RADIATEUR* passe à 19. Adaptative COMBINE affiche *heat_cool*, source active RADIATEUR, Température 15.
-      3. **Bascules** : *Température CLIM* à 30 : rien ne change (RADIATEUR lit 15, les sources se contredisent). *Température RADIATEUR* à 26 : les deux sont au-dessus de 25, CLIM passe en *cool*, RADIATEUR s'éteint, *Consigne CLIM* à 25 ; Adaptative COMBINE reste en *heat_cool* et lit maintenant 30. *Température CLIM* à 18 : CLIM reste allumée (RADIATEUR lit encore 26). *Température RADIATEUR* à 18 : retour sur RADIATEUR. Remettre *Température RADIATEUR* à 20 : il reste allumé (entre les deux).
+      2. **Entrée** : *Température RADIATEUR* à 15, passer en *heat_cool* : RADIATEUR passe en *heat*. Régler la plage à 19–25 : *Consigne RADIATEUR* passe à 19. Adaptative COMBINE affiche *heat_cool*, source active RADIATEUR, Température 15. *Monitoring* est à *Problème* (écart 5 : CLIM lit 20).
+      3. **Bascules** : *Température CLIM* à 30 : rien ne change (RADIATEUR lit 15, les sources se contredisent) ; *Monitoring* reste à *Problème*, écart 15. Le journal a un warning « temperatures disagree for 0 min » (depuis le scénario 2). *Température RADIATEUR* à 26 : les deux sont au-dessus de 25, CLIM passe en *cool*, RADIATEUR s'éteint, *Consigne CLIM* à 25 ; Adaptative COMBINE reste en *heat_cool* et lit maintenant 30. *Température CLIM* à 18 : CLIM reste allumée (RADIATEUR lit encore 26). *Température RADIATEUR* à 18 : retour sur RADIATEUR, *Monitoring* repasse aussitôt à *OK*. Remettre *Température RADIATEUR* à 20 : il reste allumé (entre les deux), *Monitoring* reste *OK* (écart de 2, pas un problème).
       4. **Départ au plus proche** : éteindre (plage 19–25 gardée), *Température CLIM* à 22. *Température RADIATEUR* à 24, passer en *heat_cool* : CLIM s'allume (la moyenne des deux, 23, est plus près de 25). Éteindre, *Température RADIATEUR* à 20, passer en *heat_cool* : RADIATEUR s'allume.
-      5. **Arrondi et bornes** : Min/Max en *heat_cool* : 5–32 °C. Sur RADIATEUR (*Température RADIATEUR* à 18, *Température CLIM* à 22), plage 19–24,5, puis *Température CLIM* et *Température RADIATEUR* à 26 : bascule sur CLIM, *Consigne CLIM* à 25 (pas de 1 °C). Plage 10–14 : *Consigne CLIM* passe à 16 (son minimum), Adaptative COMBINE affiche 10–16.
+      5. **Arrondi et bornes** : Min/Max en *heat_cool* : 5–32 °C. Sur RADIATEUR (*Température RADIATEUR* à 18, *Température CLIM* à 22), régler la plage à 19–24,5 : Adaptative COMBINE affiche 19–24,5, *Consignes enregistrées* garde 24,5. *Température CLIM* et *Température RADIATEUR* à 26 : bascule sur CLIM, *Consigne CLIM* à 25 (arrondie à son pas de 1 °C) ; Adaptative COMBINE affiche toujours 19–24,5, et son thermostat garde le pas de 0,5 (celui de RADIATEUR, le plus fin). Plage 10–14 : *Consigne CLIM* passe à 16 (son minimum), Adaptative COMBINE affiche 10–16.
       6. **Changement sur la source** : sur RADIATEUR, attendre 12 s, puis mettre *Consigne RADIATEUR* à 20 : la consigne basse d'Adaptative COMBINE passe à 20.
       7. **Source éteinte ailleurs** : sur RADIATEUR, l'éteindre depuis sa carte : Adaptative COMBINE passe à *off*. *Température RADIATEUR* à 30 : rien ne s'allume.
       8. **Autre mode allumé ailleurs** : sur RADIATEUR, allumer CLIM depuis sa carte : RADIATEUR s'éteint, Adaptative COMBINE passe en *cool* (plus en *heat_cool*). *Température CLIM* à 15 : CLIM reste allumée.

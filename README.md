@@ -175,16 +175,24 @@ call, the high target moves. When the source of the other target cannot
 follow (range), the target just set gives way. A change made on a source has
 the upper hand: it is kept, and only the other target moves.
 
+The entity has its own step (`target_temp_step`), the same for the single,
+low and high targets: the largest step every source step is a multiple of
+(0.5 and 1 give 0.5, 0.5 and 0.2 give 0.1). A source without step counts as
+0.5 °C (1 °F), as the Home Assistant card takes it. Every target of the
+entity is on that step, whatever sets it (the card, a service call, the
+gap, a change made on a source), and the entity shows and works with its
+own targets: switching heat/cool, the gap, the monitoring.
+
 Each source gets the target plus its offset (see "Temperature offset"),
-rounded to its step and kept in its range (and in the `min_temp`/`max_temp`
-limits). A setpoint that only goes to one
-source (see "Heat/cool mode") is kept as that source gets it: a high target
-of 14 °C for an AC whose minimum is 16 °C is 16 °C, also to decide when to
-switch to it. When auto sends low/high to another source than heat/cool,
-they go to two sources and are kept as they were given, like the single
-target of the other modes.
-The entity shows the target of the active source (except right after
-entering a mode, see below).
+rounded to its own step and kept in its range (and in the
+`min_temp`/`max_temp` limits): with a heater at 0.5 and an AC at 1, a
+cooling setpoint of 24.5 °C stays 24.5 °C, shown as such, and the AC gets
+25 °C. A setpoint that only goes to one source (see "Heat/cool mode") is
+also kept in the range of that source: a high target of 14 °C for an AC
+whose minimum is 16 °C is 16 °C, also to decide when to switch to it. When
+auto sends low/high to another source than heat/cool, they go to two
+sources and are kept as they were given, like the single target of the
+other modes.
 A source that refuses the target (error) gets it again once, 5 seconds
 later, with the targets of that time; if it refuses again, a warning is
 logged (`Could not set temperature 21.0 on climate.heater: ...`) and the

@@ -340,10 +340,11 @@ async def test_combined_target_out_of_source_range_sent_again(
 async def test_combined_targets_kept_as_sources_get_them(
     hass: HomeAssistant, heater: FakeClimate
 ) -> None:
-    """Each low/high target goes to one source: it is kept as that source gets it.
+    """Each low/high target goes to one source: it is kept in its range.
 
     The phase then switches where the source works: the AC cannot go below
-    16, so a high target of 14 is 16, and 15 does not switch to cool.
+    16, so a high target of 14 is 16, and 15 does not switch to cool. The
+    targets are on the step of the entity (0.5): 10.2 is 10.0.
     """
     await _set_room(hass, "5")
     await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
@@ -354,10 +355,36 @@ async def test_combined_targets_kept_as_sources_get_them(
 
     assert _saved(hass)["target_temperature_low"] == 10.0
     assert _saved(hass)["target_temperature_high"] == 16.0
+    assert _sent(heater)[-1] == {ATTR_TEMPERATURE: 10.0}
     await _set_room(hass, "15")
     assert _attrs(hass)["active_entity_id"] == HEATER
     await _set_room(hass, "17")
     assert _attrs(hass)["active_entity_id"] == AC
+
+
+@pytest.mark.usefixtures("combined")
+async def test_combined_targets_on_entity_step(
+    hass: HomeAssistant, ac: FakeClimate
+) -> None:
+    """The low/high targets are on the step of the entity, the AC gets its own.
+
+    The heater has a 0.5 step, the AC a 1 step: the entity has 0.5. A high
+    target of 24.5 is shown off and while the AC runs; the AC gets 25.
+    """
+    ac._attr_target_temperature_step = 1.0
+    ac.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert _attrs(hass)["target_temp_step"] == 0.5
+
+    await _call(hass, SERVICE_SET_TEMPERATURE, target_temp_low=19.0, target_temp_high=24.5)
+    assert _attrs(hass)[ATTR_TARGET_TEMP_HIGH] == 24.5
+
+    await _set_room(hass, "30")
+    await _call(hass, SERVICE_SET_HVAC_MODE, hvac_mode=HVACMode.HEAT_COOL)
+    assert _attrs(hass)["active_entity_id"] == AC
+    assert _sent(ac)[-1] == {ATTR_TEMPERATURE: 25.0}
+    assert _attrs(hass)[ATTR_TARGET_TEMP_HIGH] == 24.5
+    assert _saved(hass)["target_temperature_high"] == 24.5
 
 
 @pytest.mark.usefixtures("combined")
@@ -1032,7 +1059,8 @@ async def test_own_source_gets_targets(
     attrs = _attrs(hass)
     assert attrs[ATTR_TARGET_TEMP_LOW] == 10.0
     assert attrs[ATTR_TARGET_TEMP_HIGH] == 23.5
-    # The targets only go to the heat pump: they are kept as it gets them.
+    # The targets only go to the heat pump: they are kept in its range, on
+    # the step of the entity (that of the heat pump, 0.5).
     assert _saved(hass)["target_temperature_low"] == 10.0
     assert _saved(hass)["target_temperature_high"] == 23.5
 

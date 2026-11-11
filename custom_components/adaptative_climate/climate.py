@@ -29,7 +29,6 @@ from homeassistant.components.climate import (
     ATTR_SWING_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
-    ATTR_TARGET_TEMP_STEP,
     ClimateEntity,
     ClimateEntityFeature,
     HVACAction,
@@ -387,9 +386,9 @@ class AdaptativeClimateEntity(
         target_temperature_low = native_target_temperature_low
 
     @property
-    def target_temperature_step(self) -> float | None:
-        """Return the temperature step of the display source."""
-        return self._sources.attr(self._modes.display_source(), ATTR_TARGET_TEMP_STEP)
+    def target_temperature_step(self) -> float:
+        """Return the step of the entity, from the steps of its sources (see Sources.step)."""
+        return self._sources.step()
 
     @property
     def min_temp(self) -> float:
@@ -487,7 +486,8 @@ class AdaptativeClimateEntity(
             # elsewhere), which the entity ignores.
             "foreign_modes": self._sources.foreign_modes(),
             # Every target kept by the entity, also those the current mode
-            # does not show, as set (before offset and rounding).
+            # does not show, on the step of the entity (before the offset and
+            # the step of the source).
             "saved_targets": {target: self._target_store[target] for target in TARGETS},
             # Fan and swing settings remembered by each configured mode,
             # sent back when the entity switches to it.
