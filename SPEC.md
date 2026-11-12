@@ -28,24 +28,45 @@ Filled step by step, on request only.
   - [1.2 Source behavior](#12-source-behavior)
     - [1.2.1 Events](#121-events)
     - [1.2.2 Stored data management](#122-stored-data-management)
-    - [1.2.3 Mode management: state machine](#123-mode-management-state-machine)
+    - [1.2.3 State management](#123-state-management)
+      - [1.2.3.1 State machine](#1231-state-machine)
+      - [1.2.3.2 UNDISCOVERED state](#1232-undiscovered-state)
+      - [1.2.3.3 OFF state](#1233-off-state)
+      - [1.2.3.4 ON(m) state](#1234-onm-state)
+      - [1.2.3.5 UNUSABLE state](#1235-unusable-state)
     - [1.2.4 Request confirmation](#124-request-confirmation)
-    - [1.2.5 UNDISCOVERED state](#125-undiscovered-state)
-    - [1.2.6 OFF state](#126-off-state)
-    - [1.2.7 ON(m) state](#127-onm-state)
-    - [1.2.8 UNUSABLE](#128-unusable)
-    - [1.2.9 Settings request](#129-settings-request)
+    - [1.2.5 Settings request](#125-settings-request)
   - [1.3 Entity behavior](#13-entity-behavior)
     - [1.3.1 Events](#131-events)
-    - [1.3.2 State management: state machine](#132-state-management-state-machine)
-    - [1.3.3 INIT state](#133-init-state)
-    - [1.3.4 OFF state](#134-off-state)
-    - [1.3.5 ON(m) state](#135-onm-state)
-    - [1.3.6 WAITING(m) state](#136-waitingm-state)
-    - [1.3.7 NO_SOURCE state](#137-no_source-state)
-    - [1.3.8 Capabilities management](#138-capabilities-management)
-    - [1.3.9 Settings management](#139-settings-management)
+    - [1.3.2 State management](#132-state-management)
+      - [1.3.2.1 State machine](#1321-state-machine)
+      - [1.3.2.2 INIT state](#1322-init-state)
+      - [1.3.2.3 OFF state](#1323-off-state)
+      - [1.3.2.4 ON(m) state](#1324-onm-state)
+      - [1.3.2.5 WAITING(m) state](#1325-waitingm-state)
+      - [1.3.2.6 NO_SOURCE state](#1326-no_source-state)
+    - [1.3.3 Mode management](#133-mode-management)
+      - [1.3.3.1 Mono-source and bi-source modes](#1331-mono-source-and-bi-source-modes)
+      - [1.3.3.2 Bi-source mode: phase management](#1332-bi-source-mode-phase-management)
+        - [1.3.3.2.1 Phase management](#13321-phase-management)
+        - [1.3.3.2.2 Wanted phase](#13322-wanted-phase)
+    - [1.3.4 Capabilities management](#134-capabilities-management)
+      - [1.3.4.1 Principle](#1341-principle)
+      - [1.3.4.2 Modes offered](#1342-modes-offered)
+      - [1.3.4.3 Temperature targets used by each mode](#1343-temperature-targets-used-by-each-mode)
+      - [1.3.4.4 Step](#1344-step)
+      - [1.3.4.5 Range](#1345-range)
+      - [1.3.4.6 Fan and swing](#1346-fan-and-swing)
+    - [1.3.5 Settings management](#135-settings-management)
+      - [1.3.5.1 Reference temperature](#1351-reference-temperature)
+      - [1.3.5.2 External sensors](#1352-external-sensors)
 - [2. Configuration](#2-configuration-new)
+  - [2.1 Modes](#21-modes)
+  - [2.2 Temperature sensor](#22-temperature-sensor)
+  - [2.3 Timers and durations](#23-timers-and-durations)
+  - [2.4 Monitoring](#24-monitoring)
+  - [2.5 Temperature limits](#25-temperature-limits)
+  - [2.6 Fan and swing](#26-fan-and-swing)
 - [3. Monitoring](#3-monitoring-new)
 
 <a id="0-glossary-new"></a>
@@ -56,7 +77,10 @@ Filled step by step, on request only.
 |---|---|
 | **Entity** | The Adaptative Climate `climate` entity (one per config entry). |
 | **Source entity** | A `climate` entity of Home Assistant configured for a mode (`<mode>_entity`). One source entity can serve several modes. |
-| **Source** | The local object that follows one source entity: its stored data (§1.2.2) and its state machine (§1.2.3). One per source entity. |
+| **Source** | The local object that follows one source entity: its stored data (§1.2.2) and its state machine (§1.2.3.1). One per source entity. |
+| **Reference temperature** | The temperature the entity regulates on: the temperature sensor (`temperature_sensor`) when set, else the current temperatures of the sources, minus the offset of their mode (§2.2). |
+| **Takeover** | A change made directly on a source entity (remote, app) that the entity follows: the source wins. |
+| **Source mode** | The HVAC mode sent to a source: the mode, or the **phase** (`heat` / `cool`) of a bi-source mode (§1.3.3.1). |
 | **Served modes** | The modes of the entity a source entity is configured for. Known by the entity only. |
 | **Usable** | A source entity that exists in Home Assistant and whose state is not `unavailable` / `unknown`. |
 | **Capability** | A capability attribute of a source entity (Home Assistant `capability_attributes` of `climate`), or `supported_features`, kept by the source (§1.2.2). Managed: `hvac_modes` (per source); `supported_features`, `min_temp`, `max_temp`, `target_temp_step`, `fan_modes`, `swing_modes`, `swing_horizontal_modes` (per source and mode). Not managed for now: `min_humidity`, `max_humidity`, `target_humidity_step`, `preset_modes`. |
@@ -76,6 +100,7 @@ Diagram notation: UML state diagrams, transitions written
 ```mermaid
 flowchart LR
     U["User<br/>(card, automations)"]
+    T["Temperature sensor<br/>(temperature_sensor)"]
     subgraph INT["Adaptative Climate integration (one config entry)"]
         AC["AC entity<br/>climate.living_room"]
         S1["Source<br/>climate.heater"]
@@ -86,6 +111,7 @@ flowchart LR
         E2["Source entity<br/>climate.ac"]
     end
     U -- "mode, targets, fan/swing" --> AC
+    T -- "TStAC events" --> AC
     AC -- "ACtS_request(r)" --> S1
     AC -- "ACtS_request(r)" --> S2
     S1 -- "source events, data" --> AC
@@ -103,6 +129,8 @@ flowchart LR
   entity. The AC entity never talks to a source entity directly.
 - **Source entity**: a `climate` entity of Home Assistant (heater, AC,
   heat pump...), configured for one or more modes of the AC entity.
+- **Temperature sensor**: the optional sensor giving the reference temperature (`temperature_sensor`,
+  §2.2).
 
 #### 1.1.2 Events exchanged
 
@@ -113,13 +141,20 @@ Between the user and the AC entity:
 | `UtAC_set_mode(m)` | user → AC entity | The user asks for the mode `m` (`off` included): card, `set_hvac_mode`, `turn_on` (last mode), `turn_off`. |
 | `UtAC_set_settings(s)` | user → AC entity | The user sets settings `s`: targets (`set_temperature`), fan, swing, horizontal swing. |
 
+Between the temperature sensor and the AC entity:
+
+| Event | Direction | Meaning |
+|---|---|---|
+| `TStAC_temperature(t)` | temperature sensor → AC entity | The temperature sensor has a new valid value `t` (converted to the unit of Home Assistant). |
+
 Between the AC entity and a source:
 
 | Event | Direction | Meaning |
 |---|---|---|
 | `ACtS_request(r)` | AC entity → source | Put the source entity in `r` (an HVAC mode, or `off`). |
-| `ACtS_settings(s)` | AC entity → source | Settings `s` (targets, fan/swing) for the source entity (§1.2.9). |
-| `StAC_settings(s)` | source → AC entity | Settings `s` changed on the source entity (takeover), outside a request confirmation and `SETTLE(m)` (§1.2.9). |
+| `ACtS_settings(s)` | AC entity → source | Settings `s` (targets, fan/swing) for the source entity (§1.2.5). |
+| `StAC_settings(s)` | source → AC entity | Settings `s` changed on the source entity (takeover), outside a request confirmation and `SETTLE(m)` (§1.2.5). |
+| `StAC_temperature(t)` | source → AC entity | The current temperature `t` of the source entity changed (§1.2.3.1). |
 | `StAC_undiscovered` | source → AC entity | The source enters `UNDISCOVERED`. |
 | `StAC_off` | source → AC entity | The source enters `OFF`. |
 | `StAC_on(m)` | source → AC entity | The source enters `ON(m)`. |
@@ -132,20 +167,24 @@ Between a source and its source entity:
 | Event | Direction | Meaning |
 |---|---|---|
 | `StSE_set_hvac_mode(r)` | source → source entity | Service call `climate.set_hvac_mode` carrying out a request. |
-| `StSE_set_temperature(t)`, `StSE_set_fan_mode(f)`, `StSE_set_swing_mode(w)`, `StSE_set_swing_horizontal_mode(h)` | source → source entity | Service calls carrying out a settings request (§1.2.9). |
+| `StSE_set_temperature(t)`, `StSE_set_fan_mode(f)`, `StSE_set_swing_mode(w)`, `StSE_set_swing_horizontal_mode(h)` | source → source entity | Service calls carrying out a settings request (§1.2.5). |
 | `SEtS_off`, `SEtS_on(m)`, `SEtS_unavailable`, `SEtS_unknown`, `SEtS_attributes` | source entity → source | Changes of the source entity (§1.2.1). |
 
-Settings (targets, fan/swing): §1.2.9.
+Settings (targets, fan/swing): §1.2.5.
 
 ### 1.2 Source behavior
 
-A source has two functions:
+A source has four functions:
 
 - **stored data management** (§1.2.2): permanent, it does not depend on
   the state of the source;
-- **mode management** (§1.2.3 to §1.2.8): the state machine of the
-  source. Its state is a **local** state, kept in sync with the source
-  entity; it is not the state of the source entity itself.
+- **state management** (§1.2.3): the state machine of the source. Its
+  state is a **local** state, kept in sync with the source entity; it is
+  not the state of the source entity itself;
+- **request confirmation** (§1.2.4): confirmation, retries and settle time
+  of a request, in parallel with the state machine;
+- **settings request** (§1.2.5): targets and fan/swing settings sent to
+  the source entity.
 
 #### 1.2.1 Events
 
@@ -160,7 +199,7 @@ A source has two functions:
 | `SEtS_unknown` | The source entity changed to `unknown`. |
 | `SEtS_attributes` | Only attributes of the source entity changed (its state stays the same). |
 | `ACtS_request(r)` | The entity asks the source entity for `r` (an HVAC mode, or `off`). |
-| `ACtS_settings(s)` | The entity gives the settings `s` (targets, fan/swing) for the source entity (§1.2.9). |
+| `ACtS_settings(s)` | The entity gives the settings `s` (targets, fan/swing) for the source entity (§1.2.5). |
 
 #### 1.2.2 Stored data management
 
@@ -192,7 +231,7 @@ Stored data of a source, saved across restarts:
 - **SRC-DATA-3** The data is **available** once `hvac_modes` is known
   (restored or read). Mode capabilities may still be missing: Home
   Assistant defaults (SRC-DATA-1).
-- What the entity does with a mode not discovered yet: ENT-CAP-2 to ENT-CAP-5
+- What the entity does with a mode not discovered yet: ENT-CAP-3 to ENT-CAP-6
   (§1.3).
 
 ##### 1.2.2.2 Restore (at `start`):
@@ -214,7 +253,7 @@ flowchart TD
   source entity is read (`hvac_modes`, and the mode capabilities if it
   runs in a mode), and the stored state is set to `OFF`: the source was
   never used, so it starts from a clean state (its entry turns the
-  source entity off if it runs, SRC-MODE-2).
+  source entity off if it runs, SRC-STATE-2).
   - If it cannot be read (not usable), the data is not
   available. 
   - Data restored or read raises `data_available`. The end of
@@ -263,16 +302,18 @@ stateDiagram-v2
 ```
 
 - **SRC-DATA-10** A value no longer shown, or a list that lost items, is kept
-  as it is for `capability_rem_confirmation` (§2, 60 s by default). The
+  as it is for `capability_rem_confirmation` (§2.3, 60 s by default). The
   timer is cancelled when the full value is shown again; other changes of
-  the source entity (room temperature...) let it run. At the end of the
+  the source entity (current temperature...) let it run. At the end of the
   timer, the value is removed (or replaced by the shorter list now shown)
   and the data is saved.
 - **SRC-DATA-11** A capability of mode `m` is only judged while the source
   entity runs in `m`: the source entity leaving `m` cancels its timer.
   The source entity becoming not usable cancels every timer (SRC-DATA-7).
 
-#### 1.2.3 Mode management: state machine
+#### 1.2.3 State management
+
+##### 1.2.3.1 State machine
 
 ```mermaid
 stateDiagram-v2
@@ -307,14 +348,14 @@ stateDiagram-v2
     UNUS --> UNUS : ACtS_request(r) / store r
     UNUS --> back : SEtS_off, SEtS_on(m) / StAC_usable
     back --> OFF : [stored state OFF]
-    back --> ON : [stored state ON(m)]
+    back --> ON : [stored state ON(m)] / send the kept settings again (SETTLE(m), §1.2.4)
 ```
 
 "check source entity" (entry of `OFF` and `ON(m)`): if the source entity
 does not show the state (`off`, or `m`), the state is sent to it and the
 request confirmation starts (§1.2.4).
 
-- **SRC-MODE-1** After `start`, the source waits for the end of the first
+- **SRC-STATE-1** After `start`, the source waits for the end of the first
   restore (`restored`), then:
   - data not available → `UNDISCOVERED`, reported to the entity;
   - data available and source entity not usable → `UNUSABLE`,
@@ -322,53 +363,98 @@ request confirmation starts (§1.2.4).
   - data available and source entity usable → the stored state (`OFF`
     when the data was read from the source entity, SRC-DATA-4), reported to
     the entity (`OFF` or `ON(m)`).
-- **SRC-MODE-2** On entry of `OFF` or `ON(m)`, however it is entered (request,
+- **SRC-STATE-2** On entry of `OFF` or `ON(m)`, however it is entered (request,
   restore, back from `UNUSABLE`), the state is compared with the source
   entity: if it differs, the state is sent to the source entity and the
   request confirmation starts (§1.2.4). Entered from a change of the
   source entity, it is the same: nothing is sent.
-- **SRC-MODE-3** In `OFF` or `ON(m)`, a request from the entity 
+- **SRC-STATE-3** In `OFF` or `ON(m)`, a request from the entity 
   - moves the state
   at once to the state asked (`ON(m)` or `OFF`); 
   - its entry sends it
-  (SRC-MODE-2). 
+  (SRC-STATE-2). 
   - `ON(m)` → `ON(m2)` is a new entry. 
   - No `StAC_` event is sent:
   the entity asked for it. A `StAC_off` / `StAC_on(m)` always means a
   change made on the source entity, never the result of a request.
-- **SRC-MODE-4** In `UNUSABLE`, a request from the entity is stored as the
+- **SRC-STATE-4** In `UNUSABLE`, a request from the entity is stored as the
   stored state; nothing is sent.
-- **SRC-MODE-5** In `OFF` or `ON(m)`, a change of the source entity
+- **SRC-STATE-5** In `OFF` or `ON(m)`, a change of the source entity
   (`SEtS_off`, `SEtS_on(m)`) moves the state, and the new state is reported to the entity.
   During a request confirmation, these changes are handled by the
   confirmation (§1.2.4) and do not reach the state machine.
-- **SRC-MODE-6** In `OFF` or `ON(m)`, `SEtS_unavailable` or `SEtS_unknown` always moves the source to
+- **SRC-STATE-6** In `OFF` or `ON(m)`, `SEtS_unavailable` or `SEtS_unknown` always moves the source to
   `UNUSABLE`, even during a request confirmation, which ends (the state
-  asked stays the stored state, sent again on return: SRC-MODE-7). Reported to
+  asked stays the stored state, sent again on return: SRC-STATE-7). Reported to
   the entity.
-- **SRC-MODE-7** In `UNUSABLE`, the source entity back (`SEtS_off` or `SEtS_on(m)`)
-  moves the source to the **stored** state, not to the state shown; the
-  entry of that state sends it if needed (SRC-MODE-2). The entity gets only
-  `StAC_usable`: the stored state is the one it already knows.
-- **SRC-MODE-8** In `UNDISCOVERED`, no request is made (the entity refuses the mode
+- **SRC-STATE-7** In `UNUSABLE`, the source entity back (`SEtS_off` or
+  `SEtS_on(m)`) moves the source to its **stored** state, not to the state
+  shown.
+  - The entry of that state sends it if needed (SRC-STATE-2).
+  - When the stored state is `ON(m)`, the source always goes through
+    `SETTLE(m)` (§1.2.4), even if the source entity already shows `m`: it
+    sends its kept settings, ignores during `settle_timer` the values the
+    device reports while reconnecting, and sends them again at the end if
+    needed (SRC-SET-5).
+  - The entity gets only `StAC_usable`: the stored state is the one it
+    already knows.
+- **SRC-STATE-8** In `UNDISCOVERED`, no request is made (the entity refuses the mode
   before). When the data becomes available, the source goes to `OFF`,
   reported to the entity; its entry turns the source entity off if it
-  runs (SRC-MODE-2).
-- **SRC-MODE-9** Every change of state is saved as the stored state (except
+  runs (SRC-STATE-2).
+- **SRC-STATE-9** Every change of state is saved as the stored state (except
   `UNDISCOVERED` / `UNUSABLE`, which keep the last usable one).
-- **SRC-MODE-10** Resynchronization: at start, and when the source entity comes
+- **SRC-STATE-10** Resynchronization: at start, and when the source entity comes
   back from unavailable, **Home Assistant wins**: the stored state is sent
-  to the source entity (SRC-MODE-2, SRC-MODE-7), whatever was changed on the device
+  to the source entity (SRC-STATE-2, SRC-STATE-7), whatever was changed on the device
   meanwhile. At start, everything is resynchronized (several sources left
   on would give odd effects); after unavailability, there was a problem,
   so everything is resynchronized when it ends. The source entity has the
   upper hand (takeover) only in nominal operation: `OFF` / `ON(m)`,
-  outside a request confirmation (SRC-MODE-5).
+  outside a request confirmation (SRC-STATE-5).
+
+- **SRC-STATE-11** In `OFF` or `ON(m)`, a change of the current
+  temperature of the source entity (`current_temperature`, in
+  `SEtS_attributes`) is reported to the entity: `StAC_temperature(t)`, as
+  read (the entity removes the offset of the mode, §2.2).
+
+##### 1.2.3.2 UNDISCOVERED state
+
+The data of the source is not available.
+
+- The first usable change of the source entity makes the data available
+  (SRC-DATA-6): `data_available` moves the source to `OFF` (SRC-STATE-8).
+- **SRC-UNDISC-1** The source offers nothing: no capability (the entity does
+  not count it for the step, uses Home Assistant default ranges 7–35 °C,
+  no options), no HVAC mode (its modes are not judged as offered or not).
+
+##### 1.2.3.3 OFF state
+
+The source entity is off.
+
+- Settings: see §1.2.5.
+
+##### 1.2.3.4 ON(m) state
+
+The source entity runs in `m`, any HVAC mode other than `off`.
+
+- **SRC-ON-1** The source does not know which modes the entity uses it for:
+  `ON(m)` is just the HVAC mode of the source entity. Whether `m` is a mode
+  the source serves here (or a foreign mode) is decided by the entity.
+- Settings: see §1.2.5.
+
+##### 1.2.3.5 UNUSABLE state
+
+The source entity is not usable (`unavailable`, `unknown`, or missing in
+Home Assistant), but the data of the source is available.
+
+- The stored data stays as it is (SRC-DATA-7): the entity keeps reading the
+  capabilities of the source as they were when it was last usable.
 
 #### 1.2.4 Request confirmation
 
-Runs in parallel with the state machine of §1.2.3. `send(r)` is the
-entry check of `OFF` / `ON(m)` sending `r` to the source entity (SRC-MODE-2).
+Runs in parallel with the state machine of §1.2.3.1. `send(r)` is the
+entry check of `OFF` / `ON(m)` sending `r` to the source entity (SRC-STATE-2).
 It works the same way to turn a source entity on in a mode (`r` = `m`)
 and to turn it off (`r` = `off`).
 
@@ -384,6 +470,7 @@ stateDiagram-v2
     state "SETTLE(m)<br/>settle timer: settle_timer" as S
     [*] --> I
     I --> C : send(r) / StSE_set_hvac_mode(r), start confirm timer
+    I --> S : back from UNUSABLE in ON(m), source entity already in m / start settle timer
     C --> S : SEtS_on(m) [r = m shown] / cancel confirm timer, monitoring down, start settle timer
     C --> I : SEtS_off [r = off] / cancel confirm timer, monitoring down
     C --> C : SEtS_off, SEtS_on(m) [r not shown] / ignored
@@ -394,12 +481,12 @@ stateDiagram-v2
     W --> C : retry timeout / StSE_set_hvac_mode(r), start confirm timer
     W --> S : SEtS_on(m) [r = m shown] / cancel retry timer, monitoring down, start settle timer
     W --> I : SEtS_off [r = off] / cancel retry timer, monitoring down
-    W --> I : SEtS_off, SEtS_on(m) [r not shown] / cancel retry timer, monitoring down, followed (SRC-MODE-5)
+    W --> I : SEtS_off, SEtS_on(m) [r not shown] / cancel retry timer, monitoring down, followed (SRC-STATE-5)
     W --> C : send(r2) / cancel retry timer, monitoring down, StSE_set_hvac_mode(r2), r := r2, start confirm timer
     W --> I : SEtS_unavailable, SEtS_unknown / cancel retry timer, monitoring down
-    S --> I : settle timeout (settings: §1.2.9)
+    S --> I : settle timeout (settings: §1.2.5)
     S --> I : SEtS_attributes [settings sent shown] / cancel settle timer
-    S --> I : SEtS_off, SEtS_on(m2) / cancel settle timer, followed (SRC-MODE-5)
+    S --> I : SEtS_off, SEtS_on(m2) / cancel settle timer, followed (SRC-STATE-5)
     S --> C : send(r2) / cancel settle timer, StSE_set_hvac_mode(r2), r := r2, start confirm timer
     S --> I : SEtS_unavailable, SEtS_unknown / cancel settle timer
 ```
@@ -408,13 +495,13 @@ stateDiagram-v2
   that do not show `r` are ignored: a device may still show its previous
   mode, or go through `off`, before showing the mode asked. Cloud devices
   may take a while. Exception: `SEtS_unavailable` / `SEtS_unknown` ends the confirmation
-  (SRC-MODE-6).
+  (SRC-STATE-6).
 - **SRC-REQ-2** The source entity showing `r` ends the confirmation: the
   source is in the state asked. When `r` is a mode (`ON(m)`), the source
   enters `SETTLE(m)`: the settings (targets, fan/swing) are sent and, for
-  `settle_timer` (§2, 12 s by default), the settings shown by the source
+  `settle_timer` (§2.3, 12 s by default), the settings shown by the source
   entity are ignored
-  (§1.2.9, SRC-SET-5).
+  (§1.2.5, SRC-SET-5).
 - **SRC-REQ-3** `SETTLE(m)` 
   - ends 
     - at the end of the settle timer, 
@@ -423,7 +510,7 @@ stateDiagram-v2
   - It also stops (settle
   timer cancelled) 
     - when the source leaves `m`: a change of the source
-  entity (`SEtS_off`, `SEtS_on(m2)`, followed: SRC-MODE-5), 
+  entity (`SEtS_off`, `SEtS_on(m2)`, followed: SRC-STATE-5), 
     - a new request
   (a new confirmation starts), 
     - or `SEtS_unavailable` / `SEtS_unknown`.
@@ -435,57 +522,38 @@ stateDiagram-v2
 - **SRC-REQ-6** Timeout of the confirmation while the source entity does not
   show `r` (call failed, or the device did not follow): the monitoring
   reports the source entity out of sync (MON-GEN-1), and the source waits
-  `request_retry_timer` (§2, 5 min by default: retry wait).
+  `request_retry_timer` (§2.3, 5 min by default: retry wait).
 - **SRC-REQ-7** At the end of the retry wait, `r` is sent again and a new
-  confirmation (`request_confirmation_timer`, §2, 30 s by default) starts, with
+  confirmation (`request_confirmation_timer`, §2.3, 30 s by default) starts, with
   the same behavior. This goes on every `request_retry_timer` as long as the
   source entity does not show `r`.
 - **SRC-REQ-8** The confirmation and the retries stop only when the source
   entity shows `r`, or when the source leaves the state that started them
-  (new request: SRC-REQ-5; `SEtS_unavailable` / `SEtS_unknown`: SRC-MODE-6; change of the source entity
+  (new request: SRC-REQ-5; `SEtS_unavailable` / `SEtS_unknown`: SRC-STATE-6; change of the source entity
   during the retry wait: SRC-REQ-9).
 - **SRC-REQ-9** During the retry wait, the source entity is master: a change
   of the source entity to another state than `r` (remote, app) stops the
-  retries and is followed as a takeover (SRC-MODE-5): the state moves and is
+  retries and is followed as a takeover (SRC-STATE-5): the state moves and is
   reported to the entity.
+- **SRC-REQ-10** When the settle time applies. `SETTLE(m)` protects the
+  settings Home Assistant has just **pushed**: right after entering a
+  mode, some devices report their own stored value for that mode a few
+  seconds later, which must not be taken for a takeover.
+  - Settle: after a request confirmed by the source entity (Home
+    Assistant asked for the mode and pushes its settings).
+  - Settle: when the source comes back from `UNUSABLE` in `ON(m)`
+    (resynchronization, Home Assistant wins and pushes its settings,
+    SRC-STATE-7).
+  - No settle: on a mode change made on the device (`SEtS_on(m)` outside
+    a confirmation). The source wins: nothing is pushed, the settings of
+    the device are adopted (SRC-SET-10), and the values it reports in the
+    next seconds are adopted too.
 
-#### 1.2.5 UNDISCOVERED state
-
-The data of the source is not available.
-
-- The first usable change of the source entity makes the data available
-  (SRC-DATA-6): `data_available` moves the source to `OFF` (SRC-MODE-8).
-- **SRC-UNDISC-1** The source offers nothing: no capability (the entity does
-  not count it for the step, uses Home Assistant default ranges 7–35 °C,
-  no options), no HVAC mode (its modes are not judged as offered or not).
-
-#### 1.2.6 OFF state
-
-The source entity is off.
-
-- Settings: see §1.2.9.
-
-#### 1.2.7 ON(m) state
-
-The source entity runs in `m`, any HVAC mode other than `off`.
-
-- **SRC-ON-1** The source does not know which modes the entity uses it for:
-  `ON(m)` is just the HVAC mode of the source entity. Whether `m` is a mode
-  the source serves here (or a foreign mode) is decided by the entity.
-- Settings: see §1.2.9.
-
-#### 1.2.8 UNUSABLE state
-
-The source entity is not usable (`unavailable`, `unknown`, or missing in
-Home Assistant), but the data of the source is available.
-
-- The stored data stays as it is (SRC-DATA-7): the entity keeps reading the
-  capabilities of the source as they were when it was last usable.
-
-#### 1.2.9 Settings request
+#### 1.2.5 Settings request
 
 Settings `s`: any of the targets (`temperature`, or `target_temp_low` and
-`target_temp_high`, already computed by the entity: offset, step, range),
+`target_temp_high`, already computed by the entity: offset (§2.2), step,
+range),
 `fan_mode`, `swing_mode`, `swing_horizontal_mode`. Each one is sent with
 its own service call (`StSE_set_temperature`, `StSE_set_fan_mode`,
 `StSE_set_swing_mode`, `StSE_set_swing_horizontal_mode`). The settle time
@@ -503,7 +571,7 @@ stateDiagram-v2
     St --> St : enter SETTLE(m) (§1.2.4) / StSE_set_*(kept settings not shown)
     St --> St : SEtS_attributes [in SETTLE, other settings shown] / ignored, remember it
     St --> St : SEtS_attributes [ON(m), no confirmation, not in SETTLE, a setting changed] / keep it, StAC_settings(changed)
-    St --> St : SEtS_on(m) followed (takeover, SRC-MODE-5) / keep the settings shown, StAC_settings(all)
+    St --> St : SEtS_on(m) followed (takeover, SRC-STATE-5) / keep the settings shown, StAC_settings(all)
     St --> St : settle timeout [other settings were shown] / StSE_set_*(kept settings)
     St --> St : resync timeout [ON(m), no confirmation, settings not shown] / StSE_set_*(s), restart resync timer
     St --> St : resync timeout [otherwise] / restart resync timer
@@ -519,7 +587,7 @@ stateDiagram-v2
   - After a request,
   the entity sends the settings of the new mode (`ACtS_settings(s)`).
   - In `UNUSABLE`, they are kept, unless a request for another state is
-  received: the state asked is stored (SRC-MODE-4) and the kept settings are
+  received: the state asked is stored (SRC-STATE-4) and the kept settings are
   withdrawn, as for any mode change.
 - **SRC-SET-2** In `ON(m)` outside a request confirmation, a settings request
   is sent to the source entity at once, except the settings it already
@@ -562,7 +630,7 @@ stateDiagram-v2
   setting and sends `StAC_settings(s)` (the settings changed) to the
   entity, which adopts them. During a confirmation or `SETTLE(m)`, such
   changes are ignored (SRC-REQ-1, SRC-SET-5). After a mode change made on the
-  source entity (`SEtS_on(m)` followed, SRC-MODE-5), the source sends its
+  source entity (`SEtS_on(m)` followed, SRC-STATE-5), the source sends its
   current settings at once (`StAC_settings(s)`, the settings shown by the
   source entity in `m`): the entity adopts them (the source wins).
 - How the entity computes the targets (offsets, steps, ranges) and
@@ -570,13 +638,15 @@ stateDiagram-v2
 
 ### 1.3 Entity behavior
 
-The AC entity has three functions:
+The AC entity has four functions:
 
-- **state management** (§1.3.2 to §1.3.7): its own state machine, which
-  drives the sources;
-- **capabilities management** (§1.3.8): its capabilities, from those of
+- **state management** (§1.3.2): its own state machine, which drives the
+  sources;
+- **mode management** (§1.3.3): mono-source and bi-source modes, and the
+  phases of a bi-source mode;
+- **capabilities management** (§1.3.4): its capabilities, from those of
   its sources;
-- **settings management** (§1.3.9): targets and fan/swing settings.
+- **settings management** (§1.3.5): targets and fan/swing settings.
 
 #### 1.3.1 Events
 
@@ -584,7 +654,8 @@ The AC entity has three functions:
 |---|---|---|
 | `UtAC_set_mode(m)` | user → AC entity | The user asks for the mode `m` (`off` included): card, `set_hvac_mode`, `turn_on` (last mode), `turn_off`. |
 | `UtAC_set_settings(s)` | user → AC entity | The user sets settings `s`: targets (`set_temperature`), fan, swing, horizontal swing. |
-| `StAC_undiscovered`, `StAC_off`, `StAC_on(m)`, `StAC_unusable`, `StAC_usable`, `StAC_settings(s)` | source → AC entity | See §1.1.2. Each one comes from one source. |
+| `TStAC_temperature(t)` | temperature sensor → AC entity | See §1.1.2. |
+| `StAC_undiscovered`, `StAC_off`, `StAC_on(m)`, `StAC_unusable`, `StAC_usable`, `StAC_settings(s)`, `StAC_temperature(t)` | source → AC entity | See §1.1.2. Each one comes from one source. |
 | `ACtS_request(r)`, `ACtS_settings(s)` | AC entity → source | See §1.1.2. |
 
 Words used below:
@@ -598,13 +669,15 @@ Words used below:
   `S` is the source of the mode `x` of the entity, **foreign** otherwise
   (a heater set to `fan_only` on its remote).
 
-#### 1.3.2 State management: state machine
+#### 1.3.2 State management
+
+##### 1.3.2.1 State machine
 
 Activities on the transitions:
 
 | Activity | What is sent |
 |---|---|
-| `apply(m)` | To the source of `m`: `ACtS_request(m)` (the phase for combined heat/cool) and `ACtS_settings(s)` (the settings of `m`, §1.3.9).<br> To every other source not `OFF` (`UNUSABLE` included): `ACtS_request(off)`. |
+| `apply(m)` | To the source of `m`: `ACtS_request(m)` (the phase for a bi-source mode) and `ACtS_settings(s)` (the settings of `m`, §1.3.5).<br> To every other source not `OFF` (`UNUSABLE` included): `ACtS_request(off)`. |
 | `apply(off)` | To every source not `OFF` (`UNUSABLE` included): `ACtS_request(off)`. |
 | `follow(S)` | Takeover by `S` in a **served** mode only. To every source not `OFF` other than `S` (`UNUSABLE` included): `ACtS_request(off)`. Nothing to `S`. |
 
@@ -643,9 +716,9 @@ stateDiagram-v2
         ON --> ON : StAC_on(x) from another source [foreign] / log
         ON --> ON : UtAC_set_mode(m2) [source of m2 available] / apply(m2)
         ON --> ON : StAC_on(m2) from S [served] / follow(S)
-        ON --> WAIT : StAC_unusable from the active source
+        ON --> WAIT : StAC_unusable from one source of the mode [mono-source, or both sources UNUSABLE]
 
-        WAIT --> ON : StAC_usable from the active source
+        WAIT --> ON : StAC_usable from one source of the mode (bi-source: from either phase source)
         WAIT --> ON : UtAC_set_mode(m2) [source of m2 available] / apply(m2)
         WAIT --> ON : StAC_on(m2) from S [served] / follow(S)
         WAIT --> OFF : UtAC_set_mode(off) / apply(off)
@@ -653,16 +726,16 @@ stateDiagram-v2
     }
 ```
 
-- **ENT-MODE-1** The entity stores its mode (`off` or `m`), saved across
+- **ENT-STATE-1** The entity stores its mode (`off` or `m`), saved across
   restarts. `INIT` and `NO_SOURCE` keep it.
-- **ENT-MODE-2** **A change asked by the user** (`UtAC_set_mode`) is sent to
+- **ENT-STATE-2** **A change asked by the user** (`UtAC_set_mode`) is sent to
   the sources (`apply`). **A change coming from a source** (`StAC_`) is
   followed, and nothing is sent to that source: the source wins
   (takeover). The other sources are still turned off (`follow`).
-- **ENT-MODE-3** A user mode change goes to the mode asked if its source is
+- **ENT-STATE-3** A user mode change goes to the mode asked if its source is
   available (`OFF` or `ON`). `off` is always accepted. Otherwise it is
   refused with an error.
-- **ENT-MODE-4** A source mode change:
+- **ENT-STATE-4** A source mode change:
   - `StAC_on(x)` **served**: takeover, the entity goes to `ON(x)` and
     turns the other sources off (`follow`);
   - `StAC_on(x)` **foreign** from the currently active source (it left
@@ -671,18 +744,20 @@ stateDiagram-v2
   - `StAC_on(x)` **foreign** from any other source: nothing happens
     (logged, listed in the `foreign_modes` attribute);
   - `StAC_off` from the active source: the entity goes `OFF`.
-- **ENT-MODE-5** Main states: `INIT`, `OPER` (sub-states `OFF`, `ON(m)`,
+- **ENT-STATE-5** Main states: `INIT`, `OPER` (sub-states `OFF`, `ON(m)`,
   `WAITING(m)`) and `NO_SOURCE`. Entering `OPER` goes through the choice
   `resume`. `every source UNUSABLE` leaves `OPER` for `NO_SOURCE`, whatever
   the sub-state, and wins over the other transitions.
-- **ENT-MODE-6** Combined heat/cool (heat and cool sources, no `heat_cool`
-  source): to be specified.
+- **ENT-STATE-6** Bi-source mode (`heat_cool` with the heat and cool
+  sources): `ON(heat_cool)` has phase sub-states (§1.3.3.2); "source of
+  `m` available" means at least one of the two sources usable
+  (ENT-TYPE-9).
 
-#### 1.3.3 INIT state
+##### 1.3.2.2 INIT state
 
 - **ENT-INIT-1** At `start`, the entity waits until every source has reported
   its first state (`StAC_undiscovered`, `StAC_off`, `StAC_on(m)` or
-  `StAC_unusable`, SRC-MODE-1); a source in `UNDISCOVERED` counts. It then goes
+  `StAC_unusable`, SRC-STATE-1); a source in `UNDISCOVERED` counts. It then goes
   to its stored mode if it can, else `OFF` (choice `resume`), and
   resynchronizes the sources (`apply`).
 - **ENT-INIT-2** Stored mode `m` whose source is `UNDISCOVERED`: `OFF`. The source
@@ -692,36 +767,36 @@ stateDiagram-v2
 - **ENT-INIT-3** Shows: the entity is **unavailable** (no mode, no action, no
   target, no setting).
 
-#### 1.3.4 OFF state
+##### 1.3.2.3 OFF state
 
 Every source is asked to be off.
 
 - **ENT-OFF-1** Shows: the entity is available; `hvac_mode` `off`;
-  `hvac_action` `off`. Capabilities and settings shown: §1.3.8, §1.3.9.
+  `hvac_action` `off`. Capabilities and settings shown: §1.3.4, §1.3.5.
 
-#### 1.3.5 ON(m) state
+##### 1.3.2.4 ON(m) state
 
 The source of `m` runs `m`; every other source is asked to be off.
 
 - **ENT-ON-1** Shows: the entity is available; `hvac_mode` `m`;
   `hvac_action` read from the active source (the phase source for
-  combined heat/cool). Capabilities and settings shown: those of `m`
-  (§1.3.8, §1.3.9).
+  a bi-source mode). Capabilities and settings shown: those of `m`
+  (§1.3.4, §1.3.5).
 
-#### 1.3.6 WAITING(m) state
+##### 1.3.2.5 WAITING(m) state
 
 The source of the current mode `m` is `UNUSABLE`; the mode is kept.
 
 - Entered on `StAC_unusable` from the active source.
 - Left when the source is back (`StAC_usable` → `ON(m)`: the source
-  resynchronizes itself, SRC-MODE-7; its settings are kept, SRC-SET-1), when the
+  resynchronizes itself, SRC-STATE-7; its settings are kept, SRC-SET-1), when the
   user asks for another mode, or on a takeover by another source.
 - **ENT-WAIT-1** Shows: the entity is available; `hvac_mode` unknown
   (`None`); `hvac_action` unknown (`None`). Capabilities and settings
-  shown: those of `m`, as last known (§1.3.8, §1.3.9). The
+  shown: those of `m`, as last known (§1.3.4, §1.3.5). The
   `source_unavailable` sensor tells which source is away.
 
-#### 1.3.7 NO_SOURCE state
+##### 1.3.2.6 NO_SOURCE state
 
 Every source is `UNUSABLE`.
 
@@ -735,54 +810,629 @@ Every source is `UNUSABLE`.
   Assistant does not call a service on an unavailable entity (the call
   is skipped without error, also from an automation).
 
-#### 1.3.8 Capabilities management
+#### 1.3.3 Mode management
 
-- **ENT-CAP-1** The entity reads the capabilities of its sources (§1.2.2) and
-  defines its own from them (modes, range, step, features, options),
-  whatever the state of the sources.
+##### 1.3.3.1 Mono-source and bi-source modes
 
-**Mode not discovered yet** (its source never ran in it, SRC-DATA-1):
+The sources of the modes are configured in §2.1. From that configuration,
+each mode is mono-source or bi-source. The following table describes the possible options from the configuration:
 
-- **ENT-CAP-2** The mode is offered when its source offers it (`hvac_modes`):
-  the entity can switch to it.
-- **ENT-CAP-3** Before its first activation, the mode has no capability: the
-  entity shows no target and no fan/swing for it, and the Home Assistant
-  default range (7–35 °C). What the user sets for it meanwhile (targets,
-  fan/swing) is kept, not sent.
-- **ENT-CAP-4** On activation, only the mode is sent to the source: no target
-  and no fan/swing, since what the source accepts in that mode is not
-  known. The entity never sends a value taken from the capabilities of
-  another mode.
-- **ENT-CAP-5** At the first update of the source in that mode, its
-  capabilities are discovered (SRC-DATA-6); the kept targets and fan/swing
-  settings are then sent, within those capabilities (range, step,
-  options). Until then the source runs with its own settings, within the
-  settle time.
+| Mode | Configuration | Type | Sources |
+|---|---|---|---|
+| `heat`, `cool`, `auto`, `dry`, `fan_only` | `<mode>_entity` set | mono-source | its source |
+| `heat_cool` | `heat_cool_entity` set | mono-source | its source |
+| `heat_cool` | no `heat_cool_entity`, `heat_entity` and `cool_entity` set | **bi-source** | the heat source (phase `heat`) and the cool source (phase `cool`) |
+| any | no source | not offered | — |
 
-#### 1.3.9 Settings management
+When `heat_cool` is bi-source (no `heat_cool_entity`), it uses the heat
+and cool sources, one per phase:
+
+```mermaid
+flowchart LR
+    H[heat] --> R["heat source<br/>(heat_entity)"]
+    C[cool] --> AC["cool source<br/>(cool_entity)"]
+    HC["heat_cool (bi-source)"] -. phase heat .-> R
+    HC -. phase cool .-> AC
+```
+
+Otherwise (`heat_cool_entity` declared), `heat_cool` is mono-source and
+uses its own source, like the other modes.
+
+- **ENT-TYPE-1** Each mode has at most one source entity of its own. A
+  source entity can serve several modes.
+- **ENT-TYPE-2** At least one mode has a source.
+- **ENT-TYPE-3** A source cannot be an Adaptative Climate entity (calls
+  would loop).
+- **ENT-TYPE-4** A source entity that is loaded and usable must offer the
+  mode it serves (`hvac_modes`); a source entity unavailable or unknown
+  is not checked (it is checked again when it becomes usable).
+- **ENT-TYPE-5** A configuration change reloads the entry.
+- **ENT-TYPE-6** Whether a mode is mono-source or bi-source is set by the
+  **configuration only** (§2.1): it never changes while running, only
+  when the configuration changes (the entry is reloaded). The same mode
+  can be either, depending on the configuration (today only `heat_cool`).
+- **ENT-TYPE-7** Mono-source mode `m`: the source mode is `m`; the active
+  source is the source of `m`.
+- **ENT-TYPE-8** Bi-source mode: two sources, one per **phase** (`heat`,
+  `cool`); one runs at a time (§1.3.3.2). The source mode is the phase; the
+  active source is the source of the phase. Both sources can be the same
+  entity (a heat pump switches its own mode).
+- **ENT-TYPE-9** A bi-source mode is available as long as at least one of
+  its two sources is usable, and both sources offer their phase
+  (ENT-HVAC-3). Otherwise, a user request for it is refused
+  (ENT-STATE-3).
+- **ENT-TYPE-10** In `ON(heat_cool)` bi-source, a mode change made on one
+  of the two phase sources (`StAC_on(x)`, `x` = `heat` or `cool`) is a
+  takeover: the source wins, and the entity leaves `heat_cool` for the
+  **mono-source** mode `x` (`ON(x)`). Examples:
+  - phase `heat`, the AC (cool source) is set to `cool` on its remote →
+    `ON(cool)`;
+  - phase `heat`, a heat pump serving both is set to `cool` on its
+    remote → `ON(cool)`;
+  - phase `cool`, the radiator (heat source) is turned on in `heat` →
+    `ON(heat)`.
+
+  Setting the phase source to the mode it already runs (radiator set to
+  `heat` in phase `heat`) changes nothing on the source entity: no event,
+  the entity stays `heat_cool`.
+
+##### 1.3.3.2 Bi-source mode: phase management
+
+###### 1.3.3.2.1 Phase management
+
+When `heat_cool` is bi-source, `ON(heat_cool)` has two sub-states. Both
+are written with the current phase `p` (`heat` or `cool`):
+
+- `PHASE(p)`: the source of `p` is usable and runs `p`;
+- `WAITING_PHASE(p)`: the source of `p` is `UNUSABLE`. The phase `p` is
+  kept, and its source gets the request when it comes back (SRC-STATE-4),
+  like `WAITING(m)` for a mode.
+
+`p'` is the other phase (`cool` when `p` is `heat`, and the reverse).
+
+The entity chooses the phase from the reference temperature and the targets
+(see `wanted` below).
+
+Entering a phase `p` is written `apply(p)`:
+
+- the source of `p` is asked to run `p`, with the settings of that phase
+  (`ACtS_request(p)`, `ACtS_settings`);
+- every other source that is not off is asked to turn off
+  (`ACtS_request(off)`), the source of the other phase included. Except
+  when both phases use the same entity (a heat pump): it just switches
+  from one mode to the other.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "PHASE(p)" as P
+    state "WAITING_PHASE(p)" as W
+    state entering <<choice>>
+    [*] --> entering : enter ON(heat_cool) / p := wanted(entering)
+    entering --> P : [source of p usable] / apply(p)
+    entering --> W : [source of p UNUSABLE] / apply(p)
+    P --> P : new reading [wanted = p', source of p' usable] / p := p', apply(p)
+    P --> P : UtAC_set_settings(targets) [wanted without hysteresis = p', source of p' usable] / p := p', apply(p)
+    P --> W : StAC_unusable from the source of p
+    W --> P : StAC_usable from the source of p
+    W --> P : new reading [wanted = p', source of p' usable] / p := p', apply(p)
+    W --> P : UtAC_set_settings(targets) [wanted without hysteresis = p', source of p' usable] / p := p', apply(p)
+```
+
+Leaving: both phase sources `UNUSABLE` → `WAITING(heat_cool)` (ENT-PHASE-6);
+a change made on a phase source → takeover (ENT-PHASE-4).
+
+"new reading": a new value of the reference, local high or local low
+temperature (§1.3.3.2.2): `TStAC_temperature`, or `StAC_temperature` from
+the heat or cool source.
+
+- **ENT-PHASE-1** The phase is stored with the mode, and saved across
+  restarts.
+- **ENT-PHASE-2** The phase is checked on every new reading, and on every
+  change of the targets by the user (`wanted`, below). A change of the
+  targets by the user ignores the hysteresis (`phase_hysteresis` = 0): the
+  user asked for it, the phase follows at once.
+- **ENT-PHASE-3** A phase switch is an `apply` of the new phase: its
+  source gets the request (confirmed by the source, §1.2.4), the other
+  phase source is turned off (confirmed by the source, §1.2.4).
+- **ENT-PHASE-4** Leaving the phase from a source (phase source turned off
+  or set to another served mode elsewhere) follows the state machine
+  (ENT-STATE-4, ENT-TYPE-10).
+- **ENT-PHASE-5** A phase switch follows the request confirmation of the
+  sources (§1.2.4): the new phase source confirms its mode (retries,
+  monitoring, settle time), the other one confirms `off`. The entity does
+  not wait nor judge anything meanwhile: a source sends no `StAC_` event
+  for a request it confirms (SRC-STATE-3).
+- **ENT-PHASE-6** One phase source `UNUSABLE`:
+  - the entity stays in `ON(heat_cool)`, in `WAITING_PHASE(p)` if it is the
+    source of the current phase;
+  - the phase is kept, and its source gets the request when it comes back
+    (SRC-STATE-4);
+  - the other phase can still start if the temperatures ask for it, and
+    if its source is usable.
+- **ENT-PHASE-7** Both phase sources `UNUSABLE`: the entity goes to
+  `WAITING(heat_cool)` (§1.3.2). It goes back to `ON(heat_cool)` as soon
+  as one of them is usable again.
+- **ENT-PHASE-8** The entity switches to the other phase only if the
+  source of that phase is usable.
+
+###### 1.3.3.2.2 Wanted phase
+
+Phase choice (`wanted`). It uses three temperatures:
+
+- the **reference temperature** (§1.3.5.1);
+- the **local high temperature**: the temperature that must be above the
+  high target to switch to `cool`;
+- the **local low temperature**: the temperature that must be below the
+  low target to switch to `heat`.
+
+| Temperatures available (§1.3.5.1) | Local high temperature | Local low temperature |
+|---|---|---|
+| `temperature_sensor` with a valid value | the sensor | the sensor |
+| no valid sensor, both source temperatures | the **lowest** of the two | the **highest** of the two |
+| no valid sensor, one source temperature | that one | that one |
+| none | none | none |
+
+Hysteresis `h`:
+
+- on a new reading: `h` = `phase_hysteresis` (§2.2);
+- on a change of the targets by the user: `h` = 0 ("wanted without
+  hysteresis", ENT-PHASE-2).
+
+```mermaid
+flowchart TD
+    D{entering heat_cool?}
+    D -- yes --> F{reference temperature known?}
+    F -- yes --> G[phase of the target closest to the reference temperature]
+    F -- no --> I[heat or cool source already running, else HEAT]
+    D -- no --> L{low target above the high target?}
+    L -- yes --> KEEP[phase kept]
+    L -- no --> P{current phase}
+    P -- HEAT --> B{"local high temperature known<br/>and above high target + h?"}
+    B -- yes --> K[COOL]
+    B -- no --> H[HEAT: kept]
+    P -- COOL --> C{"local low temperature known<br/>and below low target − h?"}
+    C -- yes --> H2[HEAT]
+    C -- no --> K2[COOL: kept]
+```
+
+- **ENT-WANT-1** Entering `heat_cool`: the phase is the one of the target
+  closest to the reference temperature. Without reference temperature:
+  the heat or cool source already running, else `heat`.
+- **ENT-WANT-2** Local high and low temperatures: see the table above.
+- **ENT-WANT-3** Switching phase (after entering):
+  - in phase `heat`, the phase switches to `cool` when the local high
+    temperature is above the high target plus `h`;
+  - in phase `cool`, the phase switches to `heat` when the local low
+    temperature is below the low target minus `h`;
+  - otherwise the phase is kept. This covers: a temperature in between,
+    an unknown local temperature, and the low target above the high one
+    (after a takeover).
+> **Note — why the lowest and the highest:** each source reads near its
+> own device, so the two may disagree. Switching to `cool` only when even
+> the lowest one is above the high target (and to `heat` only when even
+> the highest one is below the low target) means the two sources agree.
+> When they contradict each other, the phase is kept: no oscillation.
+
+> **Note — why the hysteresis:** with close targets, or a temperature
+> near a target, the phase would switch back and forth (short cycles).
+> This wears the compressors and wastes energy. A change of the targets
+> by the user is not concerned: the phase follows at once (`h` = 0).
+
+#### 1.3.4 Capabilities management
+
+Capabilities of the modes and temperatures (§1.3.4.1 to §1.3.4.5), then of fan and swing (§1.3.4.6).
+
+##### 1.3.4.1 Principle
+
+- **ENT-CAP-1** The entity builds its own capabilities (modes, range, step,
+  targets, options) from the capabilities of its sources (§1.2.2).
+  - It uses them whatever the state of the sources.
+  - A source in `UNUSABLE` keeps the capabilities it showed last.
+- **ENT-CAP-2** The capabilities of a mode `m` come from the source of `m`,
+  as it showed them while running in `m`.
+  - They are stored per source and per mode (SRC-DATA-1).
+  - For a bi-source `heat_cool`, they come from the heat source running in
+    `heat`, and from the cool source running in `cool`.
+
+> **Note:** the entity does not need to handle a capability that
+> disappears for a while (a device that hides an attribute while it
+> restarts, or in some states): the source keeps it until its removal is
+> confirmed (SRC-DATA-10, SRC-DATA-11). The entity always reads stable
+> capabilities.
+
+A mode is **not discovered yet** when its source has never run in it
+(SRC-DATA-1):
+
+- **ENT-CAP-3** The mode is offered as soon as its source offers it (in its
+  `hvac_modes`). The entity can switch to it, even if it was never
+  discovered.
+- **ENT-CAP-4** Until its first activation, the mode has no capability.
+  - The entity shows no target and no fan/swing for it.
+  - Its range is the Home Assistant default range, 7–35 °C.
+  - The targets and fan/swing settings the user sets for it meanwhile are
+    kept, but not sent.
+- **ENT-CAP-5** When the mode is activated for the first time, the entity
+  only sends the mode.
+  - No target and no fan/swing setting is sent: the entity does not know
+    yet what the source accepts in that mode.
+  - The entity never uses the capabilities of another mode to decide what
+    to send.
+- **ENT-CAP-6** At the first update of the source in that mode, the
+  capabilities of the mode are discovered (SRC-DATA-6).
+  - The kept targets and fan/swing settings are then sent, within these
+    capabilities (range, step, options).
+  - Until then, the source runs with its own settings. This happens
+    during the settle time.
+
+##### 1.3.4.2 Modes offered
+
+- **ENT-HVAC-1** The entity offers `off` and every configured mode
+  (§1.3.3.1).
+  - `heat_cool` is offered when it is configured, mono-source or
+    bi-source.
+  - The list comes from the configuration. It does not change while
+    running, so the card always shows the same modes.
+- **ENT-HVAC-2** A mode can be in the list without being available. A
+  mono-source mode is not available when:
+  - its source is `UNDISCOVERED` or `UNUSABLE`;
+  - or its source does not offer it (in the `hvac_modes` it showed last,
+    §1.2.2).
+- **ENT-HVAC-3** A bi-source mode is not available when:
+  - **both** sources are `UNDISCOVERED` or `UNUSABLE` (one usable source is
+    enough, ENT-PHASE-6);
+  - or one of the sources does not offer its phase.
+- **ENT-HVAC-4** A mode that is not available:
+  - stays in the list;
+  - is listed in the `unavailable_modes` attribute;
+  - is refused when the user asks for it (ENT-STATE-3).
+- **ENT-HVAC-5** When a source does not offer the mode it serves:
+  - a warning is logged, and a Repairs issue
+    (`<entry>_<mode>_not_supported`) is raised;
+  - the issue is removed when the source offers the mode again, and when
+    the entry unloads;
+  - a source never seen is not judged.
+
+##### 1.3.4.3 Temperature targets used by each mode
+
+The entity keeps three temperature targets:
+
+- **low**: the heating setpoint;
+- **high**: the cooling setpoint;
+- **T**: the single temperature target.
+
+Each mode uses some of them. It shows them either in the single target
+attribute (`temperature`), or in the low/high attributes
+(`target_temp_low`, `target_temp_high`).
+
+| Mode | Temperature targets used | Shown as |
+|---|---|---|
+| `heat` | low | `temperature` |
+| `cool` | high | `temperature` |
+| `heat_cool` bi-source | low, high | `target_temp_low`, `target_temp_high` |
+| `heat_cool` mono-source, source with low/high | low, high | `target_temp_low`, `target_temp_high` |
+| `heat_cool` mono-source, source with a single temperature target | T | `temperature` |
+| `auto`, source with low/high | low, high | `target_temp_low`, `target_temp_high` |
+| `auto`, source with a single temperature target | T | `temperature` |
+| `dry`, source with a single temperature target | T | `temperature` |
+| `auto` or `dry`, source without temperature target | none | nothing |
+| `fan_only` | none | nothing |
+
+- **ENT-FEAT-1** What a mode uses depends on what its source supports in
+  that mode. The source is in one of three cases:
+  - **with low/high**: the source uses two setpoints, `target_temp_low`
+    and `target_temp_high` (ENT-FEAT-2);
+  - **with a single temperature target**: the source uses one setpoint,
+    `temperature`. It declares the feature `TARGET_TEMPERATURE`, and is
+    not "with low/high";
+  - **without target**: the source has no temperature setpoint at all, for example a
+    dehumidifier in `dry`. It declares neither `TARGET_TEMPERATURE` nor
+    `TARGET_TEMPERATURE_RANGE`. The entity then shows no temperature target in that
+    mode, and sends none.
+- **ENT-FEAT-2** A source is "with low/high" in the mode `m` when it
+  declares the feature `TARGET_TEMPERATURE_RANGE`.
+  - If it declares only `TARGET_TEMPERATURE_RANGE`, that is enough.
+  - If it also declares `TARGET_TEMPERATURE`, one more condition is
+    needed: it offers the `heat_cool` mode, or it has already shown
+    numeric low/high values while running in `m` (`low_high_seen`,
+    SRC-DATA-8).
+  - Why: some sources declare both features but only use the single
+    temperature target. For example, a template climate with only `set_temperature`.
+
+> **Note — known limitation:** if the device behind a source entity is
+> replaced, and the entity id stays the same, the source keeps its
+> `low_high_seen`. Only deleting the entry clears it.
+
+- **ENT-FEAT-3** Features declared by the entity:
+  - it always declares `TURN_ON` and `TURN_OFF`;
+  - it declares `TARGET_TEMPERATURE` when at least one configured mode
+    shows a single temperature target (`temperature`);
+  - it declares `TARGET_TEMPERATURE_RANGE` when at least one configured
+    mode shows low/high;
+  - these features do not change with the current mode;
+  - the other features of the sources (presets, humidity) are not
+    exposed.
+
+##### 1.3.4.4 Step
+
+- **ENT-STEP-1** The entity has one step (`target_temp_step`). It is
+  computed from the steps of all the sources, in all their discovered
+  modes.
+  - The step of the entity is the largest value that divides every step
+    of the sources exactly.
+  - Examples: steps 0.5 and 1 give 0.5. Steps 0.5 and 0.2 give 0.1.
+  - A source without step counts as 0.5 °C (1 °F), as the Home Assistant
+    card does.
+  - If no step is known yet, the step is 0.5 °C (1 °F).
+- **ENT-STEP-2** The step does not change with the state or the mode. So a
+  target keeps the same value when the mode changes.
+
+##### 1.3.4.5 Range
+
+- **ENT-RANGE-1** The range of a mode comes from its source.
+  - It is the `min_temp` / `max_temp` of the source in that mode, minus the
+    offset of the mode (§2.2).
+  - For a bi-source `heat_cool`, it is the widest range of the two phases:
+    the lowest minimum and the highest maximum.
+  - For a mode not discovered yet, it is 7–35 °C (ENT-CAP-4).
+- **ENT-RANGE-2** The range shown by the entity:
+  - in `ON(m)` and `WAITING(m)`: the range of `m`;
+  - in `OFF`: the widest range of all the modes.
+- **ENT-RANGE-3** The limits `min_temp` / `max_temp` (§2.5):
+  - they can only narrow the range, never widen it;
+  - a limit outside the range is ignored;
+  - they apply to the reference temperature, before the offset.
+- **ENT-RANGE-4** When the entity sends a temperature target to the source
+  of a mode, it first brings it into the range of that mode
+  (ENT-RANGE-1, ENT-RANGE-3). A value below the minimum is sent as the
+  minimum, and a value above the maximum is sent as the maximum. The
+  value kept by the entity does not change.
+- **ENT-RANGE-5** The entity keeps each temperature target within the
+  widest range of all the modes that use it (§1.3.4.3). For example, the
+  low target is used by `heat`, and by `heat_cool` and `auto` when their
+  source has low/high: the low target can take any value that at least
+  one of these modes accepts.
+- **ENT-RANGE-6** This way, a value is not lost because one mode cannot
+  reach it. For example, with a radiator at 5–30 °C for `heat` and a heat
+  pump at 18–30 °C for `heat_cool`, a low target of 14 °C is kept at
+  14 °C. The radiator gets 14 °C, and the heat pump gets 18 °C.
+
+##### 1.3.4.6 Fan and swing
+
+The three settings `fan_mode`, `swing_mode` and `swing_horizontal_mode` are
+handled the same way. This section only covers their options; the values
+kept for each mode are part of the settings (§1.3.5).
+
+- **ENT-FAN-1** The options of a mode for a setting are the options its
+  source showed while running in that mode (`fan_modes`, `swing_modes`,
+  `swing_horizontal_modes`), when it declares the matching feature in
+  that mode.
+  - For a bi-source `heat_cool`, they are the options of the source of
+    the current phase.
+  - A mode not discovered yet has no option (ENT-CAP-4).
+- **ENT-FAN-2** The entity declares the features `FAN_MODE`, `SWING_MODE`
+  and `SWING_HORIZONTAL_MODE` as soon as at least one configured mode has
+  options for that setting. These features do not change with the mode,
+  so the card keeps the same size.
+- **ENT-FAN-3** The options shown by the entity depend on its state:
+  - in `ON(m)` and `WAITING(m)`, it shows the options of `m` (in
+    `WAITING(m)`, the ones known last);
+  - in `ON(heat_cool)` bi-source, it shows the options of the current
+    phase, or the options shared by the two phases when `bi_source_sync`
+    is on (ENT-FAN-8);
+  - in `OFF`, it shows the options shared by the synchronized modes when
+    **every** configured mode is in `sync_modes` (ENT-FAN-6); otherwise,
+    it shows none (it does not show the options of the mode `turn_on`
+    would start).
+- **ENT-FAN-4** When the current mode has no option for a setting, the
+  entity shows none for it, and refuses a user request for that setting
+  with a clear error.
+- **ENT-FAN-5** Values are compared without taking the case into account:
+  `Low` and `low` are the same value. Each source gets the value written
+  as it writes it. Other names are not matched: `1` is not `low`.
+- **ENT-FAN-6** The options shared by the synchronized modes (`sync_modes`,
+  §2.6) are the options offered by **all** of them, without taking the
+  case into account. They are written as the first synchronized mode
+  writes them, in mode order.
+- **ENT-FAN-7** Configuration errors of `sync_modes`, each one reported by
+  a warning and a Repairs issue, removed once the cause is gone:
+  - a synchronized mode whose source does not have a setting at all (a
+    radiator without fan): that mode is ignored for that setting, so that
+    the others still share their options;
+  - `heat_cool` listed while it is bi-source: it is ignored in
+    `sync_modes`. A bi-source `heat_cool` is synchronized with
+    `bi_source_sync` instead (ENT-FAN-8). `heat_cool` always stays in the
+    list of choices of `sync_modes`.
+- **ENT-FAN-8** `bi_source_sync` (§2.6) synchronizes the two phases of a
+  bi-source `heat_cool`, with the same principle as `sync_modes`:
+  - the options shown in `ON(heat_cool)` are the options offered by both
+    phase sources (the heat source in `heat`, the cool source in `cool`),
+    without taking the case into account;
+  - a phase source that does not have a setting at all is reported like
+    in ENT-FAN-7, and ignored for that setting.
+
+#### 1.3.5 Settings management
 
 - **ENT-SET-1** `UtAC_set_settings(s)`: the settings are kept by the entity
-  for the current mode (for `next_mode` when off), and sent to the active
-  source in `ON(m)` (`ACtS_settings(s)`).
+  for the current mode (for `next_mode` when off).
+  - In `ON(m)`, they are sent to the active source (`ACtS_settings(s)`).
+  - In `WAITING(m)` and `WAITING_PHASE(p)`, they are sent too: the source
+    is `UNUSABLE` and keeps them (SRC-SET-1), then sends them when it
+    comes back (SRC-STATE-7).
 - **ENT-SET-2** `StAC_settings(s)` from the active source (takeover of a
   setting, or of the mode: SRC-SET-10): the entity adopts them.
 - The settings kept per mode, the targets (offsets, steps, ranges, gap)
   and fan/swing memory: to be specified (Part II §4, §5).
 
+##### 1.3.5.1 Reference temperature
+
+The temperature the entity regulates on, and shows as its current
+temperature.
+
+```mermaid
+flowchart TD
+    S{temperature_sensor configured<br/>and its value valid?} -- yes --> V[value of the sensor<br/>converted to the unit of Home Assistant]
+    S -- no --> B{bi-source heat_cool?}
+    B -- yes --> BR{readings of the heat and cool sources}
+    BR -- both --> M[mean of the two readings − their offset]
+    BR -- one --> O[that reading − its offset]
+    BR -- none --> N
+    B -- no --> A{reading of the active source,<br/>in OFF of the last used source,<br/>else of the first usable source?}
+    A -- yes --> R[that reading − offset of its mode]
+    A -- no --> N[no reference temperature]
+```
+
+- **ENT-REF-1** With `temperature_sensor` (§2.2), the reference
+  temperature is its value (`TStAC_temperature`), converted to the unit of
+  Home Assistant. A value that is not a valid number (`unavailable`,
+  `unknown`, text, infinite) is ignored.
+- **ENT-REF-2** Without `temperature_sensor`, or while it has no valid
+  value, the reference temperature is the current temperature
+  (`StAC_temperature`) minus the offset of its mode (§2.2) of:
+  - the active source, in `ON(m)` and `WAITING(m)`;
+  - the **last used source** in `OFF`: the active source of the last
+    `ON(m)`;
+  - in `OFF` without last used source (none since start: it is not
+    saved across restarts), the **first usable source**, in mode order;
+  - in `ON(heat_cool)` and `WAITING(heat_cool)` **bi-source**, from the
+    readings of the heat and cool sources (each one minus the offset of
+    its mode):
+    - both readings available: their **mean**;
+    - only one (the other source `UNUSABLE`, or without current
+      temperature): that one;
+    - none: no reference temperature (ENT-REF-3).
+- **ENT-REF-3** No reference temperature (no valid sensor value, and no
+  reading from that source: unusable, or no `current_temperature`): the
+  entity shows no current temperature
+  (`None`). The users of the reference temperature handle its absence
+  (for the phase choice: ENT-WANT-1, ENT-WANT-3).
+- **ENT-REF-4** The entity shows the reference temperature as its
+  `current_temperature`, in every sub-state of `OPER` (in `INIT` and
+  `NO_SOURCE` the entity is unavailable).
+- **ENT-REF-5** A reading of a source is always taken minus the offset of
+  the mode it serves (§2.2): a well set offset makes the source read the
+  reference temperature.
+- **ENT-REF-6** Bi-source mode without valid sensor:
+  - the entity shows the reference temperature, the mean of the two
+    source temperatures; it is also used when entering `heat_cool`
+    (ENT-WANT-1);
+  - to switch phase, the entity uses the local high and low temperatures
+    instead (the lowest and the highest of the two, ENT-WANT-2), so that
+    two sources that disagree do not make the phase oscillate
+    (§1.3.3.2.2).
+
+##### 1.3.5.2 External sensors
+
+- **ENT-EXT-1** For each mode with `<mode>_external_sensor` (§2.2), the
+  entity writes the value of the temperature sensor to that entity **on
+  every `TStAC_temperature` event**, whatever the state of the entity and
+  of the source (even off, even when the mode is not the current one).
+- **ENT-EXT-2** The value is converted to the unit of the external sensor
+  entity and rounded to its step. It is not written when the external
+  sensor entity is unavailable, or when the value is out of its range
+  (warning logged). A write error is logged.
+- **ENT-EXT-3** The offset of a mode with an external sensor is 0: its
+  source regulates on the reference temperature.
+- **ENT-EXT-4** While the temperature sensor has a valid value, that value
+  is written again every `external_sensor_resend` (§2.3, 900 s by default),
+  even unchanged: some devices (thermostatic valves) go back to their own
+  sensor when the external temperature is not updated for a while.
+- **ENT-EXT-5** Temperature sensor without valid value (`unavailable`,
+  `unknown`, `None`, not a number): nothing is written, and the periodic
+  rewrite stops, so that the device does not regulate on a stale value: a
+  device that watches the updates goes back to its own sensor. Writing
+  resumes with the next valid value. The monitoring reports the sensor
+  (MON-GEN-6). An external sensor entity cannot be made invalid from Home
+  Assistant (a `number` only takes a number in its range).
+
 <a id="2-configuration-new"></a>
 
 ## 2. Configuration
+
+### 2.1 Modes
+
+| Option | Type | Default | Effect |
+|---|---|---|---|
+| `heat_entity` | `climate.*` | none | Source entity of the `heat` mode. |
+| `cool_entity` | `climate.*` | none | Source entity of the `cool` mode. |
+| `heat_cool_entity` | `climate.*` | none | Source entity of the `heat_cool` mode (mono-source). |
+| `auto_entity` | `climate.*` | none | Source entity of the `auto` mode. |
+| `dry_entity` | `climate.*` | none | Source entity of the `dry` mode. |
+| `fan_only_entity` | `climate.*` | none | Source entity of the `fan_only` mode. |
+
+Declaring `heat_entity` and `cool_entity` gives a **bi-source**
+`heat_cool` mode, unless `heat_cool_entity` is also declared: `heat_cool`
+is then mono-source, with that source (§1.3.3.1).
+
+### 2.2 Temperature sensor
+
+| Option | Type | Default | Effect |
+|---|---|---|---|
+| `temperature_sensor` | `sensor.*` | none | Reference temperature: sent to the entity as `TStAC_temperature` (§1.1.2), converted to the unit of Home Assistant. Without it, the readings of the sources are used. |
+| `heat_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `heat` mode. |
+| `cool_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `cool` mode. |
+| `heat_cool_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `heat_cool` mode. |
+| `auto_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `auto` mode. |
+| `dry_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `dry` mode. |
+| `fan_only_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `fan_only` mode. |
+| `heat_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `heat` mode (§1.3.5.2). Needs `temperature_sensor`. |
+| `cool_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `cool` mode (§1.3.5.2). Needs `temperature_sensor`. |
+| `heat_cool_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `heat_cool` mode (§1.3.5.2). Needs `temperature_sensor`. |
+| `auto_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `auto` mode (§1.3.5.2). Needs `temperature_sensor`. |
+| `dry_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `dry` mode (§1.3.5.2). Needs `temperature_sensor`. |
+| `fan_only_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `fan_only` mode (§1.3.5.2). Needs `temperature_sensor`. |
+| `phase_hysteresis` | °C (unit of Home Assistant), ≥ 0 | 1 | Bi-source mode: margin beyond a target before the phase switches (ENT-WANT-3), to avoid short cycles. 0: switch as soon as the target is passed. |
+
+Offset (`<mode>_offset`): how much warmer than the reference temperature
+the source of that mode reads (negative: colder). A reading of that
+source minus the offset is a reference temperature; a target sent to it
+is the target plus the offset. The offset belongs to the mode, not to the
+source entity: an entity serving two modes can have two offsets. An
+external sensor forces it to 0 (§1.3.5.2).
+
+External sensor (`<mode>_external_sensor`): some source devices can
+regulate with an external temperature (a thermostatic valve with an
+"external temperature" number entity, a thermostat following a probe).
+That entity gets the reference temperature, so the source regulates on
+it. It needs `temperature_sensor` (a configuration without it is
+refused), and the offset of that mode is then 0.
+
+### 2.3 Timers and durations
 
 | Option | Type / range | Default | Effect |
 |---|---|---|---|
 | `capability_rem_confirmation` | seconds, ≥ 0 | 60 | How long a capability no longer shown by a source entity is kept before it is removed (SRC-DATA-10). 0: removed at once. |
 | `request_confirmation_timer` | seconds, > 0 | 30 | How long a source waits for its source entity to show the state asked before the monitoring reports it out of sync (§1.2.4). |
-| `monitoring_duration` | seconds, ≥ 0 | 900 | How long a problem lasts before the monitoring reports it (MON-GEN-2; 30 s at least for a setting not shown). 0: at once. |
-| `settle_timer` | seconds, > 0 | 12 | After the source entity enters a mode asked, how long the settings it shows are ignored (§1.2.4, §1.2.9). 12 s by default: integrations that poll their device usually refresh right after a command, then at most every 10 s (Home Assistant debounce of refresh requests); a value reported late by the device arrives within that time, plus a margin. |
+| `settle_timer` | seconds, > 0 | 12 | After the source entity enters a mode asked, how long the settings it shows are ignored (§1.2.4, §1.2.5). 12 s by default: integrations that poll their device usually refresh right after a command, then at most every 10 s (Home Assistant debounce of refresh requests); a value reported late by the device arrives within that time, plus a margin. |
+| `external_sensor_resend` | seconds, > 0 | 900 | How often the value of the temperature sensor is written again to the external sensors, even unchanged (ENT-EXT-4). 15 min by default: a margin for devices that need an update at least every 30 min, without loading battery devices. |
 | `request_retry_timer` | seconds, ≥ `request_confirmation_timer` | 300 | How long a source waits, after a request confirmation timed out, before sending the state asked again (§1.2.4). |
 
-- **CFG-GEN-1** `request_retry_timer` must be greater than or equal to
+- **CFG-TIMER-1** `request_retry_timer` must be greater than or equal to
   `request_confirmation_timer`: a configuration that breaks it is refused.
+
+### 2.4 Monitoring
+
+| Option | Type / range | Default | Effect |
+|---|---|---|---|
+| `monitoring_gap` | °C (unit of Home Assistant), > 0 | 2 | Largest gap between two temperature readings before it is a problem (MON-GEN-3). |
+| `monitoring_duration` | seconds, ≥ 0 | 900 | How long a problem lasts before the monitoring reports it (MON-GEN-2; 30 s at least for a setting not shown). 0: at once. |
+
+### 2.5 Temperature limits
+
+| Option | Type | Default | Effect |
+|---|---|---|---|
+| `min_temp` | °C (unit of Home Assistant) | none | Lowest temperature of the entity: narrows the range of the sources (ENT-RANGE-3). |
+| `max_temp` | °C (unit of Home Assistant) | none | Highest temperature of the entity: narrows the range of the sources (ENT-RANGE-3). |
+
+- **CFG-LIM-1** `min_temp` must be lower than `max_temp`: a configuration
+  that breaks it is refused.
+
+### 2.6 Fan and swing
+
+| Option | Type | Default | Effect |
+|---|---|---|---|
+| `sync_modes` | list of modes | empty | The modes listed share their fan and swing values: a fan speed chosen in one of them is used in the others (ENT-FAN-6). A mode listed without a source is ignored; a bi-source `heat_cool` listed is reported (ENT-FAN-7). |
+| `bi_source_sync` | boolean | off | Bi-source `heat_cool` only: its two phases share their fan and swing values, and show the options offered by both (ENT-FAN-8). |
 
 <a id="3-monitoring-new"></a>
 
@@ -790,7 +1440,10 @@ Every source is `UNUSABLE`.
 
 | Problem | Up (raised) | Down (cleared) |
 |---|---|---|
-| Setting not shown (per source and setting, MON-GEN-2) | the source entity in `ON(m)` shows another setting (target, fan, swing) than the one sent, outside the settle time and the request confirmation, for `monitoring_duration` (§2, 900 s by default, 30 s at least) | the source entity shows the setting sent |
+| Setting not shown (per source and setting, MON-GEN-2) | the source entity in `ON(m)` shows another setting (target, fan, swing) than the one sent, outside the settle time and the request confirmation, for `monitoring_duration` (§2.4, 900 s by default, 30 s at least) | the source entity shows the setting sent |
+| Temperature gap: sensor vs source (per reading, MON-GEN-3) | the temperature sensor and a source reading differ by more than `monitoring_gap`, for `monitoring_duration` (§2.4) | the gap is back below `monitoring_gap` |
+| Temperature gap: source vs source (per pair of readings, MON-GEN-3) | two readings of different source entities differ by more than `monitoring_gap`, for `monitoring_duration` | the gap is back below `monitoring_gap` |
+| Temperature sensor without valid value (MON-GEN-6) | `temperature_sensor` is configured and has no valid value (`unavailable`, `unknown`, not a number) for `monitoring_duration` (§2.4) | the sensor has a valid value again |
 | Source out of sync (per source) | timeout of a request confirmation: the source entity does not show the state asked after `request_confirmation_timer` (SRC-REQ-6) | the source entity shows the state asked; or the retries stop: new request, `SEtS_unavailable` / `SEtS_unknown`, change of the source entity during the retry wait (SRC-REQ-8) |
 
 - **MON-GEN-1** Source out of sync: up at the first timeout of a request
@@ -801,10 +1454,33 @@ Every source is `UNUSABLE`.
   of the source entity during the retry wait (followed as a takeover).
 
 - **MON-GEN-2** Setting not shown: the source entity shows another setting
-  (target, fan, swing) than the one sent to it (§1.2.9), which is not a
+  (target, fan, swing) than the one sent to it (§1.2.5), which is not a
   takeover. Up after `monitoring_duration` (30 s at least: a device may
   take that long to show it); down when the source entity shows the
   setting sent.
+- **MON-GEN-3** Temperature gaps: a source that does not read the
+  reference temperature keeps the room away from the target. Compared:
+  the temperature sensor (`TStAC_temperature`) with each source reading,
+  and the readings of two **different** source entities with each other.
+  Up when a gap stays above `monitoring_gap` for `monitoring_duration`;
+  down when it is back below.
+- **MON-GEN-4** Readings compared:
+  - each source gives one reading: its current temperature
+    (`StAC_temperature`) minus the offset of its mode (§2.2). A well set
+    offset clears the problem;
+  - a source entity serving two modes (an AC for `cool` and `dry`) gives
+    one reading if both modes have the same offset. With different
+    offsets, it gives one reading per offset; these readings come from the
+    same thermometer, so they are not compared with each other (only with
+    the sensor and the other source entities);
+  - a source `UNUSABLE`, or without current temperature, gives no
+    reading.
+- **MON-GEN-5** The readings of sources that are `OFF` are compared too.
+- **MON-GEN-6** Temperature sensor without valid value: up when
+  `temperature_sensor` (§2.2) has no valid value for `monitoring_duration`;
+  down as soon as it has one again. Meanwhile the external sensors are not
+  written (ENT-EXT-5) and the reference temperature comes from the
+  sources (ENT-REF-2).
 ---
 
 # Part II — Old spec
@@ -814,13 +1490,8 @@ still to be specified.
 
 ## Table of contents (old)
 
-- [0. Glossary](#0-glossary-1)
-  - [Timing constants](#timing-constants)
 - [1. Overall behavior](#1-overall-behavior-1)
   - [1.1 Principles](#11-principles)
-  - [1.3 Reconciliation: how a source update changes the stored mode](#13-reconciliation-how-a-source-update-changes-the-stored-mode)
-  - [1.4 Event × state table](#14-event--state-table)
-  - [1.5 Mode switch sequence](#15-mode-switch-sequence)
   - [1.6 Restart and reload](#16-restart-and-reload)
   - [1.7 Open questions — overall](#17-open-questions--overall)
 - [2. Managed entities](#2-managed-entities)
@@ -830,225 +1501,55 @@ still to be specified.
   - [2.4 Binary sensors](#24-binary-sensors)
   - [2.5 Other outputs](#25-other-outputs)
 - [3. Management of sources](#3-management-of-sources)
-  - [3.1 Roles](#31-roles)
-  - [3.2 Reading a source](#32-reading-a-source)
-  - [3.4 Low/high detection](#34-lowhigh-detection)
-  - [3.5 Mode offered by its source](#35-mode-offered-by-its-source)
-  - [3.6 Exclusivity](#36-exclusivity)
   - [3.7 Active source away](#37-active-source-away)
   - [3.8 Commands and errors](#38-commands-and-errors)
 - [4. Temperature management](#4-temperature-management)
   - [4.1 The three targets](#41-the-three-targets)
   - [4.2 Which target each mode uses](#42-which-target-each-mode-uses)
   - [4.3 Step](#43-step)
-  - [4.4 Range and limits](#44-range-and-limits)
   - [4.5 Offset](#45-offset)
   - [4.6 First targets](#46-first-targets)
   - [4.7 Setting targets (user)](#47-setting-targets-user)
-  - [4.8 Sending targets](#48-sending-targets)
   - [4.9 Following the active source](#49-following-the-active-source)
   - [4.10 What the entity shows](#410-what-the-entity-shows)
-  - [4.11 Room temperature](#411-room-temperature)
-  - [4.12 Combined heat/cool](#412-combined-heatcool)
-  - [4.13 External sensor](#413-external-sensor)
 - [5. Fan / swing management](#5-fan--swing-management)
   - [5.1 What is shown](#51-what-is-shown)
   - [5.2 Memory](#52-memory)
 - [6. Monitoring](#6-monitoring)
-  - [6.1 Monitoring sensor — problem kinds](#61-monitoring-sensor--problem-kinds)
-  - [6.2 Temperature readings](#62-temperature-readings)
   - [6.3 Problem lifecycle](#63-problem-lifecycle)
   - [6.4 Target gap sensor](#64-target-gap-sensor)
   - [6.5 Source unavailable sensor](#65-source-unavailable-sensor)
 - [7. Trash (what goes nowhere)](#7-trash-what-goes-nowhere)
 - [8. Open questions index](#8-open-questions-index)
 
-## 0. Glossary
-
-| Term | Meaning |
-|---|---|
-| **Foreign mode** | A mode a source entity runs in but does not serve here (e.g. heater set to `fan_only` on its remote). |
-| **Mode** | The HVAC mode of the entity: `off`, `heat`, `cool`, `heat_cool`, `auto`, `dry`, `fan_only`. **Stored** by the entity (G-1). |
-| **Source mode** | The HVAC mode sent to a source. Equal to the mode, except in combined heat/cool where it is the **phase** (`heat` or `cool`). |
-| **Running** | A usable source whose state is not `off`. |
-| **Active source** | The source of the stored mode (the phase source in combined heat/cool). None when off. |
-| **Expected source mode** | What the active source should show: the mode, or the phase. |
-| **Away** | The active source is not usable. The mode is kept: entity state `UNKNOWN(m)`. |
-| **Combined heat/cool** | `heat_cool` without `heat_cool_entity` but with heat and cool sources: runs one of them at a time (its **phase**, stored too). |
-| **Takeover** | A change made directly on a source (remote, app) that the entity follows. The source wins. |
-| **Room temperature** | `temperature_sensor` if set, else the reading of a source minus its offset. |
-
-### Timing constants
-
-| Name | Value | Used for |
-|---|---|---|
-| `SETTLE_TIME` | 12 s | Source targets ignored after entering a mode; wait for a new combined phase to show. |
-| `SEND_RETRY` | 5 s | A failed `set_temperature` is tried again once. |
-| `RESYNC_INTERVAL` | 30 min | Targets the active source does not show are sent again. |
-| `TARGET_MIN_DURATION` | 30 s | Minimum duration before a target mismatch is a problem. |
-| `EXTERNAL_SENSOR_MIN_INTERVAL` | 60 s | External sensor written at most this often. |
-| `EXTERNAL_SENSOR_RESEND` | 30 min | External sensor written again even if unchanged. |
-| `min_phase_duration` | 10 min (config) | Combined heat/cool holds a phase. |
-| `monitoring_duration` | 15 min (config) | A temperature gap / target mismatch becomes a problem. |
-
----
-
 ## 1. Overall behavior
 
 ### 1.1 Principles
 
-- **G-1 — The mode is stored.** The entity stores its mode (and the phase
-  in combined heat/cool). It changes only through the transitions of §1.2:
-  a user command, or a change seen on a source (§1.3). The sources are
-  compared with it; they do not define it. It is saved across restarts.
-- **G-2 — Exclusivity.** Only the active source runs. Every other running
-  source is turned off. A source turned on elsewhere in a served mode
-  first changes the stored mode (G-3), then exclusivity applies with it
-  as the winner.
-- **G-3 — The source has the upper hand.** A mode, target or fan/swing
-  setting changed directly on a source is followed, even outside the
-  entity's limits, and never pushed back.
 - **G-4 — Targets and settings belong to the entity.** Switching mode keeps
   them; the source of the new mode receives them.
-- **G-6 — Restart is transparent.** After a restart or a reload of the
-  entry (options changed, YAML changed), the entity comes back in its
-  stored mode, then reconciles with the sources (§1.6).
-
-### 1.3 Reconciliation: how a source update changes the stored mode
-
-> To be revised against §1.2 (step by step).
-
-```mermaid
-flowchart TD
-    U[Source X updates] --> A{X usable?}
-    A -- no --> A1{X = active source?}
-    A1 -- yes --> AW[Away: mode kept]
-    A1 -- no --> N[nothing]
-    A -- yes --> C{X = active source?}
-    C -- yes --> D{what X shows}
-    D -- another served mode --> TK[mode := that mode, takeover]
-    D -- off / foreign --> OF[mode := off]
-    C -- no --> E{X now runs a served mode<br/>it did not show before?}
-    E -- yes --> TK2[mode := that mode, takeover,<br/>then others turned off]
-    E -- no --> N3[nothing; foreign mode logged]
-```
-
-- **G-7** A takeover sets the stored mode, takes the targets and settings
-  of the source (T-19, F-3), then applies exclusivity (G-2).
-- **G-8** A source serving several modes: the stored mode becomes the mode
-  equal to its HVAC state (an AC serving cool and dry switched to dry on
-  its remote → `dry`).
-- **G-9** In combined heat/cool, the phase source showing the **other**
-  phase (a heat pump serving both, switched to cool on its remote while in
-  phase heat) is "another served mode": HC ends, mode := `cool`.
-
-### 1.4 Event × state table
-
-> To be revised against §1.2 (step by step).
-
-| Event | Off | On(m) | On(m), source away | Combined HC |
-|---|---|---|---|---|
-| `set_hvac_mode(m2)` | check m2, mode := m2, pending | same | same | leaves HC, same |
-| `set_hvac_mode(off)` / `turn_off` | turn off any running source | mode := off, turn off all running | mode := off (the away source gets it on return, Part I SRC-MODE-4) | mode := off, turn off all |
-| `turn_on` | → last used mode (Q-1) | nothing | nothing | nothing |
-| `set_temperature` | stored for `next_mode` | stored + sent | stored, sent on return | stored + sent, may switch phase at once |
-| Source X turned on elsewhere in a served mode | takeover → On | takeover, others off | takeover, away ends | takeover, HC ends |
-| Active source changed elsewhere to another served mode | — | takeover | — | takeover, HC ends (G-9) |
-| Active source turned off elsewhere | — | mode := off | — | mode := off |
-| Active source to a foreign mode | — | mode := off, source keeps running, `foreign_modes` set | — | mode := off |
-| Non-active source to a foreign mode | ignored, logged | ignored, logged | ignored | ignored |
-| Active source unavailable | — | → away | — | phase source away, HC kept (T-33) |
-| Non-active source unavailable | nothing | nothing | nothing | nothing; that phase cannot start while away |
-| Active source back in expected mode | — | — | resume, gets targets + settings | resume |
-| Active source back in another served mode | — | — | takeover | takeover, HC ends |
-| Active source back off | — | — | mode := off | mode := off |
-| HA restart | §1.6 | §1.6 | §1.6 | §1.6 |
-
-### 1.5 Mode switch sequence
-
-> To be revised against §1.2 (step by step).
-
-```mermaid
-sequenceDiagram
-    actor U as User
-    participant E as Entity
-    participant N as New source
-    participant O as Other sources
-    U->>E: set_hvac_mode(m)
-    E->>E: check m (sources usable, mode offered) else refuse, nothing changed
-    E->>E: mode lock; mode := m
-    E->>N: ACtS_request(m) (Part I §1.2.4: call, confirmation, retries, monitoring)
-    E->>N: remembered fan / swing of m (errors logged only)
-    E->>O: ACtS_request(off) to each other source
-    E->>E: release lock
-    Note over E,N: targets sent once the source shows m: to be specified
-```
-
 - **G-12** One mode change at a time (lock), phase switches included.
 
 ### 1.6 Restart and reload
-
-> To be revised against §1.2 (step by step).
 
 What is saved in the restore data of the climate entity:
 
 | Data | Saved | Restored as |
 |---|---|---|
-| **Mode** (and combined phase) | ✅ | The stored mode, then reconciled (below). |
 | Targets (single, low, high) | ✅ | Kept, then the gap is applied. |
 | Fan/swing memory per mode (or `sync`) | ✅ | Kept, configured modes only. |
 | `last_on_mode` (target of `turn_on`) | ❌ | Lost → first configured mode. ❓ Q-1 |
-| Settle, phase hold | ❌ | Lost. |
 | Monitoring problem timers | ❌ | Lost: durations restart from zero. |
 
-Reconciliation at start, once the sources are read:
-
-```mermaid
-flowchart TD
-    S[Stored mode restored] --> A{mode = off?}
-    A -- yes --> A1{a source runs a served mode?}
-    A1 -- yes --> TK[takeover ❓ Q-4]
-    A1 -- no --> OFF[off]
-    A -- no --> B{active source usable?}
-    B -- no --> AW[away: mode kept]
-    B -- yes --> C{shows the expected mode?}
-    C -- yes --> R[steady; others running turned off ❓ Q-4]
-    C -- no --> D{another source runs a served mode?}
-    D -- yes --> TK2[takeover by that source]
-    D -- no --> E{active source runs another served mode?}
-    E -- yes --> TK3[takeover]
-    E -- no --> OF[mode := off]
-```
-
-- **G-13** At start, the coordinator reads every source, records their
-  capabilities, checks the modes offered (Repairs), logs foreign modes,
-  reconciles the stored mode, applies exclusivity with the stored mode as
-  winner, then listens for changes.
-- **G-14** The external sensors are written at start (see T-35).
 - **G-15** A reload of the entry (options flow, YAML change) is a restart.
-  A stored mode no longer configured → `off`.
+  A stored mode no longer configured → `off`. (Mode and phase saved,
+  restart: Part I ENT-STATE-1, §1.3.2.2.)
 
 ### 1.7 Open questions — overall
 
 - ❓ **Q-1** `last_on_mode` is not saved: after a restart, `turn_on` goes
   to the first configured mode, and while off the entity shows the targets
   of that first mode (when it has no low/high). Save it?
-- ✅ **Q-2 resolved by G-1**: at start with two sources running, the source
-  of the stored mode wins and the other is turned off (G-13).
-- ❓ **Q-4** At restart, the active source already in its mode: take its
-  targets (today, as a takeover) or push the saved ones? With a stored
-  mode, it is a continuation, not a takeover: pushing the saved targets
-  (with settle) looks more consistent. Same question for a source running
-  while the stored mode is off.
-- ❓ **Q-5** Restored combined HC is not held (`min_phase_duration`): it
-  may switch phase right after start. OK?
-- ❓ **Q-15** The combined phase wait (12 s) and the request confirmation
-  of the source (Part I §1.2.4) are the same thing (the entity asked a
-  source for a mode). Use the request confirmation for both?
-- ❓ **Q-19** Combined heat/cool with its phase source unavailable: today
-  it stays `heat_cool` and the other phase may start. With the new
-  states: `UNKNOWN(heat_cool)`, or `ON(heat_cool)` as long as the other
-  phase source is available?
 
 ---
 
@@ -1059,23 +1560,10 @@ flowchart TD
 | Option | Type / range | Default | Effect |
 |---|---|---|---|
 | `name` | string, unique | — | Entry title, entity name; identifies YAML entries. |
-| `heat_entity`, `cool_entity`, `heat_cool_entity`, `auto_entity`, `dry_entity`, `fan_only_entity` | `climate.*` | none | Source of each mode. At least one. |
-| `<mode>_offset` | -10..10 | 0 | How much warmer than the room the source of that mode reads. |
-| `<mode>_external_sensor` | `number.*` / `input_number.*` | none | Gets the room temperature. Needs `temperature_sensor`. Forces the offset of that mode to 0. |
-| `temperature_sensor` | `sensor.*` | none | Room temperature. |
-| `sync_modes` | list of modes | [] | Modes sharing fan/swing settings (modes without source ignored). |
-| `min_temp`, `max_temp` | float, min < max | none | Narrow the range (never widen). |
 | `min_gap` | ≥ 1 | 1 | Gap between low and high targets. |
-| `min_phase_duration` | ≥ 0 min | 10 | Combined HC phase hold. |
-| `monitoring_gap` | > 0 | 2 | Temperature gap threshold. |
 
-- **E-1 Validation** (UI and YAML): at least one source; a source cannot
-  be an Adaptative Climate entity; a source that is loaded and usable must
-  offer the mode it serves (not checked when unavailable/unknown); external
-  sensor needs `temperature_sensor`; `min_temp < max_temp`; YAML names
-  unique.
-- **E-2 Derived:** combined HC = no `heat_cool_entity` but both
-  `heat_entity` and `cool_entity`.
+- **E-1 Validation** (UI and YAML): YAML names unique. (Mode sources:
+  Part I §1.3.3.1; external sensors: Part I §2.2; limits: Part I §2.5.)
 
 ### 2.2 Entities created per entry
 
@@ -1089,32 +1577,20 @@ flowchart LR
     end
     S1[climate.heater] -. source heat .-> C
     S2[climate.ac] -. source cool / dry .-> C
-    T[sensor.room_temp] -. room temp .-> C
-    C -- writes room temp --> X[number.trv_external_temp]
+    T[sensor.room_temp] -. reference temp .-> C
+    C -- writes reference temp --> X[number.trv_external_temp]
     C --> M & G & U
 ```
 
 ### 2.3 Climate entity
 
-- **E-3 Modes offered:** `off` + every mode with a source + `heat_cool`
-  when combined. A mode whose source is unavailable or does not offer it
-  stays listed (see `unavailable_modes`).
-- **E-4 Features:** `TURN_ON`, `TURN_OFF`; target features = union of what
-  each configured mode uses (so they do not change with the mode); fan,
-  swing, horizontal swing when at least one source (known) offers options.
-  Other source features (presets, humidity...) are **not** exposed.
-- **E-5 Availability:** available while at least one source is usable.
+- **E-4 Features:** Part I §1.3.4.
 
 Properties per state:
 
 | Property | Off | On(m) | On(m), source away | Combined HC |
 |---|---|---|---|---|
-| `hvac_mode` | `off` | m | `None` (unknown) | `heat_cool` |
-| `hvac_action` | `off` | from active source | `None` | from phase source |
 | `temperature` / `target_temp_low` / `target_temp_high` | low+high if the entity has low/high, else targets of `next_mode` | per mode (§4.2) | as m | low + high |
-| `min_temp` / `max_temp` | widest of all sources | sources of m | sources of m (known) | widest of heat + cool |
-| `target_temp_step` | entity step (§4.3) | same | same | same |
-| `current_temperature` | sensor, else first usable source | sensor, else active source | sensor, else first usable source | sensor, else phase source |
 | fan / swing options | shared options if every mode synced, else none | source of m | source of m (known) | phase source |
 | fan / swing value | memory if every mode synced, else none | active source | memory of m | phase source |
 
@@ -1141,8 +1617,6 @@ All three are always available.
 
 ### 2.5 Other outputs
 
-- **E-6 Repairs issue** `<entry>_<mode>_not_supported` per mode whose
-  source (known) does not offer it; removed when it does or on unload.
 - **E-7 Event** `adaptative_climate_problem` on each problem start/end.
 - **E-8 Logs:** warning on foreign mode (each entry into it and at start),
   unsupported mode, failed send after retry, problem start; info on
@@ -1152,98 +1626,15 @@ All three are always available.
 
 ## 3. Management of sources
 
-### 3.1 Roles
-
-```mermaid
-flowchart LR
-    subgraph Modes
-        H[heat]; C[cool]; HC[heat_cool]; A[auto]; D[dry]; F[fan_only]
-    end
-    H --> R[climate.radiator]
-    C --> AC[climate.ac]
-    D --> AC
-    HC -. combined: phase heat .-> R
-    HC -. combined: phase cool .-> AC
-```
-
-- **S-1** Each mode has at most one source. A source can serve several
-  modes (`served_modes`). Switching to a mode sets its source to the HVAC
-  mode of the same name (combined HC: the phase).
-- **S-2** Combined HC has no source of its own: it uses the heat and cool
-  sources (which can be the same heat pump).
-
-### 3.2 Reading a source
-
-- **S-4 Active source**: the source of the stored mode (the phase source
-  in combined HC). Its state is compared with the expected source mode
-  (§1.3); the state of the sources does not define the mode.
-- **S-5 Foreign mode**: a source running a mode it does not serve. The
-  entity does not follow it. A non-active source in a foreign mode keeps
-  running. The active source going foreign sets the mode to off (§1.3). Listed in `foreign_modes`, warning logged. A mode change or
-  `turn_off` of the entity still turns it off.
-
-### 3.4 Low/high detection
-
-- **S-9** A source "has low/high targets" when it has the
-  `TARGET_TEMPERATURE_RANGE` feature **and**, if it also has
-  `TARGET_TEMPERATURE`, it either offers `heat_cool` or has shown numeric
-  `target_temp_low`/`target_temp_high` once (`low_high_seen`).
-- **S-10** Known limitation of `low_high_seen` (Part I §1.1.1): a device
-  replaced behind the same entity id keeps it; only cleared by deleting
-  the entry.
-
-### 3.5 Mode offered by its source
-
-- **S-11** On every source update, each mode is checked against the known
-  `hvac_modes` of its source. Not offered → Repairs issue, warning,
-  listed in `unavailable_modes`, switching to it refused **before
-  anything is changed**. A never-seen source is not judged.
-
-### 3.6 Exclusivity
-
-- **S-12** The winner is always the active source of the stored mode. A
-  source turned on elsewhere becomes the winner by changing the stored
-  mode first (G-7). Every other source gets `ACtS_request(off)`; failures
-  are handled by the source (Part I §1.2.4: confirmation, retries,
-  monitoring MON-GEN-1).
-
 ### 3.7 Active source away
 
-- **S-15** The active source becomes unusable → the mode is kept, the
-  source is **away** (combined HC: see T-33):
-  - `hvac_mode` unknown (Part I ENT-WAIT-1), `hvac_action` unknown;
-  - shows the targets, range, fan/swing options and remembered values of
-    the mode (known capabilities);
-  - targets and fan/swing set meanwhile are kept and sent on return.
-- **S-16** End of away:
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    state "On(m), source away" as W
-    state "On(m) settling" as On_m
-    state "On(other)" as On_other
-    state "On(x)" as On_x
-    state "Off" as Off
-    state "On(m2) pending" as Sw
-    W --> On_m : source back in m → gets entity targets + settings
-    W --> On_other : source back in another served mode → takeover
-    W --> Off : source back off / user turn_off
-    W --> On_x : another source turned on elsewhere → takeover
-    W --> Sw : user set_hvac_mode(m2)
-```
-
-- **S-17** `turn_on` while away does nothing (the mode is on). Away
-  survives a restart (the mode is stored, the source still unusable).
-- **S-18** While off, an unavailable source changes nothing.
+- **S-17** `turn_on` while `WAITING(m)` does nothing (the mode is on).
+  (Rest of the behavior: Part I §1.3.2.5.)
 
 ### 3.8 Commands and errors
 
 - **S-19** Every call to a source is a blocking service call; any error is
   raised as `HomeAssistantError` to the caller.
-- **S-20** Fan/swing restore fails → logged, mode change goes on.
-  `set_temperature` fails → §4.8. Mode changes (turn on, turn off): Part I
-  §1.2.4.
 
 ---
 
@@ -1251,7 +1642,7 @@ stateDiagram-v2
 
 ### 4.1 The three targets
 
-The entity keeps three targets, in room temperature, on its own step:
+The entity keeps three targets, in reference temperature, on its own step:
 
 ```mermaid
 flowchart LR
@@ -1276,8 +1667,8 @@ flowchart LR
 | cool | `temperature` ← high | high | — | — |
 | heat_cool (own source with low/high) | low, high | — | low | high |
 | heat_cool (own source without low/high) | `temperature` ← single | single | — | — |
-| heat_cool combined, phase heat | heat source `temperature` ← low | — | low | high |
-| heat_cool combined, phase cool | cool source `temperature` ← high | — | low | high |
+| heat_cool bi-source, phase heat | heat source `temperature` ← low | — | low | high |
+| heat_cool bi-source, phase cool | cool source `temperature` ← high | — | low | high |
 | auto, source with low/high | low, high | — | low | high |
 | auto, source with single only | `temperature` ← single | single | — | — |
 | auto / dry, source without target | nothing | — | — | — |
@@ -1291,34 +1682,15 @@ flowchart LR
 
 ### 4.3 Step
 
-- **T-3** Entity step = largest step every known source step is a multiple
-  of (0.5 & 1 → 0.5; 0.5 & 0.2 → 0.1). A source without step counts as
-  0.5 °C / 1 °F. No source known → that default.
-- **T-4** Every target of the entity is on that step, whatever sets it.
-  Each source gets the target rounded to **its own** step.
-
-### 4.4 Range and limits
-
-```mermaid
-flowchart LR
-    A[source min/max<br/>known] --> B[minus offset of its mode] --> C[widest over the sources concerned] --> D[narrowed by min_temp / max_temp<br/>limit ignored if outside] --> E[range]
-```
-
-- **T-5** Range of the entity: sources of the stored mode (heat + cool for
-  combined HC); off: all sources. No source range → 7–35 °C.
-- **T-6** Each target is kept in the widest range of all the sources it
-  goes to, in any mode (low: heat, HC/auto with low/high; high: cool, idem;
-  single: dry, auto/HC without low/high). Example: heater 5–30 for heat,
-  heat pump 18–30 for heat_cool, low 14 → kept 14, heat pump gets 18.
-- **T-7** Limits apply to the room target (before the offset).
+- **T-4** Every target of the entity is on the step of the entity (Part I
+  ENT-STEP-1), whatever sets it. Each source gets the target rounded to
+  **its own** step.
 
 ### 4.5 Offset
 
-- **T-8** Source receives `target + offset(mode)`, rounded to its step, in
-  its range. Anything read from it (targets, current temperature, ranges)
-  is `value − offset(mode)`.
-- **T-9** The offset belongs to the mode, not to the source entity.
-- **T-10** A mode with an external sensor has offset 0.
+- **T-8** Offset: Part I §2.2. Still to specify here: the target sent is
+  rounded to the step of the source and kept in its range; the targets and
+  ranges read from it are minus the offset.
 
 ### 4.6 First targets
 
@@ -1346,38 +1718,15 @@ flowchart TD
 - **T-12** Gap: low ≥ `min_gap` below high. The target just set stays, the
   other moves (outward, on step, in its range). If it cannot (range), the
   target just set gives way. Both set: high moves.
-- **T-13** On: targets sent at once to the active source; combined HC may
-  switch phase at once (ignores the hold).
 - **T-14** The state is always written after a `set_temperature` (even
   unchanged), so the card drops the value it shows.
 
-### 4.8 Sending targets
-
-- **T-15** Sent only to the active source showing the expected mode, only
-  the targets it has (feature), low and high together, nothing if it
-  already shows them.
-- **T-16** When: when a pending source shows the mode, at the end of the
-  settle time if needed, on user change, on return from away, on resync.
-- **T-17** Error → tried again once after 5 s with the targets of that
-  time; error again → warning + target mismatch (monitoring).
-- **T-18** Every 30 min, the targets the active source does not show
-  (mismatches) are sent again. A target taken from the source is never
-  overridden.
-
 ### 4.9 Following the active source
 
-- **T-19** Mode entered by **takeover** (turned on elsewhere, or shown
-  more than 30 s after the request): the source gives its targets.
-- **T-20** Mode entered by the entity: settle time (§1.2). Source targets
-  ignored, entity shows its own. Ends when the source shows the targets
-  sent; at 12 s, resend only if the source showed other targets.
-  Known limitation: a source already at the target receives nothing, so
-  nothing confirms → full 12 s ignored (a remote change then is lost).
 - **T-21** Steady: a target changed on the source becomes the entity
   target (`value − offset`, on entity step), even outside the entity
   limits. The other target moves to keep the gap; the taken one never
   gives way.
-- **T-22** Off: source targets are ignored.
 
 ### 4.10 What the entity shows
 
@@ -1386,76 +1735,6 @@ flowchart TD
   sources they go to (with limits), else the entity range.
 - **T-24** A shown target differing from the kept one → `target_gap`
   sensor (§6.4).
-
-### 4.11 Room temperature
-
-- **T-25** `temperature_sensor` (converted to HA unit) when valid, else the
-  `current_temperature − offset` of the active source, else of the first
-  usable source.
-
-### 4.12 Combined heat/cool
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    state "Phase HEAT" as PH
-    state "Phase COOL" as PC
-    state "Phase wait (12 s) ❓ Q-15<br/>sources may show old phase" as PW
-    state "Hold (min_phase_duration)" as HO
-    [*] --> PW : enter HC → phase = wanted(entering)
-    PW --> PH : heat source shows heat
-    PW --> PC : cool source shows cool
-    PH --> PW : room asks cool, not held (or user targets)
-    PC --> PW : room asks heat, not held (or user targets)
-    PH --> [*] : heat source off / other mode elsewhere
-    PC --> [*] : cool source off / other mode elsewhere
-    note right of HO : runs in parallel from each phase start;<br/>blocks automatic switches only
-```
-
-Phase choice (`wanted_phase`):
-
-```mermaid
-flowchart TD
-    A[readings: sensor, else heat & cool source readings − offset] --> B{all below low?}
-    B -- yes --> H[HEAT]
-    B -- no --> C{all above high?}
-    C -- yes --> K[COOL]
-    C -- no --> D{entering HC?}
-    D -- no --> E[keep current phase]
-    D -- yes --> F{readings?}
-    F -- yes --> G[closest target to their mean]
-    F -- no --> I[heat or cool source already running, else HEAT]
-```
-
-- **T-26** The phase is stored with the mode. One phase source runs at a
-  time; the low target goes to the heat source, the high one to the cool
-  source (as their single target).
-- **T-27** Entering HC needs both sources usable and offering their mode.
-- **T-28** A phase started by the entity is held `min_phase_duration`
-  before an **automatic** switch. A user target change switches at once.
-  0 = no hold.
-- **T-29** Contradicting source readings (no sensor) keep the phase. A
-  source without reading leaves the other one to decide.
-- **T-30** low above high (after a takeover): phase kept.
-- **T-31** Phase source set elsewhere to another mode or off → HC ends
-  (§1.3). Not judged while the phase switch is pending.
-- **T-32** Fan/swing: those remembered for heat and for cool (source modes).
-- **T-33** Phase source unavailable → HC kept, phase source away; the
-  other phase can still start if the room asks. Back in its phase → gets
-  targets; back off → mode off.
-- ❓ **Q-9** Heater set to `heat` on its remote while HC runs phase heat:
-  the entity stays HC (it is the expected source mode). Accepted?
-
-### 4.13 External sensor
-
-- **T-34** For each mode with `<mode>_external_sensor`: written with the
-  room sensor temperature, **whatever the mode of the entity** (even off).
-- **T-35** At once on change, then at most every 60 s (latest value),
-  again every 30 min even unchanged, and at start.
-- **T-36** Converted to the unit of the target entity, rounded to its step.
-  Not written: room sensor unavailable, target unavailable, value out of
-  its range (warning). Errors logged.
-- ❓ **Q-10** Write also when the mode is not active? (current: yes.)
 
 ---
 
@@ -1466,16 +1745,14 @@ Three settings handled the same way: `fan_mode`, `swing_mode`,
 
 ### 5.1 What is shown
 
-| State | Options | Value |
-|---|---|---|
-| On(m) / Combined HC | those of the active source (if it has the feature) | active source |
-| On(m), source away | known options of the source of m | memory of m |
-| Off, every mode in `sync_modes` | options shared by all synced sources (case-insensitive, spelled as the first) | shared memory |
-| Off, otherwise | none | none |
+Options and features: Part I §1.3.4.6. Values shown:
 
-- **F-1** The feature exists on the entity if at least one source (known)
-  offers options, so the card does not change size. A mode whose source
-  lacks it shows no option, and a change is refused with a clear error.
+| State | Value |
+|---|---|
+| On(m) (bi-source: phase source) | active source |
+| On(m), source away | memory of m |
+| Off, every mode in `sync_modes` | shared memory |
+| Off, otherwise | none |
 
 ### 5.2 Memory
 
@@ -1493,40 +1770,18 @@ flowchart LR
 ```
 
 - **F-2** Key: the mode, or `sync` for modes in `sync_modes` (with a
-  source). Combined HC uses the keys `heat` and `cool`.
+  source). Bi-source `heat_cool` uses the keys `heat` and `cool`.
 - **F-3** Entering a mode: only fills settings not yet remembered (first
   use keeps the source's settings). Within a mode: every change is
   remembered, wherever it comes from (user via entity, remote).
-- **F-4** On activation (and on return from away): each remembered value
-  is matched to the source options ignoring case, sent as the source spells
-  it, unless already set. Errors logged.
 - **F-5** Synced: a value is remembered only if every synced source that
   has the setting offers it. A value only some offer (`turbo`) can be used
   but is not remembered. At send, a shared value no longer common is
   replaced by the source's current value.
-- **F-6** Set by the user: sent to the active source; no source running
-  (away, off + all synced) → remembered for the mode, sent when it starts.
 
 ---
 
 ## 6. Monitoring
-
-### 6.1 Monitoring sensor — problem kinds
-
-| Kind | Seen when | Reported after | Key |
-|---|---|---|---|
-| `sensor` | room sensor vs a source reading (− offset) > `monitoring_gap` | `monitoring_duration` | sensor + reading |
-| `sources` | two readings of different entities > `monitoring_gap` | `monitoring_duration` | pair |
-| `target` | active source shows another target than sent (not a takeover); not judged off, pending, settling | max(`monitoring_duration`, 30 s) | source + attribute |
-
-### 6.2 Temperature readings
-
-- **M-1** One reading per (source entity, offset): an entity serving two
-  modes with the same offset is one reading, with different offsets two
-  readings, never compared together.
-- **M-2** A source unusable or without `current_temperature` is left out.
-- ❓ **Q-12** Readings of sources that are **off** are compared too
-  (their sensor may be stale, or the device off far from the room). Keep?
 
 ### 6.3 Problem lifecycle
 
@@ -1555,7 +1810,7 @@ stateDiagram-v2
 ### 6.5 Source unavailable sensor
 
 - **M-7** On while a source of the stored mode is unavailable: the active
-  one (away), either source of combined HC. Off while the mode is off.
+  one (away), either source of bi-source heat_cool. Off while the mode is off.
   `entity_ids` lists them.
 
 ---
@@ -1576,8 +1831,6 @@ or delete.
   workaround, not behavior.
 - **`<mode>_offset` for `fan_only`** (and dry/auto without target): only
   affects readings (current temperature, monitoring). Useful or noise?
-- **"Display source"** (first usable source when off): only used for
-  `current_temperature` and availability.
 - **`Sources.features()` records into the known capabilities** (side
   effect in a reader).
 - **Several `Sources` instances** (climate, monitoring, external sensor
@@ -1586,11 +1839,11 @@ or delete.
 - **Translations** en/fr, `strings.json`.
 - **TODO leftovers**: auto mode doing its own switching (option),
   humidity management, "test en 20??".
-- **Obsolete with G-1**: reading the mode from the sources,
-  `last_on_source`, "first running source in mode order", the saved
-  `waiting` tuple and `heat_cool` flag (replaced by the stored mode and
-  phase), `switching_to` (replaced by pending + G-11).
-
+- **Obsolete with the stored mode** (Part I ENT-STATE-1): reading the
+  mode from the sources, `last_on_source`, "first running source in mode
+  order", the saved `waiting` tuple and `heat_cool` flag (replaced by the
+  stored mode and phase), `switching_to` (replaced by the request
+  confirmation, Part I §1.2.4).
 ---
 
 ## 8. Open questions index
@@ -1598,12 +1851,4 @@ or delete.
 | # | Section | Topic |
 |---|---|---|
 | Q-1 | 1.7 | Save `last_on_mode` across restarts? |
-| Q-2 ✅ | 1.7 | Resolved by G-1: the stored mode wins at start. |
-| Q-4 | 1.7 | At start, take the running source targets or push the saved ones? |
-| Q-5 | 1.7 | Hold the restored combined phase? |
 | Q-8 | 4.2 | heat_cool own source without low/high uses the single target. |
-| Q-9 | 4.12 | Phase source set to its phase on its remote: stays HC. |
-| Q-10 | 4.13 | External sensor written even when its mode is not active. |
-| Q-12 | 6.2 | Monitoring compares readings of sources that are off. |
-| Q-15 | 1.7 | Merge the combined phase wait (12 s) into the source request confirmation? |
-| Q-19 | 1.7 | Combined heat/cool with its phase source unavailable: `UNKNOWN` or `ON`? |
