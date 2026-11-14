@@ -324,27 +324,36 @@ Stored data of a source, saved across restarts:
 
 ```mermaid
 flowchart TD
-    S[HAtS_start] --> A{stored data?}
-    A -- yes --> R[restore it / SdtSs_data_available]
+    S[HAtS_start] --> T{valid stored state?}
+    T -- yes --> A{valid stored hvac_modes?}
+    T -- no --> O[state := OFF, save] --> A
+    A -- yes --> R[restore the stored data / SdtSs_data_available]
     A -- no --> B{source entity usable?}
-    B -- yes --> C[read it, state := OFF, save / SdtSs_data_available]
-    B -- no --> D[data not available]
+    B -- yes --> C[restore the stored data, read the source entity, save / SdtSs_data_available]
+    B -- no --> D[restore the stored data; data not available]
     R --> E[SdtSs_restored]
     C --> E
     D --> E
 ```
 
-- **SRC-DATA-4** At `HAtS_start`, the stored data is read.
-  - Without stored data, the source entity is read (`hvac_modes`, and
-    the mode capabilities if it runs in a mode), and the stored state is
-    set to `OFF`: the source was never used, so it starts from a clean
-    state (its entry turns the source entity off if it runs,
-    SRC-STATE-2).
-  - If it cannot be read (not usable), the data is not available.
-  - Data restored or read raises `SdtSs_data_available`. The end of
-    this first restore raises `SdtSs_restored`.
-- **SRC-DATA-5** A stored value that is not valid (corrupted) is dropped; the
-  other stored data is restored.
+- **SRC-DATA-4** At `HAtS_start`, the stored data is read and restored.
+  Each missing value is handled alone:
+  - no stored state → the stored state is set to `OFF`: the source was
+    never used (or its state is lost), so it starts from a clean state
+    (its entry turns the source entity off if it runs, SRC-STATE-2);
+  - no stored `hvac_modes` → the source entity is read (`hvac_modes`,
+    and the mode capabilities if it runs in a mode); if it cannot be
+    read (not usable), the data is not available (SRC-DATA-3) until the
+    first usable change (SRC-DATA-6);
+  - no stored mode capabilities or `low_high_seen` for a mode → Home
+    Assistant defaults (SRC-DATA-1).
+
+  Data available (`hvac_modes` restored or read) raises
+  `SdtSs_data_available`. The end of this first restore raises
+  `SdtSs_restored`.
+- **SRC-DATA-5** A stored value that is not valid (corrupted) is dropped,
+  and handled as missing (SRC-DATA-4); the other stored data is
+  restored.
 
 ##### 1.2.2.3 Update (on each change of the source entity)
 
@@ -474,7 +483,7 @@ comparison (`SstSc_send(r2)`, SRC-STATE-2).
     not offered (§1.2.3.5) → `UNUSABLE`, reported to the entity;
   - data available, source entity usable and every served source mode
     offered → the stored state (`OFF`
-    when the data was read from the source entity, SRC-DATA-4), reported to
+    when none was stored, SRC-DATA-4), reported to
     the entity (`OFF` or `ON(m)`).
 - **SRC-STATE-2** On entry of `OFF` or `ON(m)`, however it is entered (request,
   restore, back from `UNUSABLE`), the state is compared with the source
@@ -1054,7 +1063,8 @@ stateDiagram-v2
   its first state (`StAC_undiscovered`, `StAC_off`, `StAC_on(m)` or
   `StAC_unusable`, SRC-STATE-1); a source in `UNDISCOVERED` counts. It then goes
   to its stored mode if it can, else `OFF` (choice `resume`), and
-  resynchronizes the sources (`AC.apply`).
+  resynchronizes the sources (`AC.apply`). Before, its kept targets are
+  brought back in line with the step and the range (ENT-TGT-4).
 - **ENT-INIT-2** Stored mode `m` whose source is `UNDISCOVERED` (bi-source:
   both phase sources): `OFF`. This should not happen: a configuration
   change sets the entity to `OFF` (ENT-INIT-4), and a source discovered
@@ -1777,7 +1787,9 @@ flowchart TD
   every `TStAC_temperature` event with a valid value**, whatever the
   state of the entity and of the source (even off, even when the mode is
   not the current one). At `HAtAC_start`, the current value (`temperature@T`)
-  is written at once if it is valid.
+  is written at once if it is valid. An external sensor entity named by
+  several modes is kept once when the configuration is read: each value
+  is written to it once.
 - **ENT-EXT-2** The value is converted to the unit of the external sensor
   entity and rounded to its step. It is not written when the external
   sensor entity is unavailable, or when the value is out of its range
@@ -1828,8 +1840,10 @@ The temperature targets used and shown by each mode are listed in
 
 - **ENT-TGT-4** When the capabilities of a mode change (`StAC_capabilities`,
   ENT-CAP-7: discovery, ENT-CAP-6, or later update of the step or the
-  range, SRC-DATA-6, SRC-DATA-10), the entity takes back control of its
-  kept targets:
+  range, SRC-DATA-6, SRC-DATA-10), and when it leaves `INIT` (the step
+  or the range may have changed since the targets were saved: a source
+  added or removed by a configuration change, ENT-INIT-4), the entity
+  takes back control of its kept targets:
   - every kept target is rounded to the step of the entity (ENT-STEP-1);
   - every kept target is brought into the range of the temperature target
     (ENT-RANGE-5), not into the range of the mode alone (ENT-RANGE-6).
@@ -2117,6 +2131,12 @@ The attributes of the monitoring sensors are in §4.
 
 ### 3.1 Configuration parameters
 
+- **CFG-UNIT-1** The temperature options are in the unit of Home
+  Assistant: a *temperature* is a value on the scale, a *temperature
+  gap* is a difference (offset, hysteresis, gap). The tables give their
+  bounds and defaults in °C, with the °F value in parentheses: the gap
+  times 1.8, rounded to the whole °F (as the step, §1.3.4.4).
+
 #### 3.1.1 General
 
 | Option | Type | Default | Effect |
@@ -2139,24 +2159,31 @@ Declaring `heat_entity` and `cool_entity` gives a **bi-source**
 `heat_cool` mode, unless `heat_cool_entity` is also declared: `heat_cool`
 is then mono-source, with that source (§1.3.3.1).
 
+- **CFG-MODE-1** A source entity can serve several modes, in one entry
+  or in several; its options must then be consistent (CFG-SENS-2,
+  CFG-SENS-3).
+- **CFG-MODE-2** A source entity cannot be an AC entity (an entity
+  created by Adaptative Climate, of this entry or of another): such a
+  configuration is refused.
+
 #### 3.1.3 Temperature sensor
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `temperature_sensor` | `sensor.*` | none | Reference temperature: read by the entity (`temperature@T`, §1.1.2), its changes sent as `TStAC_temperature`, converted to the unit of Home Assistant. Without it, the readings of the sources are used. |
-| `heat_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `heat` mode. |
-| `cool_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `cool` mode. |
-| `heat_cool_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `heat_cool` mode (no effect when bi-source, CFG-SENS-1). |
-| `auto_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `auto` mode. |
-| `dry_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `dry` mode. |
-| `fan_only_offset` | °C (unit of Home Assistant), -10 to 10 | 0 | Offset of the source of the `fan_only` mode. |
+| `heat_offset` | temperature gap, -10 to 10 °C (-18 to 18 °F) | 0 | Offset of the source of the `heat` mode. |
+| `cool_offset` | temperature gap, -10 to 10 °C (-18 to 18 °F) | 0 | Offset of the source of the `cool` mode. |
+| `heat_cool_offset` | temperature gap, -10 to 10 °C (-18 to 18 °F) | 0 | Offset of the source of the `heat_cool` mode (no effect when bi-source, CFG-SENS-1). |
+| `auto_offset` | temperature gap, -10 to 10 °C (-18 to 18 °F) | 0 | Offset of the source of the `auto` mode. |
+| `dry_offset` | temperature gap, -10 to 10 °C (-18 to 18 °F) | 0 | Offset of the source of the `dry` mode. |
+| `fan_only_offset` | temperature gap, -10 to 10 °C (-18 to 18 °F) | 0 | Offset of the source of the `fan_only` mode. |
 | `heat_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `heat` mode (§1.3.5.2). Needs `temperature_sensor`. |
 | `cool_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `cool` mode (§1.3.5.2). Needs `temperature_sensor`. |
 | `heat_cool_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `heat_cool` mode (§1.3.5.2). Needs `temperature_sensor`. No effect when bi-source (CFG-SENS-1). |
 | `auto_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `auto` mode (§1.3.5.2). Needs `temperature_sensor`. |
 | `dry_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `dry` mode (§1.3.5.2). Needs `temperature_sensor`. |
 | `fan_only_external_sensor` | `number.*` / `input_number.*` | none | External temperature input of the source of the `fan_only` mode (§1.3.5.2). Needs `temperature_sensor`. |
-| `phase_hysteresis` | °C (unit of Home Assistant), ≥ 0 | 1 | Bi-source mode: margin beyond a temperature target before the phase switches (ENT-WANT-3), to avoid short cycles. 0: switch as soon as the temperature target is passed. |
+| `phase_hysteresis` | temperature gap, ≥ 0 | 1 °C (2 °F) | Bi-source mode: margin beyond a temperature target before the phase switches (ENT-WANT-3), to avoid short cycles. 0: switch as soon as the temperature target is passed. |
 
 Offset (`<mode>_offset`): how much warmer than the reference temperature
 the source of that mode reads (negative: colder). A reading of that
@@ -2191,6 +2218,14 @@ same (CFG-SENS-2).
   (CFG-SENS-1). Why: a source entity has one thermometer and one
   external input, and its readings and targets must not depend on the
   mode it is read in (a source `OFF` is in no mode).
+- **CFG-SENS-3** The same holds between entries: a source entity
+  declared in several entries must have the same external sensor (or
+  none) and, without one, the same offset in all of them. A
+  configuration that breaks it is refused, with an error naming the
+  other entry and its modes. Not handled: two entries with different
+  `temperature_sensor` then each write their own value to that external
+  sensor (ENT-EXT-1). No real use case: two entries sharing a source
+  entity already fight over its mode and settings.
 
 #### 3.1.4 Timers and durations
 
@@ -2204,21 +2239,29 @@ same (CFG-SENS-2).
 
 - **CFG-TIMER-1** `request_retry_timer` must be greater than or equal to
   `request_confirmation_timer`: a configuration that breaks it is refused.
+- **CFG-TIMER-2** Fixed durations, not configurable: they are internal
+  margins, with no use to tune per installation.
+
+  | Duration | Value | Rule | Why |
+  |---|---|---|---|
+  | Send retry timer | 5 s | SRC-SET-7 | A failed call is often a short error (device busy, network): one retry soon after; the resync covers a longer one. |
+  | Resync timer | 30 min | SRC-SET-8 | Background check: catches a lost command or a device back to its own value, without loading the devices. |
+  | Minimum delay of a setting not applied | 30 s | MON-SRC-4 | A device may take that long to show a setting: below it, `monitoring_duration` would report normal delays. |
 
 #### 3.1.5 Monitoring
 
 | Option | Type / range | Default | Effect |
 |---|---|---|---|
-| `monitoring_gap` | °C (unit of Home Assistant), > 0 | 2 | Largest gap between two temperature readings before it is a problem (MON-TEMP-1). |
+| `monitoring_gap` | temperature gap, > 0 | 2 °C (4 °F) | Largest gap between two temperature readings before it is a problem (MON-TEMP-1). |
 | `monitoring_duration` | seconds, ≥ 0 | 900 | How long a problem lasts before the monitoring reports it (MON-SRC-1, MON-SRC-4, MON-SRC-5, MON-TEMP-1, MON-TEMP-4; 30 s at least for a setting not shown). 0: at once. |
 
 #### 3.1.6 Temperature limits and gap
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `min_temp` | °C (unit of Home Assistant) | none | Lowest temperature of the entity: narrows the range of the sources (ENT-RANGE-3). |
-| `max_temp` | °C (unit of Home Assistant) | none | Highest temperature of the entity: narrows the range of the sources (ENT-RANGE-3). |
-| `min_gap` | °C (unit of Home Assistant), ≥ 1 | 1 | Smallest gap between the low and high targets (ENT-TGT-5). |
+| `min_temp` | temperature | none | Lowest temperature of the entity: narrows the range of the sources (ENT-RANGE-3). |
+| `max_temp` | temperature | none | Highest temperature of the entity: narrows the range of the sources (ENT-RANGE-3). |
+| `min_gap` | temperature gap, ≥ 1 °C (2 °F) | 1 °C (2 °F) | Smallest gap between the low and high targets (ENT-TGT-5). |
 
 - **CFG-LIM-1** `min_temp` must be lower than `max_temp`: a configuration
   that breaks it is refused.
@@ -2299,7 +2342,8 @@ has to do when one turns on:
   - the source of the current mode, in `WAITING(m)`;
   - either phase source of a bi-source `heat_cool` (`WAITING_PHASE(p)`,
     or the other phase source);
-  - every `UNUSABLE` source, in `NO_SOURCE`.
+  - the `UNUSABLE` sources of the stored mode, in `NO_SOURCE` (none if
+    it is `off`, MON-SRC-2).
 - **MON-SRC-2** Source unusable is never reported while the stored mode is
   `off`. The monitoring only reports a source that is in the way:
   - in `OFF`, the entity asks nothing of its sources, so a source
