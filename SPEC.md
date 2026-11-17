@@ -96,6 +96,7 @@ Conventions:
 |---|---|
 | **Entity** | The Adaptative Climate `climate` entity (one per config entry). |
 | **Source entity** | A `climate` entity of Home Assistant configured for a mode (`<mode>_entity`). One source entity can serve several modes. |
+| **External sensor entity** | A `number` / `input_number` entity of a source device (`<mode>_external_sensor`, §3.1.3) to which the entity writes the value of the temperature sensor (§1.3.5.2). |
 | **Source** | The local object that follows one source entity: its stored data (§1.2.2) and its state machine (§1.2.3.1). One per source entity. |
 | **Reference temperature** | The temperature the entity regulates on: the temperature sensor (`temperature_sensor`) when set, else the current temperatures of the sources, minus the offset of their mode (§3.1.3). |
 | **Takeover** | A change made directly on a source entity (remote, app) that the entity follows: the source wins. |
@@ -140,17 +141,24 @@ flowchart LR
         AC["AC entity<br/>climate.living_room"]
         S1["Source<br/>climate.heater"]
         S2["Source<br/>climate.ac"]
+        M["Monitoring<br/>binary_sensor.living_room_monitoring_*"]
     end
     subgraph HA["Home Assistant climate entities"]
         E1["Source entity<br/>climate.heater"]
         E2["Source entity<br/>climate.ac"]
     end
+    XS["External sensor entity<br/>number.heater_external_temp"]
     U -- "mode, targets, fan/swing" --> AC
     T -- "T=>AC events" --> AC
     AC -- "AC=>S_request(r)" --> S1
     AC -- "AC=>S_request(r)" --> S2
     S1 -- "source events, data" --> AC
     S2 -- "source events, data" --> AC
+    AC -- "problems" --> M
+    S1 -- "problems" --> M
+    S2 -- "problems" --> M
+    AC -- "AC=>XS_set_value(v)" --> XS
+    XS -- "XS=>AC events, data" --> AC
     S1 -- "S=>SE events (service calls)" --> E1
     S2 -- "S=>SE events (service calls)" --> E2
     E1 -- "SE=>S events (state changes)" --> S1
@@ -166,6 +174,13 @@ flowchart LR
   heat pump...), configured for one or more modes of the AC entity.
 - **Temperature sensor**: the optional sensor giving the reference temperature (`temperature_sensor`,
   §3.1.3).
+- **External sensor entity**: an optional `number` / `input_number`
+  entity of a source device (`<mode>_external_sensor`, §3.1.3), to which
+  the AC entity writes the value of the temperature sensor (§1.3.5.2).
+- **Monitoring**: one per config entry (§4). The sources and the AC
+  entity tell it their problems; it reports them on two binary sensors,
+  in the logs and with events. It sends nothing back: nothing depends on
+  it.
 
 #### 1.1.2 Events and data
 
@@ -174,14 +189,17 @@ Two kinds of exchanges:
 - **Event** `X=>Y_name`: sent by `X` to `Y`, it triggers something in `Y`
   (a transition, a reaction). `X` and `Y`: `HA` Home Assistant, `U`
   user, `T` temperature sensor, `AC` AC entity, `S` source, `SE` source
-  entity. Example: `AC=>S_request(r)`. An event sent to `S` or `AC`
+  entity, `XS` external sensor entity, `M` monitoring. Example:
+  `AC=>S_request(r)`. An event sent to `S` or `AC`
   reaches all its functions.
   - Every event is **asynchronous**: the sender does not wait for it to
     be handled, nor for an answer; an answer, if any, is another event.
     This holds for the service calls to a source entity too (`S=>SE_*`):
     the source does not wait for the end of the call. Its error comes
     back as `SE=>S_call_failed(c)`, its effect as a change of the source
-    entity (`SE=>S_off`, `SE=>S_on(m)`, `SE=>S_attributes`).
+    entity (`SE=>S_off`, `SE=>S_on(m)`, `SE=>S_attributes`). The same for
+    the writes to an external sensor entity (`AC=>XS_set_value(v)`): its
+    error comes back as `XS=>AC_call_failed`.
   - Between two functions of the same source, `X` and `Y` name the
     functions: `Sdsm` data storage management (§1.2.2), `Sstm` state
     management (§1.2.3), `Smrc` mode request confirmation (§1.2.4), `Ssrm`
@@ -192,7 +210,6 @@ Two kinds of exchanges:
     (§1.3.5). Example: `ACsem=>ACmom_targets_changed`.
   - `Sx` as `Y`: an event sent to several functions of the source; the
     table of §1.2.1 names them. Example: `Sdsm=>Sx_served_mode_lost`.
-  - `M` is the monitoring (§4).
   - **Timer** `X_name_timeout`: the end of a timer of `X`, an event of
     `X` to itself. Example: `Smrc_confirm_timeout`.
   - No other event: a condition is written as a guard on events, and a
@@ -235,7 +252,7 @@ Between the AC entity and a source:
 | `S=>AC_off` | source → AC entity | The source enters `OFF`. |
 | `S=>AC_on(m)` | source → AC entity | The source enters `ON(m)`. |
 | `S=>AC_unusable` | source → AC entity | The source enters `UNUSABLE`. |
-| `S=>AC_usable` | source → AC entity | The source leaves `UNUSABLE` (it goes back to its stored state, which the AC entity already knows). |
+| `S=>AC_usable` | source → AC entity | The source leaves `UNUSABLE`: it goes back to its stored state, read in `state@S`. |
 
 Between a source and its source entity:
 
@@ -246,26 +263,54 @@ Between a source and its source entity:
 | `SE=>S_off`, `SE=>S_on(m)`, `SE=>S_unavailable`, `SE=>S_unknown`, `SE=>S_attributes` | source entity → source | Changes of the source entity (§1.2.1). |
 | `SE=>S_call_failed(c)` | source entity → source | The service call `c` (`S=>SE_set_*`) returned an error (§1.2.1). |
 
+Between the AC entity and an external sensor entity (one `XS` per
+external sensor entity, §1.3.5.2):
+
+| Event | Direction | Meaning |
+|---|---|---|
+| `AC=>XS_set_value(v)` | AC entity → external sensor entity | Service call `number.set_value` / `input_number.set_value` writing the value `v` of the temperature sensor (ENT-EXT-1, ENT-EXT-4, ENT-EXT-6). |
+| `XS=>AC_usable` | external sensor entity → AC entity | The external sensor entity becomes usable: it appears in Home Assistant, or leaves `unavailable` / `unknown` (ENT-EXT-6). |
+| `XS=>AC_call_failed` | external sensor entity → AC entity | The call `AC=>XS_set_value(v)` returned an error (ENT-EXT-2). |
+
+Data an external sensor entity makes readable to the AC entity:
+
+| Data | Content |
+|---|---|
+| `attributes@XS` | The unit (`unit_of_measurement`), the step, the minimum and the maximum of the external sensor entity now; `None` when it is not usable (missing in Home Assistant, `unavailable`, `unknown`). Not stored. |
+
 Data a source makes readable to the AC entity:
 
 | Data | Content |
 |---|---|
+| `state@S` | The state of the source now (§1.2.3.1): `UNDISCOVERED`, `OFF`, `ON(m)` or `UNUSABLE`. In `UNUSABLE`, also its stored state (`OFF` or `ON(m)`): the state it goes back to (SRC-STATE-7). A change of state is reported by `S=>AC_undiscovered`, `S=>AC_off`, `S=>AC_on(m)`, `S=>AC_unusable`, `S=>AC_usable`. The stored state in `UNUSABLE` changes only on a request of the entity (SRC-STATE-4): nothing is reported. |
 | `capabilities@S` | The stored capabilities of the source (§1.2.2), whatever its state. A change is reported by `S=>AC_capabilities`. |
 | `temperature@S` | The current temperature the source entity shows now (`current_temperature`), as read (the entity removes the offset, §3.1.3); `None` when it shows none, and when the source is `UNDISCOVERED` or `UNUSABLE`, whatever the reason (served mode not offered included, SRC-UNUS-1). Not stored. A change is reported by `S=>AC_temperature(t)`. |
 | `action@S` | The `hvac_action` the source entity shows now; `None` when it has none, and when the source is `UNDISCOVERED` or `UNUSABLE`, whatever the reason. Not stored (SRC-STATE-12). A change is reported by `S=>AC_action(a)`. |
 | `settings@S` | The settings the source entity shows now, in `OFF` and `ON(m)`: `temperature`, `target_temp_low`, `target_temp_high`, `fan_mode`, `swing_mode`, `swing_horizontal_mode`, as read (the entity removes the offset, §3.1.3); `None` for each one it does not show, all `None` when the source is `UNDISCOVERED` or `UNUSABLE`, whatever the reason. Not stored. |
 
+Between a source or the AC entity and the monitoring:
+
+| Event | Direction | Meaning |
+|---|---|---|
+| `S=>M_up(p)`, `AC=>M_up(p)` | source or AC entity → monitoring | The problem `p` began (MON-SEND-1). |
+| `S=>M_down(p)`, `AC=>M_down(p)` | source or AC entity → monitoring | The problem `p` ended (MON-SEND-1). |
+
+The monitoring reads no data, and makes none readable: what it shows is
+for Home Assistant (§4).
+
 Settings (targets, fan/swing): §1.2.5.
 
 #### 1.1.3 Execution model
 
-How the events are queued and handled. The entity and each source are
-**actors**: each one handles its own events, one at a time.
+How the events are queued and handled. The entity, each source and the
+monitoring are **actors**: each one handles its own events, one at a
+time.
 
 - **EXEC-1** Each source, and the entity, is an actor with two queues,
   both first in, first out: an **external queue** (events from the other
   actors, Home Assistant, the user, the temperature sensor, the source
-  entity, its own timers) and an **internal queue** (events between its
+  entity, the external sensor entities, its own timers) and an
+  **internal queue** (events between its
   own functions). It handles them by **steps**:
   - a step starts with an event of the external queue, given to every
     function of the actor (in a source, the data storage management
@@ -282,6 +327,10 @@ How the events are queued and handled. The entity and each source are
     the external queue of that one, and are handled after the end of the
     step.
 
+  The monitoring (§4) has no functions, so no internal queue. It sends
+  nothing to the other actors: when it handles its events changes nothing
+  for them.
+
   There is no thread: everything runs in the event loop of Home
   Assistant, with no wait (`await`) during a step.
 - **EXEC-2** Order per sender: the events of one sender reach the
@@ -289,7 +338,8 @@ How the events are queued and handled. The entity and each source are
   guaranteed between two senders.
 - **EXEC-3** One stimulus at a time, whatever its origin. A **stimulus**
   is what comes from outside the config entry: its start, its unload, a change of
-  state of one of its source entities or of the temperature sensor, a
+  state of one of its source entities, of the temperature sensor or of an
+  external sensor entity, a
   service call on the entity, the end of a timer. The entry handles each
   stimulus to the end: the queues of all its actors are emptied before
   the next stimulus, wherever it comes from.
@@ -297,15 +347,18 @@ How the events are queued and handled. The entity and each source are
     handled one after the other: the second one sees the result of the
     first. Their order is any; the spec gives a consistent result in both
     orders (the last takeover wins).
-  - The service calls to the source entities (`S=>SE_*`) are not waited
-    for (§1.1.2): their effects come back as new stimuli.
+  - The service calls to the source entities (`S=>SE_*`) and to the
+    external sensor entities (`AC=>XS_set_value`) are not waited for
+    (§1.1.2): their effects come back as new stimuli.
 - **EXEC-4** At start (a single stimulus), the entity starts before its
   sources: `HA=>AC_start` is in its queue before the `HA=>S_start` of the
   sources, so that the entity is in `INIT` when their first states arrive
   (ENT-INIT-1).
 
 The entity does not send its commands to the sources while it handles an
-event: it sends them when its queues are empty (ENT-SEND, §1.3.2.1).
+event: it sends them when its queues are empty (ENT-SEND, §1.3.2.1). The
+entity and the sources tell the monitoring their problems the same way
+(MON-SEND, §4.4).
 
 Sequence examples: §5.
 
@@ -337,8 +390,8 @@ begins from zero with the saved data.
     again;
   - a value no longer shown starts a new removal confirmation
     (SRC-DATA-10);
-  - the monitoring delays start again (MON-LIFE-1): a problem still
-    there is reported again after its delay;
+  - the monitoring starts empty: a problem still there is sent to it
+    again (MON-SEND-3), and reported again after its delay (MON-LIFE-1);
   - a Repairs issue is raised again if its cause is still there: at once
     for `sync_modes` (ENT-FAN-7, judged at start with the stored
     capabilities), once the source is judged for a mode not offered
@@ -367,6 +420,10 @@ A source has four functions:
   the temperature targets and fan/swing settings to the source entity,
   and protects them for a settle time after a mode is entered, in
   parallel with the state machine and the mode request confirmation.
+
+The source judges its own problems (not discovered, out of sync, setting
+not applied) and tells the monitoring at the end of each step (MON-SEND,
+§4.4).
 
 #### 1.2.1 Events
 
@@ -398,7 +455,6 @@ Between the functions of the source:
 | `Sstm=>Ssrm_back(m)` | state → setting requests | The source is back from `UNUSABLE` in `ON(m)`, and the source entity already shows `m` (SRC-STATE-7): the settle time starts (SRC-SET-13). |
 | `Sstm=>Ssrm_restored(m)` | state → setting requests | At start, the first state is `ON(m)` and the source entity already shows `m`: nothing is sent, no settle time (SRC-SET-13). |
 | `Smrc=>Ssrm_confirmed(m)` | mode request confirmation → setting requests | The mode `m` asked is confirmed (SRC-REQ-2): the settle time starts (SRC-SET-13). |
-| `Smrc=>M_out_of_sync_up`, `Smrc=>M_out_of_sync_down` | mode request confirmation → monitoring | The source entity does not show the state asked at the end of a confirmation / the confirmation is over (MON-SRC-3). |
 
 Timers of the source:
 
@@ -701,8 +757,8 @@ comparison (`Sstm=>Smrc_send(r2)`, SRC-STATE-2).
     sends its kept settings, ignores during `settle_timer` the values the
     device reports while reconnecting, and sends them again at the end if
     needed (SRC-SET-5, SRC-SET-6).
-  - The entity gets only `S=>AC_usable`: the stored state is the one it
-    already knows.
+  - The entity gets only `S=>AC_usable`: it reads the state in
+    `state@S`.
   - The source does not know whether its stored state is a foreign mode
     (SRC-ON-1): a foreign mode is resent like any other. It is only
     stored if the entity sent no request meanwhile (ENT-STATE-5).
@@ -804,9 +860,12 @@ A **mode request confirmation is running** in `CONFIRMING(r)` and
 `RETRY_WAIT(r)`: "during a mode request confirmation" and "outside a mode
 request confirmation" have this meaning in the whole spec.
 
-`Smrc=>M_out_of_sync_up` tells the monitoring that the problem "source out
-of sync" of this source is there (MON-SRC-3); `Smrc=>M_out_of_sync_down`
-that it is gone (nothing to do for the monitoring if it is not there).
+The source entity is **out of sync** (MON-SRC-3) from a confirm timeout
+where `r` is not shown until the end of the confirmation of that `r`: in
+`RETRY_WAIT(r)`, and in the `CONFIRMING(r)` started by
+`Smrc_retry_timeout`. A new send (`r2`) starts a confirmation that is not
+out of sync until its own timeout. The source tells the monitoring at the
+end of its step (MON-SEND-1).
 
 ```mermaid
 stateDiagram-v2
@@ -816,21 +875,21 @@ stateDiagram-v2
     state "RETRY_WAIT(r)<br/>retry timer: request_retry_timer" as W
     [*] --> I
     I --> C : Sstm=>Smrc_send(r) / S=>SE_set_hvac_mode(r), start confirm timer
-    C --> I : SE=>S_on(m) [r = m shown] / cancel confirm timer, Smrc=>M_out_of_sync_down, Smrc=>Ssrm_confirmed(m)
-    C --> I : SE=>S_off [r = off] / cancel confirm timer, Smrc=>M_out_of_sync_down
+    C --> I : SE=>S_on(m) [r = m shown] / cancel confirm timer, Smrc=>Ssrm_confirmed(m)
+    C --> I : SE=>S_off [r = off] / cancel confirm timer
     C --> C : SE=>S_off, SE=>S_on(m) [r not shown] / ignored
     C --> C : SE=>S_call_failed(S=>SE_set_hvac_mode) / log
-    C --> W : Smrc_confirm_timeout [r not shown] / Smrc=>M_out_of_sync_up, start retry timer
-    C --> I : Smrc_confirm_timeout [r = m shown] / Smrc=>M_out_of_sync_down, Smrc=>Ssrm_confirmed(m)
-    C --> I : Smrc_confirm_timeout [r = off shown] / Smrc=>M_out_of_sync_down
-    C --> C : Sstm=>Smrc_send(r2) / Smrc=>M_out_of_sync_down, S=>SE_set_hvac_mode(r2), r := r2, restart confirm timer
-    C --> I : SE=>S_unavailable, SE=>S_unknown, Sdsm=>Sx_served_mode_lost / cancel confirm timer, Smrc=>M_out_of_sync_down
+    C --> W : Smrc_confirm_timeout [r not shown] / start retry timer
+    C --> I : Smrc_confirm_timeout [r = m shown] / Smrc=>Ssrm_confirmed(m)
+    C --> I : Smrc_confirm_timeout [r = off shown]
+    C --> C : Sstm=>Smrc_send(r2) / S=>SE_set_hvac_mode(r2), r := r2, restart confirm timer
+    C --> I : SE=>S_unavailable, SE=>S_unknown, Sdsm=>Sx_served_mode_lost / cancel confirm timer
     W --> C : Smrc_retry_timeout / S=>SE_set_hvac_mode(r), start confirm timer
-    W --> I : SE=>S_on(m) [r = m shown] / cancel retry timer, Smrc=>M_out_of_sync_down, Smrc=>Ssrm_confirmed(m)
-    W --> I : SE=>S_off [r = off] / cancel retry timer, Smrc=>M_out_of_sync_down
-    W --> I : SE=>S_off, SE=>S_on(m) [r not shown] / cancel retry timer, Smrc=>M_out_of_sync_down
-    W --> C : Sstm=>Smrc_send(r2) / cancel retry timer, Smrc=>M_out_of_sync_down, S=>SE_set_hvac_mode(r2), r := r2, start confirm timer
-    W --> I : SE=>S_unavailable, SE=>S_unknown, Sdsm=>Sx_served_mode_lost / cancel retry timer, Smrc=>M_out_of_sync_down
+    W --> I : SE=>S_on(m) [r = m shown] / cancel retry timer, Smrc=>Ssrm_confirmed(m)
+    W --> I : SE=>S_off [r = off] / cancel retry timer
+    W --> I : SE=>S_off, SE=>S_on(m) [r not shown] / cancel retry timer
+    W --> C : Sstm=>Smrc_send(r2) / cancel retry timer, S=>SE_set_hvac_mode(r2), r := r2, start confirm timer
+    W --> I : SE=>S_unavailable, SE=>S_unknown, Sdsm=>Sx_served_mode_lost / cancel retry timer
 ```
 
 - **SRC-REQ-1** During the confirmation, the changes of the source entity
@@ -1031,8 +1090,11 @@ stateDiagram-v2
   `ACTIVE`, the settings the source entity does not show (compared with
   those sent) are sent again (a command lost by the device, a device back
   to its own value without telling).
-- **SRC-SET-9** Monitoring: a setting sent and not shown by the source entity
-  is a problem (MON-SRC-4). It is only judged in `ACTIVE`.
+- **SRC-SET-9** Monitoring: in `ACTIVE`, a kept setting the source
+  entity does not show (compared as in SRC-SET-4) is a problem, setting
+  not applied (MON-SRC-4). It is only judged in `ACTIVE`: it ends when
+  the source entity shows the setting, or when the source leaves `ACTIVE`
+  (its mode changes, or it becomes `UNUSABLE`).
 - **SRC-SET-10** Setting not applied (the source entity accepts the call, or
   fails, and its value **does not change**): the source keeps the setting
   received from the entity, which stays the reference (Home Assistant wins). It is sent
@@ -1108,7 +1170,10 @@ The AC entity has four functions:
   fan/swing settings.
 
 They exchange internal events (§1.3.1), handled as in §1.1.3. The entity
-sends to its sources when its queues are empty (ENT-SEND, §1.3.2.1).
+sends to its sources when its queues are empty (ENT-SEND, §1.3.2.1). The
+entity judges the problems that need its state or several sources
+(source unusable, temperatures) and tells the monitoring the same way
+(MON-SEND, §4.4).
 
 #### 1.3.1 Events
 
@@ -1121,6 +1186,15 @@ sends to its sources when its queues are empty (ENT-SEND, §1.3.2.1).
 | `T=>AC_temperature(t)` | temperature sensor → AC entity | See §1.1.2. |
 | `S=>AC_undiscovered`, `S=>AC_off`, `S=>AC_on(m)`, `S=>AC_unusable`, `S=>AC_usable`, `S=>AC_settings(s)`, `S=>AC_temperature(t)`, `S=>AC_capabilities`, `S=>AC_action(a)` | source → AC entity | See §1.1.2. Each one comes from one source. |
 | `AC=>S_request(r)`, `AC=>S_settings(s)` | AC entity → source | See §1.1.2. |
+| `AC=>M_up(p)`, `AC=>M_down(p)` | AC entity → monitoring | See §1.1.2. Sent when the queues are empty (MON-SEND-1). |
+| `AC=>XS_set_value(v)` | AC entity → external sensor entity | See §1.1.2. Sent at once (ENT-EXT-1). |
+| `XS=>AC_usable`, `XS=>AC_call_failed` | external sensor entity → AC entity | See §1.1.2. Each one comes from one external sensor entity. |
+
+Timers of the entity:
+
+| Event | Timer of | Meaning |
+|---|---|---|
+| `ACsem_resend_timeout` | settings management | End of `external_sensor_resend` (ENT-EXT-4). |
 
 Between the functions of the entity (codes: §1.1.2):
 
@@ -1131,8 +1205,12 @@ Between the functions of the entity (codes: §1.1.2):
 | `ACstm=>ACmom_entered` | state → mode | The entity enters `ON(heat_cool)` bi-source, whatever the origin (user, restart, back from `WAITING(heat_cool)` or `NO_SOURCE`): the phase is chosen again (ENT-PHASE-1, ENT-WANT-1). |
 | `ACstm=>ACmom_left` | state → mode | The mode of the entity is no longer `heat_cool` (another mode, or `off`): the phase is forgotten (ENT-PHASE-1). `WAITING(heat_cool)` and `NO_SOURCE` keep it. |
 
-Data read (§1.1.2): from a source, `capabilities@S`, `temperature@S`,
-`action@S`, `settings@S`; from the temperature sensor, `temperature@T`.
+Data read (§1.1.2): from a source, `state@S`, `capabilities@S`,
+`temperature@S`, `action@S`, `settings@S`; from the temperature sensor,
+`temperature@T`; from an external sensor entity, `attributes@XS`. The
+guards and activities that name the state of a
+source (`OFF`, `ON(x)`, `UNUSABLE`, `UNDISCOVERED`, available) read it in
+`state@S`.
 
 Words used below:
 
@@ -1669,9 +1747,10 @@ flowchart TD
   (targets 19 / 24, reference 21.5). Without reference temperature:
   the phase whose source already runs it, else the stored phase
   (ENT-PHASE-1), else `heat`.
-  - "Runs it" is read on the state of the source as the entity knows
-    it: `ON` in the source mode of its phase (`heat` for the heat
-    source, `cool` for the cool source). At a restart, it is the stored
+  - "Runs it" is read in `state@S`: `ON` in the source mode of its
+    phase (`heat` for the heat source, `cool` for the cool source); for
+    an `UNUSABLE` source, its stored state, the one it imposes when it
+    comes back (SRC-STATE-7). At a restart, it is the stored
     state the source imposes on its source entity (SRC-STATE-1,
     SRC-STATE-10), whatever the device shows yet: the phase is chosen
     after Home Assistant takes over.
@@ -2154,21 +2233,26 @@ flowchart TD
 
 - **ENT-EXT-1** For each external sensor entity (`<mode>_external_sensor`,
   §3.1.3; one per source entity, CFG-SENS-2), the
-  entity writes the value of the temperature sensor to that entity **on
-  every `T=>AC_temperature` event with a valid value**, whatever the
-  state of the entity and of the source (even off, even when the mode is
-  not the current one). At `HA=>AC_start`, the current value (`temperature@T`)
-  is written at once if it is valid. An external sensor entity named by
-  several modes is kept once when the configuration is read: each value
-  is written to it once.
+  entity writes the value of the temperature sensor to that entity
+  (`AC=>XS_set_value(v)`) **on every `T=>AC_temperature` event with a
+  valid value**, whatever the state of the entity and of the source (even
+  off, even when the mode is not the current one). At `HA=>AC_start`, the
+  current value (`temperature@T`) is written at once if it is valid. An
+  external sensor entity named by several modes is kept once when the
+  configuration is read: each value is written to it once.
+  - The write is sent at once, not when the queues are empty (ENT-SEND):
+    the value written, `temperature@T`, cannot change during a step, and
+    each write is wanted, even unchanged (ENT-EXT-4).
 - **ENT-EXT-2** The value is converted to the unit of the external sensor
-  entity and rounded to its step. It is not written when the external
-  sensor entity is unavailable, or when the value is out of its range
-  (warning logged). A write error is logged.
+  entity and rounded to its step (`attributes@XS`). It is not written when
+  the external sensor entity is not usable (`attributes@XS` `None`), or
+  when the value is out of its range (warning logged). A write error
+  (`XS=>AC_call_failed`) is logged.
 - **ENT-EXT-3** The offset of a mode with an external sensor is 0: its
   source regulates on the reference temperature.
 - **ENT-EXT-4** While the temperature sensor has a valid value
-  (`temperature@T`), that value is written again every `external_sensor_resend` (§3.1.4, 900 s by default),
+  (`temperature@T`), that value is written again every `external_sensor_resend` (§3.1.4, 900 s by default;
+  a timer of the settings management, its end is `ACsem_resend_timeout`),
   even unchanged: some devices (thermostatic valves) go back to their own
   sensor when the external temperature is not updated for a while.
 - **ENT-EXT-5** Temperature sensor without valid value (`unavailable`,
@@ -2179,6 +2263,13 @@ flowchart TD
   resumes with the next valid value. The monitoring reports the sensor
   (MON-TEMP-4). An external sensor entity cannot be made invalid from Home
   Assistant (a `number` only takes a number in its range).
+- **ENT-EXT-6** When an external sensor entity becomes usable
+  (`XS=>AC_usable`: it appears in Home Assistant, or leaves `unavailable`
+  / `unknown`), the current value (`temperature@T`) is written to it at
+  once if it is valid, as at `HA=>AC_start`. An external sensor entity
+  loaded after the integration when Home Assistant starts gets the value
+  at once, without waiting for the next change of the temperature sensor
+  or for `external_sensor_resend`.
 
 ##### 1.3.5.3 Temperature targets
 
@@ -2734,6 +2825,15 @@ adaptative_climate:
 
 ## 4. Monitoring
 
+The monitoring (`M`) is an actor of the config entry (§1.1.2, EXEC-1). It
+judges nothing itself: each problem is judged by the actor that has what
+it needs, the source for its own problems, the entity for the others
+(column "Judged by" of §4.2 and §4.3). That actor tells the monitoring
+when the problem begins and when it ends (MON-SEND, §4.4). The monitoring
+waits for the delay of the problem, reports it and shows it. It sends
+nothing to the other actors and reads none of their data: nothing they do
+depends on it.
+
 ### 4.1 Monitoring sensors
 
 The monitoring uses two binary sensors (§2.1), grouped by what the user
@@ -2756,12 +2856,12 @@ has to do when one turns on:
 
 ### 4.2 Sources (`monitoring_sources`)
 
-| Problem | Up (reported) | Down |
-|---|---|---|
-| Source unusable (per source, MON-SRC-1) | a source of the stored mode (in `ON(heat_cool)` bi-source: the source of the current phase) is `UNUSABLE`, for `monitoring_duration` (§3.1.5) | the source is usable again, or the stored mode (or the phase) no longer uses it |
-| Source not discovered (per source, MON-SRC-5) | the source is `UNDISCOVERED` for `monitoring_duration` (§3.1.5), whatever the stored mode | the source is discovered (SRC-STATE-8) |
-| Source out of sync (per source, MON-SRC-3) | timeout of a mode request confirmation: the source entity does not show the state asked after `request_confirmation_timer` (SRC-REQ-5) | the source entity shows the state asked; or the retries stop: new request, `SE=>S_unavailable` / `SE=>S_unknown` / `Sdsm=>Sx_served_mode_lost`, change of the source entity during the retry wait (SRC-REQ-7) |
-| Setting not applied (per source and setting, MON-SRC-4) | the source entity in `ON(m)` shows another setting (temperature target, fan, swing) than the one sent, outside the settle time and the mode request confirmation, for `monitoring_duration` (§3.1.5, 900 s by default, 30 s at least) | the source entity shows the setting sent |
+| Problem | Judged by | Up (reported) | Down |
+|---|---|---|---|
+| Source unusable (per source, MON-SRC-1) | entity: stored mode, state, phase | a source of the stored mode (in `ON(heat_cool)` bi-source: the source of the current phase) is `UNUSABLE`, for `monitoring_duration` (§3.1.5) | the source is usable again, or the stored mode (or the phase) no longer uses it |
+| Source not discovered (per source, MON-SRC-5) | source: its state | the source is `UNDISCOVERED` for `monitoring_duration` (§3.1.5), whatever the stored mode | the source is discovered (SRC-STATE-8) |
+| Source out of sync (per source, MON-SRC-3) | source: mode request confirmation (§1.2.4) | timeout of a mode request confirmation: the source entity does not show the state asked after `request_confirmation_timer` (SRC-REQ-5) | the source entity shows the state asked; or the retries stop: new request, `SE=>S_unavailable` / `SE=>S_unknown` / `Sdsm=>Sx_served_mode_lost`, change of the source entity during the retry wait (SRC-REQ-7) |
+| Setting not applied (per source and setting, MON-SRC-4) | source: setting request management (SRC-SET-9) | the source entity in `ON(m)` shows another setting (temperature target, fan, swing) than the one sent, outside the settle time and the mode request confirmation, for `monitoring_duration` (§3.1.5, 900 s by default, 30 s at least) | the source entity shows the setting sent, or the source leaves `ACTIVE` (SRC-SET-9) |
 
 - **MON-SRC-1** Source unusable: reported after `monitoring_duration`
   while the stored mode is not `off` and a source of that mode is
@@ -2806,7 +2906,8 @@ has to do when one turns on:
   setting (temperature target, fan, swing) than the one sent to it
   (§1.2.5, compared as in SRC-SET-4), and it is not a takeover. Reported after `monitoring_duration`
   (30 s at least: a device may take that long to show it). It ends when
-  the source entity shows the setting sent.
+  the source entity shows the setting sent, or when the source leaves
+  `ACTIVE` (SRC-SET-9).
 - **MON-SRC-5** Source not discovered: a source that stays `UNDISCOVERED`
   (§1.2.3.2) for `monitoring_duration` is reported, whatever the stored
   mode (in `OFF` too, unlike MON-SRC-2). Its source entity was never seen
@@ -2817,11 +2918,11 @@ has to do when one turns on:
 
 ### 4.3 Temperatures (`monitoring_temperatures`)
 
-| Problem | Up (reported) | Down |
-|---|---|---|
-| Gap between the sensor and a source (per reading, MON-TEMP-1) | the temperature sensor and a source reading differ by more than `monitoring_gap`, for `monitoring_duration` (§3.1.5) | the gap is back below `monitoring_gap` |
-| Gap between two sources (per pair of readings, MON-TEMP-1) | two readings of different source entities differ by more than `monitoring_gap`, for `monitoring_duration` | the gap is back below `monitoring_gap` |
-| Sensor without valid value (MON-TEMP-4) | `temperature_sensor` is configured and has no valid value (`unavailable`, `unknown`, not a number) for `monitoring_duration` | the sensor has a valid value again |
+| Problem | Judged by | Up (reported) | Down |
+|---|---|---|---|
+| Gap between the sensor and a source (per reading, MON-TEMP-1) | entity (MON-TEMP-5) | the temperature sensor and a source reading differ by more than `monitoring_gap`, for `monitoring_duration` (§3.1.5) | the gap is back below `monitoring_gap` |
+| Gap between two sources (per pair of readings, MON-TEMP-1) | entity (MON-TEMP-5) | two readings of different source entities differ by more than `monitoring_gap`, for `monitoring_duration` | the gap is back below `monitoring_gap` |
+| Sensor without valid value (MON-TEMP-4) | entity (MON-TEMP-5) | `temperature_sensor` is configured and has no valid value (`unavailable`, `unknown`, not a number) for `monitoring_duration` | the sensor has a valid value again |
 
 - **MON-TEMP-1** Temperature gaps: a source that does not read the
   reference temperature keeps the room away from the temperature target.
@@ -2843,18 +2944,33 @@ has to do when one turns on:
   `monitoring_duration`. It ends as soon as the sensor has one again.
   Meanwhile, the external sensors are not written (ENT-EXT-5), and the
   reference temperature comes from the sources (ENT-REF-2).
-- **MON-TEMP-5** The values are read from the data (`temperature@T`,
-  `temperature@S`), at `HA=>AC_start` and again on every event that can change
-  them (`T=>AC_temperature`, `S=>AC_temperature`, a source that becomes
-  available or `UNUSABLE`), as for the reference temperature (ENT-REF-7).
-  A value that does not change is compared from `HA=>AC_start`.
+- **MON-TEMP-5** The entity judges the temperature problems at the end of
+  each of its steps (MON-SEND-1), from the data (`temperature@T`,
+  `temperature@S`) read then. A value that does not change is compared
+  from `HA=>AC_start`; a change is seen at the end of the step of the event
+  that brings it (`T=>AC_temperature`, `S=>AC_temperature`, a source that
+  becomes available or `UNUSABLE`).
 
 ### 4.4 Problem lifecycle, logs and events
 
-One machine per problem (per source, setting, reading...).
-`M_condition_true` / `M_condition_false`: the condition of the problem
-(column "Up" of §4.2, §4.3) becomes true / false, evaluated by the
-monitoring on the events it follows. `M_delay_timeout`: end of the delay
+- **MON-SEND-1** Each source, and the entity, judges its problems
+  (column "Judged by" of §4.2, §4.3) when its queues are empty, at the
+  end of each step (EXEC-1), as it sends to the sources (ENT-SEND). It
+  keeps the problems it has told the monitoring, and sends the
+  difference: `X=>M_up(p)` for a problem that began, `X=>M_down(p)` for
+  a problem that ended. A problem that begins and ends within one step is
+  not sent.
+- **MON-SEND-2** `p` is the problem: its type and its subject (the source,
+  the setting, the readings compared), with what the monitoring needs to
+  log it and show it (MON-SENS-2, MON-LIFE-3). The monitoring reads no
+  data.
+- **MON-SEND-3** At start, no problem has been told the monitoring: a
+  problem still there is sent at the end of the first step, and its delay
+  starts from zero (MON-LIFE-1, END-2).
+
+One machine per problem `p`. `X=>M_up(p)` / `X=>M_down(p)`: the problem
+begins / ends (MON-SEND-1); a `X=>M_down(p)` for a problem the
+monitoring does not have is ignored. `M_delay_timeout`: end of the delay
 timer, the delay of the problem (`monitoring_duration`, or at once).
 
 ```mermaid
@@ -2862,10 +2978,10 @@ stateDiagram-v2
     direction LR
     state "Seen" as S
     state "Reported" as R
-    [*] --> S : M_condition_true / since := now, start delay timer
-    S --> [*] : M_condition_false / cancel delay timer (forgotten)
+    [*] --> S : X=>M_up(p) / since := now, start delay timer
+    S --> [*] : X=>M_down(p) / cancel delay timer (forgotten)
     S --> R : M_delay_timeout / log a warning, event started
-    R --> [*] : M_condition_false / log at info level, event ended
+    R --> [*] : X=>M_down(p) / log at info level, event ended
 ```
 
 - **MON-LIFE-1** A problem is reported once it lasted its delay (§4.2,
