@@ -1,0 +1,256 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Adaptative Climate",
+        "description": "Une entité climate qui pilote une ou plusieurs entités climate, une par mode.",
+        "data": {
+          "name": "Nom"
+        },
+        "sections": {
+          "modes": {
+            "name": "Modes",
+            "description": "L'entité source de chaque mode. Avec chauffage et climatisation sans entité chaud/froid, chaud/froid bascule entre les deux.",
+            "data": {
+              "heat_entity": "Entité Chauffage",
+              "cool_entity": "Entité Climatisation",
+              "heat_cool_entity": "Entité Chaud/Froid",
+              "auto_entity": "Entité Auto",
+              "dry_entity": "Entité Déshumidification",
+              "fan_only_entity": "Entité Ventilation"
+            }
+          },
+          "readings": {
+            "name": "Relevés de température",
+            "description": "Capteur de référence, décalages et capteurs externes des sources, hystérésis de phase.",
+            "data": {
+              "temperature_sensor": "Capteur de température",
+              "heat_offset": "Décalage Chauffage",
+              "cool_offset": "Décalage Climatisation",
+              "heat_cool_offset": "Décalage Chaud/Froid",
+              "auto_offset": "Décalage Auto",
+              "dry_offset": "Décalage Déshumidification",
+              "fan_only_offset": "Décalage Ventilation",
+              "heat_external_sensor": "Capteur externe Chauffage",
+              "cool_external_sensor": "Capteur externe Climatisation",
+              "heat_cool_external_sensor": "Capteur externe Chaud/Froid",
+              "auto_external_sensor": "Capteur externe Auto",
+              "dry_external_sensor": "Capteur externe Déshumidification",
+              "fan_only_external_sensor": "Capteur externe Ventilation",
+              "phase_hysteresis": "Hystérésis de phase"
+            }
+          },
+          "timers": {
+            "name": "Temporisations",
+            "description": "Durées en secondes.",
+            "data": {
+              "removal_confirmation_timer": "Confirmation de retrait",
+              "request_confirmation_timer": "Confirmation de demande",
+              "settle_timer": "Temps de stabilisation",
+              "external_sensor_resend_timer": "Renvoi au capteur externe",
+              "request_retry_timer": "Nouvel essai de demande"
+            }
+          },
+          "monitoring": {
+            "name": "Surveillance",
+            "description": "Quand un problème est signalé.",
+            "data": {
+              "monitoring_gap": "Écart maximal entre relevés",
+              "monitoring_delay_timer": "Délai avant signalement d'un problème"
+            }
+          },
+          "limits": {
+            "name": "Limites",
+            "description": "Limites de température de l'entité, et écart minimal entre les consignes basse et haute.",
+            "data": {
+              "min_temp": "Température minimale",
+              "max_temp": "Température maximale",
+              "min_gap": "Écart minimal entre basse et haute"
+            }
+          },
+          "fan_swing": {
+            "name": "Ventilation et oscillation",
+            "description": "Modes qui partagent leurs valeurs de ventilation et d'oscillation.",
+            "data": {
+              "sync_modes": "Modes synchronisés",
+              "bi_source_sync": "Synchroniser les deux phases de chaud/froid"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "out_of_range": "Une option est hors de sa plage : {detail}.",
+      "name_missing": "Le nom est obligatoire.",
+      "name_used": "Le nom {detail} est déjà utilisé par une autre entrée.",
+      "no_mode": "Au moins un mode doit avoir une entité source.",
+      "source_is_ac_entity": "{detail} est une entité Adaptative Climate : elle ne peut pas être une source.",
+      "mode_not_offered": "Une entité source n'offre pas un mode qu'elle sert : {detail}.",
+      "sensor_not_temperature": "Le capteur de température ne donne pas une température : {detail}.",
+      "external_without_sensor": "Le capteur externe de {detail} demande un capteur de température.",
+      "external_with_offset": "Le décalage de {detail} doit être 0 avec un capteur externe.",
+      "source_inconsistent": "Les modes d'une entité source doivent avoir le même décalage et le même capteur externe : {detail}.",
+      "source_inconsistent_entries": "Une entité source a d'autres options dans une autre entrée : {detail}.",
+      "retry_below_confirmation": "Le nouvel essai de demande doit être au moins égal à la confirmation de demande.",
+      "limits_too_close": "La température maximale doit dépasser la minimale d'au moins l'écart minimal."
+    },
+    "abort": {
+      "invalid_yaml": "L'entrée YAML n'est pas valide : voir les journaux."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Adaptative Climate",
+        "description": "Toutes les options sont enregistrées d'un coup ; l'entité est rechargée et démarre éteinte.",
+        "sections": {
+          "modes": {
+            "name": "Modes",
+            "description": "L'entité source de chaque mode. Avec chauffage et climatisation sans entité chaud/froid, chaud/froid bascule entre les deux.",
+            "data": {
+              "heat_entity": "Entité Chauffage",
+              "cool_entity": "Entité Climatisation",
+              "heat_cool_entity": "Entité Chaud/Froid",
+              "auto_entity": "Entité Auto",
+              "dry_entity": "Entité Déshumidification",
+              "fan_only_entity": "Entité Ventilation"
+            }
+          },
+          "readings": {
+            "name": "Relevés de température",
+            "description": "Capteur de référence, décalages et capteurs externes des sources, hystérésis de phase.",
+            "data": {
+              "temperature_sensor": "Capteur de température",
+              "heat_offset": "Décalage Chauffage",
+              "cool_offset": "Décalage Climatisation",
+              "heat_cool_offset": "Décalage Chaud/Froid",
+              "auto_offset": "Décalage Auto",
+              "dry_offset": "Décalage Déshumidification",
+              "fan_only_offset": "Décalage Ventilation",
+              "heat_external_sensor": "Capteur externe Chauffage",
+              "cool_external_sensor": "Capteur externe Climatisation",
+              "heat_cool_external_sensor": "Capteur externe Chaud/Froid",
+              "auto_external_sensor": "Capteur externe Auto",
+              "dry_external_sensor": "Capteur externe Déshumidification",
+              "fan_only_external_sensor": "Capteur externe Ventilation",
+              "phase_hysteresis": "Hystérésis de phase"
+            }
+          },
+          "timers": {
+            "name": "Temporisations",
+            "description": "Durées en secondes.",
+            "data": {
+              "removal_confirmation_timer": "Confirmation de retrait",
+              "request_confirmation_timer": "Confirmation de demande",
+              "settle_timer": "Temps de stabilisation",
+              "external_sensor_resend_timer": "Renvoi au capteur externe",
+              "request_retry_timer": "Nouvel essai de demande"
+            }
+          },
+          "monitoring": {
+            "name": "Surveillance",
+            "description": "Quand un problème est signalé.",
+            "data": {
+              "monitoring_gap": "Écart maximal entre relevés",
+              "monitoring_delay_timer": "Délai avant signalement d'un problème"
+            }
+          },
+          "limits": {
+            "name": "Limites",
+            "description": "Limites de température de l'entité, et écart minimal entre les consignes basse et haute.",
+            "data": {
+              "min_temp": "Température minimale",
+              "max_temp": "Température maximale",
+              "min_gap": "Écart minimal entre basse et haute"
+            }
+          },
+          "fan_swing": {
+            "name": "Ventilation et oscillation",
+            "description": "Modes qui partagent leurs valeurs de ventilation et d'oscillation.",
+            "data": {
+              "sync_modes": "Modes synchronisés",
+              "bi_source_sync": "Synchroniser les deux phases de chaud/froid"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "out_of_range": "Une option est hors de sa plage : {detail}.",
+      "name_missing": "Le nom est obligatoire.",
+      "name_used": "Le nom {detail} est déjà utilisé par une autre entrée.",
+      "no_mode": "Au moins un mode doit avoir une entité source.",
+      "source_is_ac_entity": "{detail} est une entité Adaptative Climate : elle ne peut pas être une source.",
+      "mode_not_offered": "Une entité source n'offre pas un mode qu'elle sert : {detail}.",
+      "sensor_not_temperature": "Le capteur de température ne donne pas une température : {detail}.",
+      "external_without_sensor": "Le capteur externe de {detail} demande un capteur de température.",
+      "external_with_offset": "Le décalage de {detail} doit être 0 avec un capteur externe.",
+      "source_inconsistent": "Les modes d'une entité source doivent avoir le même décalage et le même capteur externe : {detail}.",
+      "source_inconsistent_entries": "Une entité source a d'autres options dans une autre entrée : {detail}.",
+      "retry_below_confirmation": "Le nouvel essai de demande doit être au moins égal à la confirmation de demande.",
+      "limits_too_close": "La température maximale doit dépasser la minimale d'au moins l'écart minimal."
+    }
+  },
+  "selector": {
+    "sync_modes": {
+      "options": {
+        "heat": "Chauffage",
+        "cool": "Climatisation",
+        "heat_cool": "Chaud/Froid",
+        "auto": "Auto",
+        "dry": "Déshumidification",
+        "fan_only": "Ventilation"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "monitoring_sources": {
+        "name": "Surveillance des sources"
+      },
+      "monitoring_temperatures": {
+        "name": "Surveillance des températures"
+      }
+    }
+  },
+  "exceptions": {
+    "mode_not_configured": {
+      "message": "Ce mode n'est pas configuré."
+    },
+    "mode_not_available": {
+      "message": "La source de ce mode n'est pas disponible."
+    },
+    "feature_not_supported": {
+      "message": "Aucun mode configuré n'affiche cette consigne."
+    },
+    "temperature_out_of_range": {
+      "message": "La température est hors de la plage affichée."
+    },
+    "low_above_high": {
+      "message": "La consigne basse est au-dessus de la consigne haute."
+    },
+    "setting_not_available": {
+      "message": "Ce réglage n'est pas disponible dans le mode actuel."
+    },
+    "invalid_option": {
+      "message": "Cette valeur ne fait pas partie des options affichées."
+    },
+    "invalid_yaml_entry": {
+      "message": "L'entrée YAML n'est pas valide, l'entrée n'est pas chargée : {error}"
+    }
+  },
+  "issues": {
+    "mode_not_supported": {
+      "title": "{name} : {entity_id} n'offre pas {mode}",
+      "description": "L'entité source {entity_id} n'offre pas le mode {mode} qu'elle sert dans {name}. La source est inutilisable tant qu'elle ne l'offre pas de nouveau."
+    },
+    "sync_heat_cool_bi_source": {
+      "title": "{name} : chaud/froid dans les modes synchronisés",
+      "description": "Chaud/froid bascule entre deux sources dans {name} : il est ignoré dans les modes synchronisés. Utilisez plutôt la synchronisation des deux phases."
+    },
+    "sync_setting_missing": {
+      "title": "{name} : {mode} n'a pas de {setting}",
+      "description": "La source de {mode} n'a pas de {setting} dans {name} : elle est ignorée pour ce réglage dans la synchronisation."
+    }
+  }
+}

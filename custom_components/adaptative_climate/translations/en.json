@@ -1,0 +1,256 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Adaptative Climate",
+        "description": "A climate entity that drives one or more climate entities, one per mode.",
+        "data": {
+          "name": "Name"
+        },
+        "sections": {
+          "modes": {
+            "name": "Modes",
+            "description": "The source entity of each mode. With heat and cool and no heat/cool entity, heat/cool switches between them.",
+            "data": {
+              "heat_entity": "Heat entity",
+              "cool_entity": "Cool entity",
+              "heat_cool_entity": "Heat/Cool entity",
+              "auto_entity": "Auto entity",
+              "dry_entity": "Dry entity",
+              "fan_only_entity": "Fan only entity"
+            }
+          },
+          "readings": {
+            "name": "Temperature readings",
+            "description": "Reference sensor, offsets and external sensors of the sources, phase hysteresis.",
+            "data": {
+              "temperature_sensor": "Temperature sensor",
+              "heat_offset": "Heat offset",
+              "cool_offset": "Cool offset",
+              "heat_cool_offset": "Heat/Cool offset",
+              "auto_offset": "Auto offset",
+              "dry_offset": "Dry offset",
+              "fan_only_offset": "Fan only offset",
+              "heat_external_sensor": "Heat external sensor",
+              "cool_external_sensor": "Cool external sensor",
+              "heat_cool_external_sensor": "Heat/Cool external sensor",
+              "auto_external_sensor": "Auto external sensor",
+              "dry_external_sensor": "Dry external sensor",
+              "fan_only_external_sensor": "Fan only external sensor",
+              "phase_hysteresis": "Phase hysteresis"
+            }
+          },
+          "timers": {
+            "name": "Timers",
+            "description": "Durations in seconds.",
+            "data": {
+              "removal_confirmation_timer": "Removal confirmation",
+              "request_confirmation_timer": "Request confirmation",
+              "settle_timer": "Settle time",
+              "external_sensor_resend_timer": "External sensor resend",
+              "request_retry_timer": "Request retry"
+            }
+          },
+          "monitoring": {
+            "name": "Monitoring",
+            "description": "When a problem is reported.",
+            "data": {
+              "monitoring_gap": "Largest gap between readings",
+              "monitoring_delay_timer": "Delay before a problem is reported"
+            }
+          },
+          "limits": {
+            "name": "Limits",
+            "description": "Temperature limits of the entity, and the smallest gap between the low and high targets.",
+            "data": {
+              "min_temp": "Minimum temperature",
+              "max_temp": "Maximum temperature",
+              "min_gap": "Minimum gap between low and high"
+            }
+          },
+          "fan_swing": {
+            "name": "Fan and swing",
+            "description": "Modes that share their fan and swing values.",
+            "data": {
+              "sync_modes": "Synchronized modes",
+              "bi_source_sync": "Synchronize the two phases of heat/cool"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "out_of_range": "An option is out of its range: {detail}.",
+      "name_missing": "The name is required.",
+      "name_used": "The name {detail} is already used by another entry.",
+      "no_mode": "At least one mode needs a source entity.",
+      "source_is_ac_entity": "{detail} is an Adaptative Climate entity: it cannot be a source.",
+      "mode_not_offered": "A source entity does not offer a mode it serves: {detail}.",
+      "sensor_not_temperature": "The temperature sensor does not give a temperature: {detail}.",
+      "external_without_sensor": "The external sensor of {detail} needs a temperature sensor.",
+      "external_with_offset": "The offset of {detail} must be 0 with an external sensor.",
+      "source_inconsistent": "The modes of a source entity must have the same offset and external sensor: {detail}.",
+      "source_inconsistent_entries": "A source entity has other options in another entry: {detail}.",
+      "retry_below_confirmation": "The request retry must be at least the request confirmation.",
+      "limits_too_close": "The maximum temperature must be at least the minimum gap above the minimum temperature."
+    },
+    "abort": {
+      "invalid_yaml": "The YAML entry is not valid: see the logs."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Adaptative Climate",
+        "description": "Every option is saved at once; the entity is reloaded and starts off.",
+        "sections": {
+          "modes": {
+            "name": "Modes",
+            "description": "The source entity of each mode. With heat and cool and no heat/cool entity, heat/cool switches between them.",
+            "data": {
+              "heat_entity": "Heat entity",
+              "cool_entity": "Cool entity",
+              "heat_cool_entity": "Heat/Cool entity",
+              "auto_entity": "Auto entity",
+              "dry_entity": "Dry entity",
+              "fan_only_entity": "Fan only entity"
+            }
+          },
+          "readings": {
+            "name": "Temperature readings",
+            "description": "Reference sensor, offsets and external sensors of the sources, phase hysteresis.",
+            "data": {
+              "temperature_sensor": "Temperature sensor",
+              "heat_offset": "Heat offset",
+              "cool_offset": "Cool offset",
+              "heat_cool_offset": "Heat/Cool offset",
+              "auto_offset": "Auto offset",
+              "dry_offset": "Dry offset",
+              "fan_only_offset": "Fan only offset",
+              "heat_external_sensor": "Heat external sensor",
+              "cool_external_sensor": "Cool external sensor",
+              "heat_cool_external_sensor": "Heat/Cool external sensor",
+              "auto_external_sensor": "Auto external sensor",
+              "dry_external_sensor": "Dry external sensor",
+              "fan_only_external_sensor": "Fan only external sensor",
+              "phase_hysteresis": "Phase hysteresis"
+            }
+          },
+          "timers": {
+            "name": "Timers",
+            "description": "Durations in seconds.",
+            "data": {
+              "removal_confirmation_timer": "Removal confirmation",
+              "request_confirmation_timer": "Request confirmation",
+              "settle_timer": "Settle time",
+              "external_sensor_resend_timer": "External sensor resend",
+              "request_retry_timer": "Request retry"
+            }
+          },
+          "monitoring": {
+            "name": "Monitoring",
+            "description": "When a problem is reported.",
+            "data": {
+              "monitoring_gap": "Largest gap between readings",
+              "monitoring_delay_timer": "Delay before a problem is reported"
+            }
+          },
+          "limits": {
+            "name": "Limits",
+            "description": "Temperature limits of the entity, and the smallest gap between the low and high targets.",
+            "data": {
+              "min_temp": "Minimum temperature",
+              "max_temp": "Maximum temperature",
+              "min_gap": "Minimum gap between low and high"
+            }
+          },
+          "fan_swing": {
+            "name": "Fan and swing",
+            "description": "Modes that share their fan and swing values.",
+            "data": {
+              "sync_modes": "Synchronized modes",
+              "bi_source_sync": "Synchronize the two phases of heat/cool"
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "out_of_range": "An option is out of its range: {detail}.",
+      "name_missing": "The name is required.",
+      "name_used": "The name {detail} is already used by another entry.",
+      "no_mode": "At least one mode needs a source entity.",
+      "source_is_ac_entity": "{detail} is an Adaptative Climate entity: it cannot be a source.",
+      "mode_not_offered": "A source entity does not offer a mode it serves: {detail}.",
+      "sensor_not_temperature": "The temperature sensor does not give a temperature: {detail}.",
+      "external_without_sensor": "The external sensor of {detail} needs a temperature sensor.",
+      "external_with_offset": "The offset of {detail} must be 0 with an external sensor.",
+      "source_inconsistent": "The modes of a source entity must have the same offset and external sensor: {detail}.",
+      "source_inconsistent_entries": "A source entity has other options in another entry: {detail}.",
+      "retry_below_confirmation": "The request retry must be at least the request confirmation.",
+      "limits_too_close": "The maximum temperature must be at least the minimum gap above the minimum temperature."
+    }
+  },
+  "selector": {
+    "sync_modes": {
+      "options": {
+        "heat": "Heat",
+        "cool": "Cool",
+        "heat_cool": "Heat/Cool",
+        "auto": "Auto",
+        "dry": "Dry",
+        "fan_only": "Fan only"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "monitoring_sources": {
+        "name": "Monitoring sources"
+      },
+      "monitoring_temperatures": {
+        "name": "Monitoring temperatures"
+      }
+    }
+  },
+  "exceptions": {
+    "mode_not_configured": {
+      "message": "This mode is not configured."
+    },
+    "mode_not_available": {
+      "message": "The source of this mode is not available."
+    },
+    "feature_not_supported": {
+      "message": "No configured mode shows this temperature target."
+    },
+    "temperature_out_of_range": {
+      "message": "The temperature is out of the range shown."
+    },
+    "low_above_high": {
+      "message": "The low target is above the high target."
+    },
+    "setting_not_available": {
+      "message": "This setting is not available in the current mode."
+    },
+    "invalid_option": {
+      "message": "This value is not one of the options shown."
+    },
+    "invalid_yaml_entry": {
+      "message": "The YAML entry is invalid, the entry is not loaded: {error}"
+    }
+  },
+  "issues": {
+    "mode_not_supported": {
+      "title": "{name}: {entity_id} does not offer {mode}",
+      "description": "The source entity {entity_id} does not offer the mode {mode} it serves in {name}. The source is unusable until it offers it again."
+    },
+    "sync_heat_cool_bi_source": {
+      "title": "{name}: heat/cool in the synchronized modes",
+      "description": "heat/cool switches between two sources in {name}: it is ignored in the synchronized modes. Use the synchronization of the two phases instead."
+    },
+    "sync_setting_missing": {
+      "title": "{name}: {mode} has no {setting}",
+      "description": "The source of {mode} has no {setting} in {name}: it is ignored for that setting in the synchronization."
+    }
+  }
+}

@@ -609,7 +609,10 @@ stateDiagram-v2
   sensor and the external sensor entities; then the start stimulus runs
   (`HA=>AC_start`, `HA=>S_start`, `HA=>M_start`, EXEC-4). The views are
   added to Home Assistant before the start stimulus, so that the first
-  state is written at its end.
+  state is written at its end. An imported entry whose YAML entry is
+  invalid is not set up: its setup fails with the error, which Home
+  Assistant shows on the entry; nothing is built, and its store is kept
+  (CFG-YAML-5).
 - **Unload** (END-1): the host unsubscribes, every timer is cancelled, the
   stimuli waiting in the stimulus queue are dropped, the Repairs issues of the entry are
   removed. Nothing is sent to the source entities and no event is fired.
@@ -657,7 +660,10 @@ The package `config` (§3), plus the configuration model of `core/model`.
 - **YAML import** (`config/yaml_import/`): at Home Assistant start, the
   YAML entries are matched to the imported entries by `name`; an entry is
   created, updated or deleted to match the YAML (CFG-YAML-1 to
-  CFG-YAML-3). An invalid entry is not imported and the error is logged.
+  CFG-YAML-3). An invalid entry is an error: it is not imported, the
+  error is logged, and an imported entry of that name is kept but not
+  loaded (CFG-YAML-5): the import notes its error, and the setup of the
+  entry fails with it (§8).
 - **Configuration model** (`core/model/entry_config.py`, built by
   `config/options/builder.py`): built from a checked
   configuration, immutable (ARCH-10). It gives the core what it derives

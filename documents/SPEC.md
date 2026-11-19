@@ -1216,10 +1216,14 @@ stateDiagram-v2
   received from the entity, which stays the reference (Home Assistant wins). It is sent
   again (SRC-SET-7, SRC-SET-8) and the monitoring reports it (MON-SRC-4). Nothing is
   sent to the entity: its setting is unchanged.
-- **SRC-SET-11** Takeover (a value of the source entity **changes** to another
-  value than the one sent, compared as in SRC-SET-4: remote, app): in `ACTIVE`, the source keeps the
+- **SRC-SET-11** Takeover (a value shown by the source entity **changes**:
+  it differs from the value it showed before, and from the kept value,
+  both compared as in SRC-SET-4: remote, app): in `ACTIVE`, the source keeps the
   new value as its setting and sends `S=>AC_settings(s)` (the settings
-  changed) to the entity, which adopts them. In `HOLD` and `SETTLE`, such
+  changed) to the entity, which adopts them. A setting without kept value
+  that changes is a takeover too. A value that does not change is not a
+  takeover, even if it differs from the kept value: it is a setting not
+  applied (SRC-SET-10). In `HOLD` and `SETTLE`, such
   changes are ignored (SRC-REQ-1, SRC-SET-5), except, in `SETTLE`, a
   fan/swing setting without kept value (SRC-SET-12). After a mode change
   made on the source entity (`SE=>S_on(m)` followed, SRC-STATE-5), the
@@ -2257,7 +2261,10 @@ remembered for each mode are in §1.3.5.4.
     the others still share their options. It is judged once the mode is
     discovered: its source does not declare the feature in that mode
     (ENT-FAN-1). A mode not discovered yet is not judged (it is left out,
-    ENT-FAN-6). The check is made at each rebuild of the capabilities
+    ENT-FAN-6). It is reported only when another synchronized mode,
+    discovered, has that setting: when none has it (AC units without
+    horizontal swing), there is nothing to share, and nothing is
+    reported. The check is made at each rebuild of the capabilities
     (ENT-CAP-7), and at start with the stored capabilities;
   - `heat_cool` listed while it is bi-source: it is ignored in
     `sync_modes`. A bi-source `heat_cool` is synchronized with
@@ -2271,9 +2278,9 @@ remembered for each mode are in §1.3.5.4.
   - the options shown in `ON(heat_cool)` are all the options of the
     current phase (ENT-FAN-3);
   - a phase not discovered yet is left out, like a mode in ENT-FAN-6;
-  - a phase source that does not have a setting at all is reported like
-    in ENT-FAN-7 (judged once the phase is discovered), and ignored for
-    that setting.
+  - a phase source that does not have a setting at all, while the other
+    phase source has it, is reported like in ENT-FAN-7 (judged once the
+    phase is discovered), and ignored for that setting.
 
 #### 1.3.5 Settings management
 
@@ -2617,7 +2624,7 @@ The temperature targets used and shown by each mode are listed in
     (mono-source) if it shows them; else low from the single target of
     the heat source, and high from the single target of the cool source;
     for the missing ones, the low / high of the first source that shows
-    them; else T − 1 and T + 1.
+    them; else T − 1 °C and T + 1 °C (2 °F, CFG-UNIT-1).
   - The targets restored are kept as they are: only the missing ones are
     taken. The gap is then applied (ENT-TGT-5, ENT-TGT-6).
 
@@ -2887,8 +2894,9 @@ What the configuration changes elsewhere:
 | `name` | string, unique | — | Title of the entry, and name of the AC entity (the monitoring sensors are named after it, §2.1). In YAML, it identifies the entry (CFG-YAML-2). |
 
 - **CFG-NAME-1** `name` is unique among all the entries of the
-  integration, created from the UI or from the YAML alike: an entry
-  whose name is already used is refused (CFG-CHECK-1). A YAML entry
+  integration, created from the UI or from the YAML alike, ignoring case
+  (`Living room` and `living room` are the same name): an entry whose
+  name is already used is refused (CFG-CHECK-1). A YAML entry
   whose name is used by an entry of the UI is not imported, and the
   error is logged (CFG-YAML-5).
 - **CFG-NAME-2** In the YAML, the name identifies the entry
@@ -3101,19 +3109,31 @@ adaptative_climate:
 - **CFG-YAML-1** Each YAML entry is imported as a config entry when Home
   Assistant starts. The options are those of §3.1.
 - **CFG-YAML-2** The `name` identifies the entry, so it must be unique in
-  the YAML: two entries with the same name are refused. It must be unique
+  the YAML: two entries with the same name (ignoring case, CFG-NAME-1)
+  are refused. It must be unique
   with the entries of the UI too (CFG-NAME-1); renaming: CFG-NAME-2.
 - **CFG-YAML-3** YAML wins over the UI:
   - an entry changed in the YAML is updated, as by the options in the
-    UI (ENT-INIT-4);
-  - an entry removed from the YAML is deleted (END-3);
+    UI (ENT-INIT-4), when it is valid (CFG-YAML-5);
+  - an entry removed from the YAML is deleted (END-3); an entry still in
+    the YAML but invalid is not (CFG-YAML-5);
   - an imported entry has no options in the UI (they would be
     overwritten by the YAML).
 - **CFG-YAML-4** The entries created from the UI are not affected by the
   YAML. Their options flow saves every option at once: the options
   replace the whole configuration of the entry.
-- **CFG-YAML-5** The same checks apply to the YAML and to the UI (§3.3);
-  an invalid YAML entry is not imported, and the error is logged.
+- **CFG-YAML-5** The same checks apply to the YAML and to the UI (§3.3).
+  An invalid YAML entry (refused by CFG-CHECK-1, or a name used twice in
+  the YAML, CFG-YAML-2) is an error: it is not imported, and the error is
+  logged.
+  - An imported entry of that name is kept, with its stored data, but
+    not loaded: Home Assistant shows it in error, with the message, and
+    its entities are `unavailable`. As after an unload (END-1), its source
+    entities are left as they are, no longer managed.
+  - It is loaded at the next start where its YAML entry is valid: updated
+    if its configuration changed (ENT-INIT-4), resumed as at a restart
+    otherwise (END-2).
+  - An entry of the UI is not affected (CFG-YAML-4).
 
 ### 3.3 Checks
 
@@ -3138,9 +3158,9 @@ adaptative_climate:
   - `max_temp` is less than `min_gap` above `min_temp` (CFG-LIM-1).
 
   A refused configuration is not applied: the UI shows the error; an
-  invalid YAML entry is not imported, and the error is logged
-  (CFG-YAML-5). At a start with an unchanged configuration, nothing is
-  refused (CFG-MODE-5).
+  invalid YAML entry is an error, not imported, and an imported entry of
+  that name is kept but not loaded (CFG-YAML-5). At a start with an unchanged
+  configuration, nothing is refused (CFG-MODE-5).
 - **CFG-CHECK-2** Accepted, with no effect:
   - the offset and the external sensor of a mode without its own source
     entity: a mode not configured, a bi-source `heat_cool` (CFG-SENS-3);
