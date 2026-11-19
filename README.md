@@ -488,8 +488,8 @@ card, or a conditional card on `state: "on"`.
 
 ## Development
 
-Tests use [pytest-homeassistant-custom-component](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component),
-which ships the Home Assistant core test helpers. They need Python 3.14.
+Tests use [pytest-homeassistant](https://github.com/home-assistant/core/tree/dev/packages/pytest-homeassistant),
+which ships the Home Assistant core test helpers. They need Python 3.14.2 or later.
 
 ```bash
 python3.14 -m venv .venv
@@ -504,5 +504,5 @@ the diff in `tests/snapshots/`:
 .venv/bin/pytest --snapshot-update
 ```
 
-To test against a new Home Assistant release, bump
-`pytest-homeassistant-custom-component` in `requirements_test.txt`.
+To test against a new Home Assistant release, bump `pytest-homeassistant`
+in `requirements_test.txt` to the same version.
