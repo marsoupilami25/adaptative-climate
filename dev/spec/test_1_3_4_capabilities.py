@@ -6,6 +6,7 @@ source states (test_1_2_3_source_state.py).
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from homeassistant.components.climate import ClimateEntityFeature as F
@@ -463,8 +464,10 @@ async def test_ent_fan_7_synchronized_mode_without_the_setting(
     await discover((aircon, "cool"))
     assert len(bench.issues()) == 1
     assert warnings_logged(caplog, "heat")
+    caplog.clear()
     await heater.set(fan_modes=["low", "high"], fan_mode="low", hvac_mode="heat")
     assert bench.issues() == []
+    assert [r for r in caplog.records if r.levelno == logging.INFO and "heat" in r.getMessage()]
 
 
 @spec("ENT-FAN-7", "CFG-FAN-1", "CFG-CHECK-3")

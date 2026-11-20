@@ -7,11 +7,12 @@ through the calls its device receives.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import pytest
 
-from dev.spec.harness import Bench, yaml_entry
+from dev.spec.harness import Bench, warnings_logged, yaml_entry
 
 spec = pytest.mark.spec
 
@@ -254,6 +255,27 @@ async def test_src_state_6_served_mode_lost_after_its_removal_confirmation(bench
     await bench.advance(2)
     assert "heat" in ac(bench).attr("unavailable_modes")
     assert len(bench.issues()) == 1
+
+
+@spec("ENT-HVAC-5", "SRC-UNUS-2")
+async def test_ent_hvac_5_issue_removed_when_the_mode_is_offered_again(
+    bench: Bench, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Raised with a warning; removed, with an info, once the device offers heat again."""
+    await heating_with_aircon(bench)
+    heater = bench.devices[HEATER]
+    await bench.advance(15)
+    await heater.set(hvac_modes=["off", "cool"], hvac_mode="off")
+    await bench.advance(61)
+    assert len(bench.issues()) == 1
+    assert warnings_logged(caplog, HEATER, "heat")
+    caplog.clear()
+    await heater.set(hvac_modes=["off", "heat", "cool"])
+    assert bench.issues() == []
+    assert [
+        r for r in caplog.records
+        if r.levelno == logging.INFO and HEATER in r.getMessage() and "heat" in r.getMessage()
+    ]
 
 
 @spec("SRC-STATE-7", "SRC-STATE-10", "SRC-SET-13")

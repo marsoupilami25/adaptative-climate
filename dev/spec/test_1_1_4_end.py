@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from dev.spec.harness import Bench, yaml_entry
@@ -69,10 +71,15 @@ async def test_end_1_running_requests_are_dropped(bench: Bench) -> None:
 
 
 @spec("END-1", "ENT-HVAC-5")
-async def test_end_1_repairs_issues_are_removed(bench: Bench) -> None:
+async def test_end_1_repairs_issues_are_removed(
+    bench: Bench, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Removed at the unload, without the info of a cause gone."""
     await mode_not_offered(bench)
+    caplog.clear()
     await bench.unload("Living room")
     assert bench.issues() == []
+    assert not [r for r in caplog.records if r.levelno == logging.INFO and HEATER in r.getMessage()]
 
 
 @spec("END-1", "MON-LIFE-2")

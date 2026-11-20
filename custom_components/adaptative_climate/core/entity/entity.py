@@ -144,7 +144,7 @@ class ACEntity(Actor):
             self.save()  # the fingerprint it runs with (ARCHITECTURE §8)
         elif event.kind == HA_UNLOAD:
             for group in list(self._issues):
-                self._set_issues(group, {})
+                self._set_issues(group, {}, unload=True)
 
     def end_of_step(self) -> None:
         """Hook: send to the sources (ENT-SEND-3), tell the problems (MON-SEND-1)."""
@@ -332,12 +332,17 @@ class ACEntity(Actor):
 
     # --- Repairs issues (ENT-HVAC-5, ENT-FAN-7, ENT-FAN-8) ----------------------------------
 
-    def _set_issues(self, group: str, wanted: dict[str, tuple[str, dict[str, str]]]) -> None:
+    def _set_issues(
+        self, group: str, wanted: dict[str, tuple[str, dict[str, str]]], unload: bool = False
+    ) -> None:
+        """Raise the issues wanted (warning), remove the others (info, not at unload)."""
         raised = self._issues.setdefault(group, {})
         for issue_id in list(raised):
             if issue_id not in wanted:
-                del raised[issue_id]
+                key, placeholders = raised.pop(issue_id)
                 self.repairs.clear_issue(issue_id)
+                if not unload:
+                    self.notify.log("info", f"Repairs issue {key} resolved: {placeholders}")
         for issue_id, (key, placeholders) in wanted.items():
             if raised.get(issue_id) != (key, placeholders):
                 raised[issue_id] = (key, placeholders)

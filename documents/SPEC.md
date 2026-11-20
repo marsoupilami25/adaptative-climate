@@ -2045,8 +2045,8 @@ a mode, or later):
   source is then `UNUSABLE`, SRC-UNUS-2):
   - a warning is logged, and a Repairs issue
     (`<entry>_<mode>_not_supported`) is raised;
-  - the issue is removed when the source offers the mode again, and when
-    the entry unloads (END-1);
+  - the issue is removed when the source offers the mode again (logged at
+    info level), and when the entry unloads (END-1, not logged);
   - a source never seen is not judged.
 
 ##### 1.3.4.3 Temperature targets used by each mode
@@ -2260,8 +2260,8 @@ remembered for each mode are in §1.3.5.4.
   - Its discovery may reduce the shared options: the memory is then
     checked (ENT-CAP-7, ENT-FANV-3).
 - **ENT-FAN-7** Configuration errors of `sync_modes`, each one reported by
-  a warning and a Repairs issue, removed once the cause is gone, and when
-  the entry unloads (END-1):
+  a warning and a Repairs issue, removed once the cause is gone (logged at
+  info level), and when the entry unloads (END-1, not logged):
   - a synchronized mode whose source does not have a setting at all (a
     radiator without fan): that mode is ignored for that setting, so that
     the others still share their options. It is judged once the mode is
@@ -3198,7 +3198,8 @@ adaptative_climate:
 > configuration errors of `sync_modes` and `bi_source_sync` (ENT-FAN-7,
 > ENT-FAN-8). They do not end with time but with a change of the
 > configuration or of the device, so they have no delay and do not turn
-> a monitoring sensor on. A source that does not offer a mode it serves
+> a monitoring sensor on. As for a problem (MON-LIFE-2), their end is
+> logged at info level. A source that does not offer a mode it serves
 > is also `UNUSABLE`: as such, it can be reported as source unusable as
 > well (MON-SRC-1).
 

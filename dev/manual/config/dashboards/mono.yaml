@@ -134,7 +134,7 @@ views:
         9. **Source unavailable** (ENT-NOSRC-2, SRC-STATE-7, SRC-STATE-10, MON-SRC-2): Adaptative HEAT in *heat*. On HEAT Virtual, turn *Available* off: Adaptative HEAT is unavailable (its only source); *Monitoring sources* stays *OK*: the unavailable entity already says it. On HEAT Virtual, *Mode* *off*, then *Available* on: *Mode* goes back to *heat* (Home Assistant wins), Adaptative HEAT too.
         10. **Source unknown** (SRC-STATE-6): as 9, with *Unknown* (on, then off at the end).
         11. **Device that does not obey** (SRC-REQ-5, SRC-REQ-6, MON-SRC-3): Adaptative HEAT *off*. On HEAT Virtual, turn *Obeys the mode* off. Adaptative HEAT to *heat*: it shows *heat*, *Mode* of HEAT Virtual stays *off*. After 10 s, *Monitoring sources* goes to *Problem* (out of sync). On HEAT Virtual, *Obeys the mode* on: at the next try (30 s at most), *Mode* goes to *heat*, *Monitoring sources* back to *OK*.
-        12. **Mode lost** (SRC-UNUS-2, ENT-HVAC-5): Adaptative HEAT *off*. On HEAT Virtual, turn *Offers heat* off: after 20 s (removal confirmation), Adaptative HEAT is unavailable and a repair shows up (*Settings > Repairs*). *Offers heat* on: it is gone.
+        12. **Mode lost** (SRC-UNUS-2, ENT-HVAC-5): Adaptative HEAT *off*. On HEAT Virtual, turn *Offers heat* off: after 20 s (removal confirmation), Adaptative HEAT is unavailable and a repair shows up (*Settings > Repairs*), with a warning in the log. *Offers heat* on: the repair is gone, with an info in the log (`Repairs issue mode_not_supported resolved`).
         13. **Restart** (ENT-STATE-1, END-2): Adaptative HEAT in *heat*, target 22; restart Home Assistant: Adaptative HEAT resumes *heat* at 22.
 
         </small>
