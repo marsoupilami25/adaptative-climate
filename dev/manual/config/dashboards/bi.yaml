@@ -17,12 +17,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative BI monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_bi_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_bi_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_bi' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_bi_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_bi_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_bi_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_bi_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_bi' %}{% set problems = (state_attr('binary_sensor.adaptative_bi_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_bi_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -169,7 +178,7 @@ views:
 
         ## Bi-source
 
-        Adaptative BI: *heat_cool* with no source of its own: RADIATOR Virtual (*heat*, 5–30 °C; it also offers *fan_only*, which Adaptative BI does not serve) and AIRCON Virtual (*cool*, 16–30 °C by steps of 1). `min_gap` 2, hysteresis 1 °C, monitoring delay 1 min. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        Adaptative BI: *heat_cool* with no source of its own: RADIATOR Virtual (*heat*, 5–30 °C; it also offers *fan_only*, which Adaptative BI does not serve) and AIRCON Virtual (*cool*, 16–30 °C by steps of 1). `min_gap` 2, hysteresis 1 °C. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
         Adaptative BI *off*: set the range to 19–24 and *Room temperature* to 21.
 
         1. **Entering heat_cool** (ENT-WANT-1, ENT-TYPE-3): Adaptative BI to *heat_cool*: *Phase* `heat`, RADIATOR Virtual goes to *heat* at 19, AIRCON Virtual stays *off*.
@@ -182,7 +191,7 @@ views:
         8. **Foreign mode of the active source** (ENT-STATE-5): Adaptative BI in *heat*, wait 12 s. On RADIATOR Virtual, *Mode* *fan_only*: Adaptative BI goes to *off*, *Foreign modes* lists RADIATOR Virtual; nothing is sent.
         9. **Foreign mode tolerated** (ENT-STATE-5): Adaptative BI in *cool*. On RADIATOR Virtual, *Mode* *fan_only*: nothing is sent (tolerated). Adaptative BI to *off*: RADIATOR Virtual goes to *off*.
         10. **Phase source away** (ENT-PHASE-5): Adaptative BI in *heat_cool*, *Phase* `heat`. On AIRCON Virtual, *Available* off; *Room temperature* 26: *Phase* `cool`, RADIATOR Virtual to *off*. AIRCON Virtual *Available* on: it goes to *cool*.
-        11. **No source left** (ENT-STATE-6, MON-SRC-1): turn both *Available* off: Adaptative BI is unavailable; after 1 min, light *Sources* red (both). RADIATOR Virtual *Available* on: back to *heat_cool*.
+        11. **No source left** (ENT-STATE-6, MON-SRC-1): turn both *Available* off: Adaptative BI is unavailable; after 15 s, *Monitoring sources* goes to *Problem* (both sources). RADIATOR Virtual *Available* on: back to *heat_cool*.
         12. **Minimum gap** (ENT-TGT-6): Adaptative BI *off*, set 22–23: high goes to 24.
         13. **heat and cool share one target** (ENT-FEAT-4): Adaptative BI in *heat*, target 21; in *cool*: 21, AIRCON Virtual gets 21; in *heat_cool*: the range comes back.
 

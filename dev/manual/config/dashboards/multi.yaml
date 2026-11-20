@@ -17,12 +17,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative MULTI monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_multi_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_multi_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_multi' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_multi_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_multi_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_multi_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_multi_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_multi' %}{% set problems = (state_attr('binary_sensor.adaptative_multi_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_multi_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -60,20 +69,20 @@ views:
 
         ## Multi-sources
 
-        Adaptative MULTI: one source per mode, the room sensor. *heat*, *cool* and *dry* share fan and swing; *heat_cool* switches between HEAT Virtual and COOL Virtual. Monitoring delay 1 min, removal confirmation 30 s. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        Adaptative MULTI: one source per mode, the room sensor. *heat*, *cool* and *dry* share fan and swing; *heat_cool* switches between HEAT Virtual and COOL Virtual. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
         The options are written differently: HEAT Virtual in *Capitals* with *Turbo* on top, DRY Virtual in *UPPERCASE* without *medium*, the others in lowercase. The sources are on the view *Sources*.
 
         1. **Mode change** (ENT-STATE-3): Adaptative MULTI to *heat*, then *cool*: COOL Virtual goes to *cool*, HEAT Virtual back to *off*.
         2. **Turned on on a device** (ENT-STATE-5, ENT-STATE-3): Adaptative MULTI *off*. On HEAT Virtual, *Mode* *heat*: Adaptative MULTI goes to *heat*. Then on COOL Virtual, *Mode* *cool*: Adaptative MULTI goes to *cool*, HEAT Virtual is turned off (the last one wins).
         3. **Turn on** (ENT-STATE-2, ENT-STATE-8): Adaptative MULTI *off*, then its on button: the last used mode comes back.
         4. **Mode unavailable** (ENT-HVAC-4, ENT-STATE-4): on DRY Virtual, *Available* off: *dry* is in *Unavailable modes*; Adaptative MULTI to *dry* is refused.
-        5. **Waiting for the source** (ENT-WAIT-1, ENT-WAIT-2, MON-SRC-1): Adaptative MULTI in *cool*. On COOL Virtual, *Available* off: Adaptative MULTI goes to *Unknown*, keeps its targets and range; after 1 min, light *Sources* red. Target 23 on Adaptative MULTI: nothing is sent. *Available* on: COOL Virtual goes back to *cool* at 23, light green.
+        5. **Waiting for the source** (ENT-WAIT-1, ENT-WAIT-2, MON-SRC-1): Adaptative MULTI in *cool*. On COOL Virtual, *Available* off: Adaptative MULTI goes to *Unknown*, keeps its targets and range; after 15 s, *Monitoring sources* goes to *Problem*. Target 23 on Adaptative MULTI: nothing is sent. *Available* on: COOL Virtual goes back to *cool* at 23, *Monitoring sources* back to *OK*.
         6. **Range per mode** (ENT-RANGE-2): *heat* 5–30, *cool* 16–32, *dry* 18–30, *auto* 10–30, *off*: the widest.
         7. **Shared memory and case** (ENT-FANV-2, ENT-FAN-5, ENT-FAN-6): Adaptative MULTI in *cool*, fan *high*; in *heat*: *Fan* of HEAT Virtual goes to *High*; in *dry*: *HIGH*.
         8. **Option of one source only** (ENT-FANV-3, ENT-FAN-3): Adaptative MULTI in *heat* offers *Turbo*; choose it: HEAT Virtual goes to *Turbo*. Adaptative MULTI to *cool*: the fan goes back to *high* (Turbo is not remembered).
         9. **Off** (ENT-FAN-3): *fan_only* and *auto* are not synchronized: in *off*, Adaptative MULTI shows no fan.
         10. **Room sensor** (ENT-REF-1, ENT-REF-2): *Room temperature* 21: Adaptative MULTI shows 21; *Room sensor available* off: it shows the temperature of the active source.
-        11. **Temperature gap** (MON-TEMP-1): *Temperature* of HEAT Virtual 25, *Room temperature* 21: after 1 min, light *Temperatures* red; HEAT Virtual back to 21: green.
+        11. **Temperature gap** (MON-TEMP-1): *Temperature* of HEAT Virtual 25, *Room temperature* 21: after 15 s, *Monitoring temperatures* goes to *Problem*; HEAT Virtual back to 21: back to *OK*.
         12. **heat_cool** (ENT-TYPE-3): range 19–24, *Room temperature* 21, Adaptative MULTI to *heat_cool*: HEAT Virtual in *heat*; *Room temperature* 26: COOL Virtual in *cool*, HEAT Virtual *off*.
         13. **Restart** (ENT-FANV-1, END-2): Adaptative MULTI in *cool*, fan *low*, then *off*; on HEAT Virtual, *Fan* *Auto*; restart; Adaptative MULTI to *heat*: *Fan* of HEAT Virtual goes to *Low*.
         14. **One target for the single-target modes** (ENT-FEAT-4): Adaptative MULTI in *heat*, target 21; in *cool*, *dry*, *auto*: 21, and their source gets it. *heat_cool* keeps its range.

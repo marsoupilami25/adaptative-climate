@@ -17,12 +17,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative HEAT monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_heat_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_heat_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_heat' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_heat_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_heat_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_heat_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_heat_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_heat' %}{% set problems = (state_attr('binary_sensor.adaptative_heat_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_heat_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -112,8 +121,7 @@ views:
 
         ## Adaptative HEAT
 
-        HEAT Virtual: *heat*, 8–30 °C, fan *low*/*high*. Adaptative HEAT: `max_temp` 25; a mode asked
-        is sent again after 1 min; monitoring delay 1 min. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        HEAT Virtual: *heat*, 8–30 °C, fan *low*/*high*. Adaptative HEAT: `max_temp` 25. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **On, off** (ENT-STATE-3, SRC-REQ-2): Adaptative HEAT to *heat*: on HEAT Virtual, *Mode* goes to *heat*. Adaptative HEAT to *off*: *Mode* goes back to *off*.
         2. **Range and limit** (ENT-RANGE-1, ENT-RANGE-3): Adaptative HEAT in *heat* goes from 8 to 25 °C (HEAT Virtual goes up to 30, `max_temp` narrows it).
@@ -123,10 +131,10 @@ views:
         6. **Beyond the limit** (ENT-TGT-3, ENT-TGT-12, ENT-TGT-13): Adaptative HEAT in *heat*, wait 12 s. On HEAT Virtual, *Target* 28: Adaptative HEAT shows 25; *Target gaps*: saved 28, shown 25; *Saved targets*: single 28 (T, the target of *heat*; low and high are not used by Adaptative HEAT). Target 22 on Adaptative HEAT: the gap is gone.
         7. **Own value during the settle time** (SRC-SET-5, SRC-SET-6, §5.3): Adaptative HEAT *off*, target 21 (in *off*, it sets T, the target of *heat*). Adaptative HEAT to *heat*, then within 12 s, on HEAT Virtual, *Target* 26: Adaptative HEAT stays at 21; after the 12 s, *Target* of HEAT Virtual goes back to 21.
         8. **Fan** (ENT-FANV-5, ENT-FANV-1, ENT-FANV-6): the first time in *heat*, Adaptative HEAT takes the fan of HEAT Virtual. Fan *high* on Adaptative HEAT. Adaptative HEAT *off*; on HEAT Virtual, *Fan* *low*; Adaptative HEAT to *heat*: *Fan* of HEAT Virtual goes back to *high*.
-        9. **Source unavailable** (ENT-NOSRC-2, SRC-STATE-7, SRC-STATE-10): Adaptative HEAT in *heat*. On HEAT Virtual, turn *Available* off: Adaptative HEAT is unavailable (its only source); after 1 min, light *Sources* red. On HEAT Virtual, *Mode* *off*, then *Available* on: *Mode* goes back to *heat* (Home Assistant wins), Adaptative HEAT too, light green.
+        9. **Source unavailable** (ENT-NOSRC-2, SRC-STATE-7, SRC-STATE-10): Adaptative HEAT in *heat*. On HEAT Virtual, turn *Available* off: Adaptative HEAT is unavailable (its only source); after 15 s, *Monitoring sources* goes to *Problem* (a warning in the log). On HEAT Virtual, *Mode* *off*, then *Available* on: *Mode* goes back to *heat* (Home Assistant wins), Adaptative HEAT too, *Monitoring sources* back to *OK*.
         10. **Source unknown** (SRC-STATE-6): as 9, with *Unknown* (on, then off at the end).
-        11. **Device that does not obey** (SRC-REQ-5, SRC-REQ-6, MON-SRC-3): Adaptative HEAT *off*. On HEAT Virtual, turn *Obeys the mode* off. Adaptative HEAT to *heat*: it shows *heat*, *Mode* of HEAT Virtual stays *off*. After 30 s, light *Sources* red (out of sync). On HEAT Virtual, *Obeys the mode* on: at the next try (1 min at most), *Mode* goes to *heat*, light green.
-        12. **Mode lost** (SRC-UNUS-2, ENT-HVAC-5): Adaptative HEAT *off*. On HEAT Virtual, turn *Offers heat* off: after 60 s (removal confirmation), Adaptative HEAT is unavailable and a repair shows up (*Settings > Repairs*). *Offers heat* on: it is gone.
+        11. **Device that does not obey** (SRC-REQ-5, SRC-REQ-6, MON-SRC-3): Adaptative HEAT *off*. On HEAT Virtual, turn *Obeys the mode* off. Adaptative HEAT to *heat*: it shows *heat*, *Mode* of HEAT Virtual stays *off*. After 10 s, *Monitoring sources* goes to *Problem* (out of sync). On HEAT Virtual, *Obeys the mode* on: at the next try (30 s at most), *Mode* goes to *heat*, *Monitoring sources* back to *OK*.
+        12. **Mode lost** (SRC-UNUS-2, ENT-HVAC-5): Adaptative HEAT *off*. On HEAT Virtual, turn *Offers heat* off: after 20 s (removal confirmation), Adaptative HEAT is unavailable and a repair shows up (*Settings > Repairs*). *Offers heat* on: it is gone.
         13. **Restart** (ENT-STATE-1, END-2): Adaptative HEAT in *heat*, target 22; restart Home Assistant: Adaptative HEAT resumes *heat* at 22.
 
         </small>
@@ -145,12 +153,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative COOL monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_cool_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_cool_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_cool' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_cool_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_cool_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_cool_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_cool_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_cool' %}{% set problems = (state_attr('binary_sensor.adaptative_cool_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_cool_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -251,14 +268,14 @@ views:
 
         ## Adaptative COOL
 
-        COOL Virtual: *cool*, 16–32 °C by steps of 1 °C, fan *auto*/*low*/*high*, swing *off*/*on*. Monitoring delay 1 min. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        COOL Virtual: *cool*, 16–32 °C by steps of 1 °C, fan *auto*/*low*/*high*, swing *off*/*on*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **Step** (ENT-STEP-1): Adaptative COOL to *cool*: its target moves by steps of 1 °C.
         2. **Fan and swing of the source** (ENT-FANV-5, SRC-SET-12): the first time in *cool*, Adaptative COOL takes the fan (*auto*) and the swing (*off*) of COOL Virtual.
         3. **Memory** (ENT-FANV-1, ENT-FANV-6): fan *low* on Adaptative COOL. Adaptative COOL *off*; on COOL Virtual, *Fan* *high*; Adaptative COOL to *cool*: *Fan* of COOL Virtual goes back to *low*.
-        4. **Option removed** (SRC-DATA-10): Adaptative COOL in *cool*, fan *low*. On COOL Virtual, turn *Fan without high* on: Adaptative COOL still offers *high* for 60 s, then no longer.
+        4. **Option removed** (SRC-DATA-10): Adaptative COOL in *cool*, fan *low*. On COOL Virtual, turn *Fan without high* on: Adaptative COOL still offers *high* for 20 s, then no longer.
         5. **Setting missing** (ENT-FAN-2, ENT-FAN-4): on COOL Virtual, turn *Swing on* off: Adaptative COOL keeps its swing, with no option; a swing asked from *Developer tools > Actions* is refused.
-        6. **Setting not applied** (SRC-SET-9, SRC-SET-10, MON-SRC-4): Adaptative COOL in *cool*, wait 12 s. On COOL Virtual, turn *Applies settings* off. Target 24 on Adaptative COOL: it keeps 24, *Target* of COOL Virtual does not move. After 1 min, light *Sources* red (setting not applied). On COOL Virtual, *Target* 24: green.
+        6. **Setting not applied** (SRC-SET-9, SRC-SET-10, MON-SRC-4): Adaptative COOL in *cool*, wait 12 s. On COOL Virtual, turn *Applies settings* off. Target 24 on Adaptative COOL: it keeps 24, *Target* of COOL Virtual does not move. After 30 s (the shortest delay for a setting), *Monitoring sources* goes to *Problem* (setting not applied). On COOL Virtual, *Target* 24: back to *OK*.
 
         </small>
 - title: DEHUM
@@ -276,12 +293,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative DEHUM monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_dehum_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_dehum_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_dehum' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_dehum_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_dehum_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_dehum_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_dehum_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_dehum' %}{% set problems = (state_attr('binary_sensor.adaptative_dehum_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_dehum_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -368,7 +394,7 @@ views:
 
         ## Adaptative DEHUM
 
-        DEHUM Virtual: *dry*, no target, fan *low*/*high*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        DEHUM Virtual: *dry*, no target, fan *low*/*high*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **No target** (ENT-FEAT-1, §1.3.4.3): Adaptative DEHUM to *dry*: no target shown, none is sent.
         2. **Fan** (ENT-FANV-5): Adaptative DEHUM takes the fan of DEHUM Virtual; fan *high* on Adaptative DEHUM: *Fan* of DEHUM Virtual goes to *high*.
@@ -389,12 +415,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative FAN_ONLY monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_fan_only_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_fan_only_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_fan_only' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_fan_only_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_fan_only_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_fan_only_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_fan_only_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_fan_only' %}{% set problems = (state_attr('binary_sensor.adaptative_fan_only_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_fan_only_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -481,7 +516,7 @@ views:
 
         ## Adaptative FAN_ONLY
 
-        FAN_ONLY Virtual: *fan_only*, fan *low*/*medium*/*high*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        FAN_ONLY Virtual: *fan_only*, fan *low*/*medium*/*high*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **Fan only** (§1.3.4.3, ENT-FANV-1): Adaptative FAN_ONLY to *fan_only*: no target. Fan *medium* on Adaptative FAN_ONLY: *Fan* of FAN_ONLY Virtual goes to *medium*; Adaptative FAN_ONLY *off*, then *fan_only*: *medium* comes back.
 
@@ -501,12 +536,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative AUTO monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_auto_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_auto_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_auto' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_auto_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_auto_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_auto_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_auto_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_auto' %}{% set problems = (state_attr('binary_sensor.adaptative_auto_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_auto_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -589,7 +633,7 @@ views:
 
         ## Adaptative AUTO
 
-        AUTO Virtual: *auto*, single target, 10–30 °C. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        AUTO Virtual: *auto*, single target, 10–30 °C. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **Single target** (ENT-TGT-7): Adaptative AUTO in *auto*, target 23: *Target* of AUTO Virtual goes to 23.
 
@@ -609,12 +653,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative HEAT_COOL monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_heat_cool_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_heat_cool_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_heat_cool' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_heat_cool_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_heat_cool_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_heat_cool_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_heat_cool_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_heat_cool' %}{% set problems = (state_attr('binary_sensor.adaptative_heat_cool_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_heat_cool_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -699,7 +752,7 @@ views:
 
         ## Adaptative HEAT_COOL
 
-        HEAT_COOL Virtual: *heat_cool* with a low/high target, 16–30 °C. Adaptative HEAT_COOL: `min_gap` 2. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        HEAT_COOL Virtual: *heat_cool* with a low/high target, 16–30 °C. Adaptative HEAT_COOL: `min_gap` 2. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **Low and high** (§1.3.4.3): Adaptative HEAT_COOL to *heat_cool*: it shows a range; set 19–24: *Target low* of HEAT_COOL Virtual 19, *Target high* 24.
         2. **Minimum gap** (ENT-TGT-6): on Adaptative HEAT_COOL, set 22–23: high goes to 24.
@@ -721,12 +774,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative OFFSET monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_offset_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_offset_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_offset' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_offset_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_offset_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_offset_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_offset_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_offset' %}{% set problems = (state_attr('binary_sensor.adaptative_offset_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_offset_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -809,7 +871,7 @@ views:
 
         ## Adaptative OFFSET
 
-        HEATPUMP Virtual: *heat* and *dry*, 10–30 °C, reads 2 °C warmer than the room. Adaptative OFFSET: `heat_offset` = `dry_offset` = 2, `max_temp` 26. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        HEATPUMP Virtual: *heat* and *dry*, 10–30 °C, reads 2 °C warmer than the room. Adaptative OFFSET: `heat_offset` = `dry_offset` = 2, `max_temp` 26. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **Reading** (ENT-REF-5, CFG-SENS-1): on HEATPUMP Virtual, *Temperature* 22; Adaptative OFFSET to *heat*: it shows 20.
         2. **Target sent** (CFG-SENS-1, ENT-TGT-8): Adaptative OFFSET in *heat*, target 21: *Target* of HEATPUMP Virtual goes to 23.
@@ -833,12 +895,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative TRV monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_trv_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_trv_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_trv' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_trv_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_trv_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_trv_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_trv_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_trv' %}{% set problems = (state_attr('binary_sensor.adaptative_trv_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_trv_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -933,10 +1004,10 @@ views:
 
         ## Adaptative TRV
 
-        TRV Virtual: a valve in *heat* that gets the room temperature. Adaptative TRV: `heat_external_sensor`, written again every 60 s; monitoring delay 1 min. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        TRV Virtual: a valve in *heat* that gets the room temperature. Adaptative TRV: `heat_external_sensor`, written again every 60 s. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **Write** (ENT-EXT-1, ENT-EXT-2): *Room temperature* 21.3: *External temperature* goes to 21.5 (step 0.5), even with Adaptative TRV *off*.
         2. **Reference** (ENT-REF-1): Adaptative TRV shows the temperature of the room sensor.
-        3. **Sensor without value** (ENT-EXT-5, MON-TEMP-4, ENT-REF-2): turn *Room sensor available* off: nothing is written any more; Adaptative TRV to *heat*: it shows the temperature of TRV Virtual. After 1 min, light *Temperatures* red. *Room sensor available* on: written at once, light green.
+        3. **Sensor without value** (ENT-EXT-5, MON-TEMP-4, ENT-REF-2): turn *Room sensor available* off: nothing is written any more; Adaptative TRV to *heat*: it shows the temperature of TRV Virtual. After 15 s, *Monitoring temperatures* goes to *Problem*. *Room sensor available* on: written at once, back to *OK*.
 
         </small>

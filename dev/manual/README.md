@@ -79,11 +79,15 @@ The cases with a room sensor have a `sensor.room_sensor_<case>`, driven by
 
 The scenarios name the cards by their titles: *Adaptative HEAT* is the entity
 under test (what the user does), *HEAT Virtual* its source (what happens on the
-device). The delays of the entities are short for the tests (monitoring 30 s to
-1 min instead of 15 min): see `configuration.yaml`.
+device). Every entity shares the short delays of the tests (anchor
+`test_delays` in `configuration.yaml`): monitoring 15 s instead of 15 min,
+confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s. A
+setting not applied is still reported after 30 s at least (MON-SRC-4).
 
-Each view fits on one screen: the entity (thermostat, then its lights and
-attributes), its sources, then its scenarios, in columns. *Tests multi-sources*
+Each view fits on one screen: the entity (thermostat; its monitoring card with
+`binary_sensor.<name>_monitoring_sources` and `_monitoring_temperatures`, *OK*
+or *Problem*; then its problems and attributes), its sources, then its
+scenarios, in columns. *Tests multi-sources*
 and *Tests manual* have their sources on a second view.
 
 Start from **Reset the sources** before a case. The scenarios of a view follow

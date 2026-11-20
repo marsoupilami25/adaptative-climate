@@ -17,12 +17,21 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative Manual monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_manual_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_manual_monitoring_temperatures
+        name: Monitoring temperatures
     - type: markdown
       text_only: true
       content: |-
-        {% set e = 'climate.adaptative_manual' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_manual_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_manual_monitoring_temperatures'), '⚪') }} Temperatures
-        {% for p in (state_attr('binary_sensor.adaptative_manual_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_manual_monitoring_temperatures', 'problems') or []) %}
+        {% set e = 'climate.adaptative_manual' %}{% set problems = (state_attr('binary_sensor.adaptative_manual_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_manual_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
         - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
 
@@ -62,9 +71,9 @@ views:
 
         ## Configuration from the UI
 
-        No entity is declared in the YAML: Adaptative Manual is created from the UI. The sources are on the view *Sources*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        No entity is declared in the YAML: Adaptative Manual is created from the UI. The sources are on the view *Sources*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
-        1. **Creation** (§3): *Settings > Devices & services > Helpers > Create helper > Adaptative Climate*, name **Adaptative Manual**, *heat*: HEAT Virtual (manual), *cool*: COOL Virtual (manual). Adaptative Manual lists *off*, *heat*, *cool*, *heat_cool*.
+        1. **Creation** (§3): *Settings > Devices & services > Helpers > Create helper > Adaptative Climate*, name **Adaptative Manual**, *heat*: HEAT Virtual (manual), *cool*: COOL Virtual (manual), and the delays of the tests above. Adaptative Manual lists *off*, *heat*, *cool*, *heat_cool*.
         2. **Refused** (CFG-CHECK-1): another entry named `adaptative manual`: refused. With *heat*: COOL Virtual: refused (COOL Virtual does not offer *heat*). With an external sensor and no room sensor: refused. With next try 10 s and confirmation 30 s: refused.
         3. **Options** (CFG-YAML-4, ENT-INIT-4): Adaptative Manual in *heat*; open its options, add the room sensor: the entry reloads, Adaptative Manual is *off*, HEAT Virtual goes to *off*.
         4. **Remove a mode** (CFG-YAML-4, ENT-HVAC-1): options, clear *cool*: no more *cool* nor *heat_cool*.
