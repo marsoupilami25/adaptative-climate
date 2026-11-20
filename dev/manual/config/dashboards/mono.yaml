@@ -1,0 +1,1017 @@
+# Case mono: one entity per mode, each with its own virtual source.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests mono-mode
+views:
+- title: HEAT
+  path: heat
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative HEAT
+    - type: thermostat
+      entity: climate.adaptative_heat
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_heat_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_heat_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_heat_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_heat_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_heat
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: HEAT Virtuel
+    state_color: true
+    entities:
+      - entity: climate.heat_virtuel_mono
+        name: HEAT Virtuel
+      - entity: input_select.mode_heat_mono
+        name: Mode
+      - entity: input_number.consigne_heat_mono
+        name: Consigne
+      - entity: input_number.temperature_heat_mono
+        name: Température
+      - entity: input_select.fan_heat_mono
+        name: Fan
+      - entity: input_boolean.dispo_heat_mono
+        name: Disponible
+      - entity: input_boolean.inconnu_heat_mono
+        name: Inconnu
+      - entity: input_boolean.obeit_heat_mono
+        name: Obéit au mode
+      - entity: input_number.delai_heat_mono
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_heat_mono
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_heat_mono
+        name: Offre heat
+      - entity: input_boolean.fan_actif_heat_mono
+        name: Fan actif
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Adaptative HEAT
+
+      HEAT Virtuel : *heat*, 8–30 °C, fan *low*/*high*. `max_temp` 25 ; nouvel essai d'un mode
+      au bout d'1 min ; monitoring : 1 min. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+
+      1. **Allumer, éteindre** (ENT-STATE-3, SRC-REQ-2) : passer en *heat* : *Mode* de HEAT Virtuel passe à *heat*. Éteindre : *off*.
+      2. **Plage et limite** (ENT-RANGE-1, ENT-RANGE-3) : en *heat*, la carte va de 8 à 25 °C (la source va jusqu'à 30, `max_temp` la réduit).
+      3. **Consigne** (ENT-TGT-7, SRC-SET-2) : en *heat*, consigne 22 : *Consigne* de la source passe à 22.
+      4. **Allumage sur l'appareil** (SRC-STATE-5, SRC-SET-11) : éteint, mettre *Consigne* de la source à 19 puis *Mode* à *heat* : Adaptative HEAT passe en *heat* et affiche 19 ; rien n'est envoyé.
+      5. **Consigne changée sur l'appareil** (SRC-SET-11, ENT-TGT-9) : en *heat*, attendre 12 s, mettre *Consigne* à 23 : la carte affiche 23.
+      6. **Au-delà de la limite** (ENT-TGT-3, ENT-TGT-12, ENT-TGT-13) : en *heat*, attendre 12 s, mettre *Consigne* à 28 : la carte affiche 25 ; *Écarts de consigne* : gardée 28, montrée 25. Régler 22 sur la carte : l'écart disparaît.
+      7. **Valeur propre pendant la stabilisation** (SRC-SET-5, SRC-SET-6, §5.3) : éteint, consigne 21 (éteint, elle règle celle de *heat*). Passer en *heat* puis, dans les 12 s, mettre *Consigne* à 26 : la carte reste à 21 ; au bout des 12 s, *Consigne* revient à 21.
+      8. **Fan** (ENT-FANV-5, ENT-FANV-1, ENT-FANV-6) : la première fois en *heat*, la carte prend le fan de la source. Choisir *high*. Éteindre, mettre *Fan* de la source à *low*, repasser en *heat* : *Fan* revient à *high*.
+      9. **Source indisponible** (ENT-NOSRC-2, SRC-STATE-7, SRC-STATE-10) : en *heat*, couper *Disponible* : Adaptative HEAT est indisponible (sa seule source). Au bout d'1 min, voyant *Sources* rouge. Mettre *Mode* à *off*, rallumer *Disponible* : *Mode* repasse à *heat* (Home Assistant gagne), Adaptative HEAT aussi, voyant vert.
+      10. **Source inconnue** (SRC-STATE-6) : même chose avec *Inconnu*.
+      11. **Appareil qui n'obéit pas** (SRC-REQ-5, SRC-REQ-6, MON-SRC-3) : éteint, couper *Obéit au mode*, passer en *heat* : la carte affiche *heat*, *Mode* reste *off*. Au bout de 30 s, voyant *Sources* rouge (désynchronisée). Rallumer *Obéit au mode* : au nouvel essai (au plus 1 min plus tard), *Mode* passe à *heat*, voyant vert.
+      12. **Mode perdu** (SRC-UNUS-2, ENT-HVAC-5) : éteint, couper *Offre heat* : au bout de 60 s (confirmation du retrait), Adaptative HEAT est indisponible et une réparation apparaît (*Paramètres > Réparations*). Rallumer *Offre heat* : elle disparaît.
+      13. **Redémarrage** (ENT-STATE-1, END-2) : en *heat*, consigne 22 ; redémarrer Home Assistant : *heat* à 22.
+- title: COOL
+  path: cool
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative COOL
+    - type: thermostat
+      entity: climate.adaptative_cool
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_cool_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_cool_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_cool_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_cool_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_cool
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: COOL Virtuel
+    state_color: true
+    entities:
+      - entity: climate.cool_virtuel_mono
+        name: COOL Virtuel
+      - entity: input_select.mode_cool_mono
+        name: Mode
+      - entity: input_number.consigne_cool_mono
+        name: Consigne
+      - entity: input_number.temperature_cool_mono
+        name: Température
+      - entity: input_select.fan_cool_mono
+        name: Fan
+      - entity: input_select.swing_cool_mono
+        name: Swing
+      - entity: input_boolean.dispo_cool_mono
+        name: Disponible
+      - entity: input_boolean.inconnu_cool_mono
+        name: Inconnu
+      - entity: input_boolean.obeit_cool_mono
+        name: Obéit au mode
+      - entity: input_number.delai_cool_mono
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_cool_mono
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_cool_mono
+        name: Offre cool
+      - entity: input_boolean.fan_actif_cool_mono
+        name: Fan actif
+      - entity: input_boolean.fan_reduit_cool_mono
+        name: Fan sans high
+      - entity: input_boolean.swing_actif_cool_mono
+        name: Swing actif
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Adaptative COOL
+
+      COOL Virtuel : *cool*, 16–32 °C au pas de 1 °C, fan *auto*/*low*/*high*, swing *off*/*on*. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+
+      1. **Pas** (ENT-STEP-1) : passer en *cool* : la carte avance par pas de 1 °C.
+      2. **Fan et swing de la source** (ENT-FANV-5, SRC-SET-12) : la première fois, la carte prend le fan (*auto*) et le swing (*off*) de COOL Virtuel.
+      3. **Mémoire** (ENT-FANV-1, ENT-FANV-6) : fan *low*. Éteindre, mettre *Fan* de la source à *high*, repasser en *cool* : *Fan* revient à *low*.
+      4. **Option retirée** (SRC-DATA-10) : en *cool*, fan *low*, activer *Fan sans high* : la carte propose encore *high* pendant 60 s, puis plus.
+      5. **Réglage absent** (ENT-FAN-2, ENT-FAN-4) : couper *Swing actif* : la carte garde le swing, sans option ; un swing choisi depuis *Outils de développement > Actions* est refusé.
+      6. **Réglage non appliqué** (SRC-SET-9, SRC-SET-10, MON-SRC-4) : en *cool*, attendre 12 s, couper *Applique les réglages*, consigne 24 : la carte garde 24, *Consigne* de la source ne bouge pas. Au bout d'1 min, voyant *Sources* rouge (réglage non appliqué). Mettre *Consigne* de la source à 24 : vert.
+- title: DESHUM
+  path: deshum
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative DESHUM
+    - type: thermostat
+      entity: climate.adaptative_deshum
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_deshum_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_deshum_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_deshum_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_deshum_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_deshum
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: DESHUM Virtuel
+    state_color: true
+    entities:
+      - entity: climate.deshum_virtuel_mono
+        name: DESHUM Virtuel
+      - entity: input_select.mode_deshum_mono
+        name: Mode
+      - entity: input_number.temperature_deshum_mono
+        name: Température
+      - entity: input_select.fan_deshum_mono
+        name: Fan
+      - entity: input_boolean.dispo_deshum_mono
+        name: Disponible
+      - entity: input_boolean.inconnu_deshum_mono
+        name: Inconnu
+      - entity: input_boolean.obeit_deshum_mono
+        name: Obéit au mode
+      - entity: input_number.delai_deshum_mono
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_deshum_mono
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_deshum_mono
+        name: Offre dry
+      - entity: input_boolean.fan_actif_deshum_mono
+        name: Fan actif
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Adaptative DESHUM
+
+      DESHUM Virtuel : *dry*, sans consigne, fan *low*/*high*. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+
+      1. **Sans consigne** (ENT-FEAT-1, §1.3.4.3) : passer en *dry* : pas de consigne sur la carte, aucune n'est envoyée.
+      2. **Fan** (ENT-FANV-5) : le fan de la source est pris ; *high* sur la carte : *Fan* passe à *high*.
+- title: FAN_ONLY
+  path: fan_only
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative FAN_ONLY
+    - type: thermostat
+      entity: climate.adaptative_fan_only
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_fan_only_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_fan_only_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_fan_only_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_fan_only_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_fan_only
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: FAN_ONLY Virtuel
+    state_color: true
+    entities:
+      - entity: climate.fan_only_virtuel_mono
+        name: FAN_ONLY Virtuel
+      - entity: input_select.mode_fan_only_mono
+        name: Mode
+      - entity: input_number.temperature_fan_only_mono
+        name: Température
+      - entity: input_select.fan_fan_only_mono
+        name: Fan
+      - entity: input_boolean.dispo_fan_only_mono
+        name: Disponible
+      - entity: input_boolean.inconnu_fan_only_mono
+        name: Inconnu
+      - entity: input_boolean.obeit_fan_only_mono
+        name: Obéit au mode
+      - entity: input_number.delai_fan_only_mono
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_fan_only_mono
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_fan_only_mono
+        name: Offre fan_only
+      - entity: input_boolean.fan_actif_fan_only_mono
+        name: Fan actif
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Adaptative FAN_ONLY
+
+      FAN_ONLY Virtuel : *fan_only*, fan *low*/*medium*/*high*. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+
+      1. **Ventilation seule** (§1.3.4.3) : passer en *fan_only* : pas de consigne. Fan *medium* : *Fan* passe à *medium* ; éteindre et rallumer : *medium* revient.
+- title: AUTO
+  path: auto
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative AUTO
+    - type: thermostat
+      entity: climate.adaptative_auto
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_auto_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_auto_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_auto_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_auto_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_auto
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: AUTO Virtuel
+    state_color: true
+    entities:
+      - entity: climate.auto_virtuel_mono
+        name: AUTO Virtuel
+      - entity: input_select.mode_auto_mono
+        name: Mode
+      - entity: input_number.consigne_auto_mono
+        name: Consigne
+      - entity: input_number.temperature_auto_mono
+        name: Température
+      - entity: input_boolean.dispo_auto_mono
+        name: Disponible
+      - entity: input_boolean.inconnu_auto_mono
+        name: Inconnu
+      - entity: input_boolean.obeit_auto_mono
+        name: Obéit au mode
+      - entity: input_number.delai_auto_mono
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_auto_mono
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_auto_mono
+        name: Offre auto
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Adaptative AUTO
+
+      AUTO Virtuel : *auto*, consigne simple, 10–30 °C. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+
+      1. **Consigne simple** (ENT-TGT-7) : en *auto*, consigne 23 : *Consigne* de la source passe à 23.
+- title: HEAT_COOL
+  path: heat_cool
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative HEAT_COOL
+    - type: thermostat
+      entity: climate.adaptative_heat_cool
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_heat_cool_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_heat_cool_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_heat_cool_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_heat_cool_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_heat_cool
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: HEAT_COOL Virtuel
+    state_color: true
+    entities:
+      - entity: climate.heat_cool_virtuel_mono
+        name: HEAT_COOL Virtuel
+      - entity: input_select.mode_heat_cool_mono
+        name: Mode
+      - entity: input_number.consigne_basse_heat_cool_mono
+        name: Consigne basse
+      - entity: input_number.consigne_haute_heat_cool_mono
+        name: Consigne haute
+      - entity: input_number.temperature_heat_cool_mono
+        name: Température
+      - entity: input_boolean.dispo_heat_cool_mono
+        name: Disponible
+      - entity: input_boolean.inconnu_heat_cool_mono
+        name: Inconnu
+      - entity: input_boolean.obeit_heat_cool_mono
+        name: Obéit au mode
+      - entity: input_number.delai_heat_cool_mono
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_heat_cool_mono
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_heat_cool_mono
+        name: Offre heat_cool
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Adaptative HEAT_COOL
+
+      HEAT_COOL Virtuel : *heat_cool* avec consigne basse/haute, 16–30 °C. `min_gap` 2. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+
+      1. **Basse et haute** (§1.3.4.3) : passer en *heat_cool* : la carte montre une plage ; régler 19–24 : *Consigne basse* 19, *Consigne haute* 24.
+      2. **Écart minimal** (ENT-TGT-6) : régler 22–23 : la haute passe à 24.
+      3. **Reprise en main** (ENT-TGT-9) : attendre 12 s, mettre *Consigne basse* de la source à 23 : la carte affiche 23–25, *Consigne haute* passe à 25.
+- title: OFFSET
+  path: pac
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative OFFSET
+    - type: thermostat
+      entity: climate.adaptative_offset
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_offset_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_offset_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_offset_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_offset_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_offset
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: PAC Virtuel
+    state_color: true
+    entities:
+      - entity: climate.pac_virtuel_mono
+        name: PAC Virtuel
+      - entity: input_select.mode_pac_mono
+        name: Mode
+      - entity: input_number.consigne_pac_mono
+        name: Consigne
+      - entity: input_number.temperature_pac_mono
+        name: Température
+      - entity: input_boolean.dispo_pac_mono
+        name: Disponible
+      - entity: input_boolean.inconnu_pac_mono
+        name: Inconnu
+      - entity: input_boolean.obeit_pac_mono
+        name: Obéit au mode
+      - entity: input_number.delai_pac_mono
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_pac_mono
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_pac_mono
+        name: Offre heat, dry
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Adaptative OFFSET
+
+      PAC Virtuel : *heat* et *dry*, 10–30 °C, lit 2 °C de plus que la pièce (`heat_offset` = `dry_offset` = 2). `max_temp` 26. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+
+      1. **Lecture** (ENT-REF-5, CFG-SENS-1) : *Température* de la source à 22 : en *heat*, la carte affiche 20.
+      2. **Consigne envoyée** (CFG-SENS-1, ENT-TGT-8) : en *heat*, consigne 21 : *Consigne* de la source passe à 23.
+      3. **Plage** (ENT-RANGE-1, ENT-RANGE-3) : en *heat*, 8–26 °C (10–30 moins 2, réduit à 26).
+      4. **Reprise en main** (ENT-TGT-9) : attendre 12 s, *Consigne* de la source à 25 : la carte affiche 23.
+      5. **Même offset en dry** (CFG-SENS-4) : en *dry*, consigne 20 : la source reçoit 22.
+- title: TRV
+  path: trv
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative TRV
+    - type: thermostat
+      entity: climate.adaptative_trv
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_trv_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_trv_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_trv_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_trv_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_trv
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: TRV Virtuel
+    state_color: true
+    entities:
+      - entity: climate.trv_virtuel_mono
+        name: TRV Virtuel
+      - entity: input_select.mode_trv_mono
+        name: Mode
+      - entity: input_number.consigne_trv_mono
+        name: Consigne
+      - entity: input_number.temperature_trv_mono
+        name: Température
+      - entity: input_boolean.dispo_trv_mono
+        name: Disponible
+      - entity: input_boolean.inconnu_trv_mono
+        name: Inconnu
+      - entity: input_boolean.obeit_trv_mono
+        name: Obéit au mode
+      - entity: input_number.delai_trv_mono
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_trv_mono
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_trv_mono
+        name: Offre heat
+  - type: entities
+    title: Capteurs
+    state_color: true
+    entities:
+    - entity: sensor.capteur_piece_mono
+      name: Capteur pièce
+    - entity: input_number.temperature_capteur_mono
+      name: Température capteur
+    - entity: input_boolean.dispo_capteur_mono
+      name: Capteur disponible
+    - entity: input_number.temperature_externe_mono
+      name: Température externe (écrite)
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Adaptative TRV
+
+      TRV Virtuel : vanne en *heat* qui reçoit la température de la pièce (`heat_external_sensor`). Réécriture toutes les 60 s ; monitoring : 1 min. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+
+      1. **Écriture** (ENT-EXT-1, ENT-EXT-2) : *Température capteur* 21,3 : *Température externe* passe à 21,5 (pas de 0,5), même éteint.
+      2. **Référence** (ENT-REF-1) : la carte affiche la température du capteur.
+      3. **Capteur sans valeur** (ENT-EXT-5, MON-TEMP-4, ENT-REF-2) : couper *Capteur disponible* : plus rien n'est écrit ; en *heat*, la carte affiche la température de la vanne. Au bout d'1 min, voyant *Températures* rouge. Rallumer : écrit aussitôt, voyant vert.
+- title: Sources
+  path: sources
+  type: sidebar
+  cards:
+  - type: button
+    entity: script.reset_sources_test_mono
+    name: Remettre les sources à zéro
+    icon: mdi:restore
+    tap_action:
+      action: toggle

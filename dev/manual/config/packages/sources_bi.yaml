@@ -1,0 +1,294 @@
+# Virtual sources of the case "bi" (Tests bi-source).
+# Generated once, then edited by hand. Every entity id ends with _bi.
+#
+# Each source shows the state of its helpers; the service calls of Home
+# Assistant change them, when the source obeys (see dev/manual/README.md).
+
+template:
+  - climate:
+      - name: RADIATEUR Virtuel (bi)
+        unique_id: radiateur_virtuel_bi
+        default_entity_id: climate.radiateur_virtuel_bi
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'heat', 'fan_only'] if is_state('input_boolean.mode_offert_radiateur_bi', 'on') else ['off'] }}
+        # Inconnu: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.inconnu_radiateur_bi', 'on') else states('input_select.mode_radiateur_bi') }}
+        availability: "{{ is_state('input_boolean.dispo_radiateur_bi', 'on') }}"
+        min_temperature: 5
+        max_temperature: 30
+        current_temperature: "{{ states('input_number.temperature_radiateur_bi') | float(none) }}"
+        target_temperature: "{{ states('input_number.consigne_radiateur_bi') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_radiateur_bi') %}
+          {% set t = states('input_number.temperature_radiateur_bi') | float(20) %}
+          {% set c = states('input_number.consigne_radiateur_bi') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeit_radiateur_bi
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delai_radiateur_bi') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_radiateur_bi
+            data:
+              option: "{{ hvac_mode }}"
+        set_temperature:
+          - condition: state
+            entity_id: input_boolean.applique_radiateur_bi
+            state: "on"
+          - if: "{{ temperature is defined and temperature is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_radiateur_bi
+                data:
+                  value: "{{ temperature }}"
+      - name: CLIM Virtuel (bi)
+        unique_id: clim_virtuel_bi
+        default_entity_id: climate.clim_virtuel_bi
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'cool'] if is_state('input_boolean.mode_offert_clim_bi', 'on') else ['off'] }}
+        # Inconnu: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.inconnu_clim_bi', 'on') else states('input_select.mode_clim_bi') }}
+        availability: "{{ is_state('input_boolean.dispo_clim_bi', 'on') }}"
+        min_temperature: 16
+        max_temperature: 30
+        target_temperature_step: 1
+        current_temperature: "{{ states('input_number.temperature_clim_bi') | float(none) }}"
+        target_temperature: "{{ states('input_number.consigne_clim_bi') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_clim_bi') %}
+          {% set t = states('input_number.temperature_clim_bi') | float(20) %}
+          {% set c = states('input_number.consigne_clim_bi') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        fan_modes: >-
+          {{ state_attr('input_select.fan_clim_bi', 'options') if is_state('input_boolean.fan_actif_clim_bi', 'on') else [] }}
+        fan_mode: >-
+          {{ states('input_select.fan_clim_bi') if is_state('input_boolean.fan_actif_clim_bi', 'on') else none }}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeit_clim_bi
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delai_clim_bi') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_clim_bi
+            data:
+              option: "{{ hvac_mode }}"
+        set_temperature:
+          - condition: state
+            entity_id: input_boolean.applique_clim_bi
+            state: "on"
+          - if: "{{ temperature is defined and temperature is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_clim_bi
+                data:
+                  value: "{{ temperature }}"
+        set_fan_mode:
+          - condition: state
+            entity_id: input_boolean.applique_clim_bi
+            state: "on"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.fan_clim_bi
+            data:
+              option: "{{ fan_mode }}"
+  - sensor:
+      - name: Capteur pièce (bi)
+        unique_id: capteur_piece_bi
+        default_entity_id: sensor.capteur_piece_bi
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state: "{{ states('input_number.temperature_capteur_bi') }}"
+        availability: "{{ is_state('input_boolean.dispo_capteur_bi', 'on') }}"
+
+input_select:
+  mode_radiateur_bi:
+    name: Mode RADIATEUR
+    options: ['off', 'heat', 'fan_only']
+    icon: mdi:hvac
+  mode_clim_bi:
+    name: Mode CLIM
+    options: ['off', 'cool']
+    icon: mdi:hvac
+  fan_clim_bi:
+    name: Fan CLIM
+    options: ['auto', 'low', 'high']
+    icon: mdi:fan
+
+input_number:
+  consigne_radiateur_bi:
+    name: Consigne RADIATEUR
+    min: 5
+    max: 30
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  temperature_radiateur_bi:
+    name: Température RADIATEUR
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delai_radiateur_bi:
+    name: Délai RADIATEUR
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  consigne_clim_bi:
+    name: Consigne CLIM
+    min: 16
+    max: 30
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  temperature_clim_bi:
+    name: Température CLIM
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delai_clim_bi:
+    name: Délai CLIM
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  temperature_capteur_bi:
+    name: Température capteur pièce
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer
+
+input_boolean:
+  dispo_radiateur_bi:
+    name: RADIATEUR disponible
+    initial: true
+    icon: mdi:power-plug
+  inconnu_radiateur_bi:
+    name: RADIATEUR inconnu
+    initial: false
+    icon: mdi:help-circle-outline
+  obeit_radiateur_bi:
+    name: RADIATEUR obéit au mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applique_radiateur_bi:
+    name: RADIATEUR applique les réglages
+    initial: true
+    icon: mdi:tune-variant
+  mode_offert_radiateur_bi:
+    name: RADIATEUR offre ses modes
+    initial: true
+    icon: mdi:format-list-checks
+  dispo_clim_bi:
+    name: CLIM disponible
+    initial: true
+    icon: mdi:power-plug
+  inconnu_clim_bi:
+    name: CLIM inconnu
+    initial: false
+    icon: mdi:help-circle-outline
+  obeit_clim_bi:
+    name: CLIM obéit au mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applique_clim_bi:
+    name: CLIM applique les réglages
+    initial: true
+    icon: mdi:tune-variant
+  mode_offert_clim_bi:
+    name: CLIM offre ses modes
+    initial: true
+    icon: mdi:format-list-checks
+  fan_actif_clim_bi:
+    name: Fan CLIM actif
+    initial: true
+    icon: mdi:fan
+  dispo_capteur_bi:
+    name: Capteur pièce disponible
+    initial: true
+    icon: mdi:power-plug
+
+script:
+  reset_sources_test_bi:
+    alias: Remettre les sources à zéro (bi)
+    icon: mdi:restore
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.dispo_radiateur_bi
+            - input_boolean.obeit_radiateur_bi
+            - input_boolean.applique_radiateur_bi
+            - input_boolean.mode_offert_radiateur_bi
+            - input_boolean.dispo_clim_bi
+            - input_boolean.obeit_clim_bi
+            - input_boolean.applique_clim_bi
+            - input_boolean.mode_offert_clim_bi
+            - input_boolean.fan_actif_clim_bi
+            - input_boolean.dispo_capteur_bi
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.inconnu_radiateur_bi
+            - input_boolean.inconnu_clim_bi
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.mode_radiateur_bi
+            - input_select.mode_clim_bi
+        data:
+          option: "off"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.fan_clim_bi
+        data:
+          option: "auto"
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.temperature_radiateur_bi
+            - input_number.temperature_clim_bi
+            - input_number.temperature_capteur_bi
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_radiateur_bi
+            - input_number.consigne_clim_bi
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.delai_radiateur_bi
+            - input_number.delai_clim_bi
+        data:
+          value: 0

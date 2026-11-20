@@ -191,12 +191,14 @@ class Source(Actor):
                 )
             )
         if self.mrc.running and self.mrc.out_of_sync:
+            # Reported at the confirm timeout: request_confirmation_timer is its delay,
+            # not monitoring_delay_timer (MON-SRC-3, §3.1.5)
             problems.append(
                 Problem(
                     SOURCE_OUT_OF_SYNC,
                     (entity_id,),
                     SENSOR_SOURCES,
-                    delay,
+                    0,
                     f"{entity_id} does not show {self.mrc.request}",
                     {"source": entity_id, "requested": self.mrc.request},
                 )

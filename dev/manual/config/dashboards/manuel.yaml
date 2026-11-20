@@ -1,0 +1,313 @@
+# Case manuel: an entry created from the UI.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests manuels
+views:
+- title: Adaptative
+  path: pilotage
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative Manuel
+    - type: thermostat
+      entity: climate.adaptative_manuel
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_manuel_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_manuel_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_manuel_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_manuel_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_manuel
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: Capteurs
+    state_color: true
+    entities:
+    - entity: sensor.capteur_piece_manuel
+      name: Capteur pièce
+    - entity: input_number.temperature_capteur_manuel
+      name: Température capteur
+    - entity: input_boolean.dispo_capteur_manuel
+      name: Capteur disponible
+    - entity: input_number.temperature_externe_manuel
+      name: Température externe (écrite)
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Configuration par l'interface
+
+      Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+
+      1. **Création** (§3) : *Paramètres > Appareils et services > Entrées > Créer une entrée > Adaptative Climate*, nom **Adaptative Manuel**, *heat* : HEAT Virtuel (manuel), *cool* : COOL Virtuel (manuel). L'entité liste *off*, *heat*, *cool*, *heat_cool*.
+      2. **Refus** (CFG-CHECK-1) : créer une autre entrée avec le nom `adaptative manuel` : refusé. Avec *heat* : COOL Virtuel : refusé (COOL n'offre pas *heat*). Avec un capteur externe sans capteur de pièce : refusé. Avec nouvel essai 10 s et confirmation 30 s : refusé.
+      3. **Options** (CFG-YAML-4, ENT-INIT-4) : en *heat*, ouvrir les options d'Adaptative Manuel, ajouter le capteur de la pièce : l'entrée se recharge, l'entité est *off*, HEAT passe à *off*.
+      4. **Retirer un mode** (CFG-YAML-4, ENT-HVAC-1) : options, vider *cool* : la liste n'a plus *cool* ni *heat_cool*.
+      5. **Capteur externe** (ENT-EXT-1, CFG-SENS-2) : options, *heat_external_sensor* : la température externe, avec le capteur de la pièce : la valeur du capteur y est écrite. Avec en plus `heat_offset` 1 : refusé.
+      6. **Une source pour plusieurs modes** (CFG-SENS-4) : options, *heat* et *cool* sur ALL avec des offsets différents : refusé, l'erreur cite les deux modes.
+      7. **Entrées du YAML** (CFG-YAML-3) : les entrées déclarées en YAML (Adaptative HEAT...) n'ont pas d'options dans l'interface.
+      8. **Rechargement sans changement** (ENT-INIT-4) : en *heat*, *Recharger* l'entrée : l'entité reprend *heat*.
+      9. **Suppression** (END-3) : en *heat*, supprimer l'entrée : HEAT reste en *heat*, plus rien ne la pilote.
+- title: Sources
+  path: sources
+  type: sidebar
+  cards:
+  - type: button
+    entity: script.reset_sources_test_manuel
+    name: Remettre les sources à zéro
+    icon: mdi:restore
+    tap_action:
+      action: toggle
+  - type: entities
+    title: HEAT Virtuel
+    state_color: true
+    entities:
+      - entity: climate.heat_virtuel_manuel
+        name: HEAT Virtuel
+      - entity: input_select.mode_heat_manuel
+        name: Mode
+      - entity: input_number.consigne_heat_manuel
+        name: Consigne
+      - entity: input_number.temperature_heat_manuel
+        name: Température
+      - entity: input_select.fan_heat_manuel
+        name: Fan
+      - entity: input_boolean.dispo_heat_manuel
+        name: Disponible
+      - entity: input_boolean.inconnu_heat_manuel
+        name: Inconnu
+      - entity: input_boolean.obeit_heat_manuel
+        name: Obéit au mode
+      - entity: input_number.delai_heat_manuel
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_heat_manuel
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_heat_manuel
+        name: Offre heat
+      - entity: input_boolean.fan_actif_heat_manuel
+        name: Fan actif
+  - type: entities
+    title: COOL Virtuel
+    state_color: true
+    entities:
+      - entity: climate.cool_virtuel_manuel
+        name: COOL Virtuel
+      - entity: input_select.mode_cool_manuel
+        name: Mode
+      - entity: input_number.consigne_cool_manuel
+        name: Consigne
+      - entity: input_number.temperature_cool_manuel
+        name: Température
+      - entity: input_select.fan_cool_manuel
+        name: Fan
+      - entity: input_select.swing_cool_manuel
+        name: Swing
+      - entity: input_boolean.dispo_cool_manuel
+        name: Disponible
+      - entity: input_boolean.inconnu_cool_manuel
+        name: Inconnu
+      - entity: input_boolean.obeit_cool_manuel
+        name: Obéit au mode
+      - entity: input_number.delai_cool_manuel
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_cool_manuel
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_cool_manuel
+        name: Offre cool
+      - entity: input_boolean.fan_actif_cool_manuel
+        name: Fan actif
+      - entity: input_boolean.swing_actif_cool_manuel
+        name: Swing actif
+  - type: entities
+    title: DRY Virtuel
+    state_color: true
+    entities:
+      - entity: climate.dry_virtuel_manuel
+        name: DRY Virtuel
+      - entity: input_select.mode_dry_manuel
+        name: Mode
+      - entity: input_number.consigne_dry_manuel
+        name: Consigne
+      - entity: input_number.temperature_dry_manuel
+        name: Température
+      - entity: input_select.fan_dry_manuel
+        name: Fan
+      - entity: input_boolean.dispo_dry_manuel
+        name: Disponible
+      - entity: input_boolean.inconnu_dry_manuel
+        name: Inconnu
+      - entity: input_boolean.obeit_dry_manuel
+        name: Obéit au mode
+      - entity: input_number.delai_dry_manuel
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_dry_manuel
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_dry_manuel
+        name: Offre dry
+      - entity: input_boolean.fan_actif_dry_manuel
+        name: Fan actif
+  - type: entities
+    title: FAN_ONLY Virtuel
+    state_color: true
+    entities:
+      - entity: climate.fan_only_virtuel_manuel
+        name: FAN_ONLY Virtuel
+      - entity: input_select.mode_fan_only_manuel
+        name: Mode
+      - entity: input_number.temperature_fan_only_manuel
+        name: Température
+      - entity: input_select.fan_fan_only_manuel
+        name: Fan
+      - entity: input_boolean.dispo_fan_only_manuel
+        name: Disponible
+      - entity: input_boolean.inconnu_fan_only_manuel
+        name: Inconnu
+      - entity: input_boolean.obeit_fan_only_manuel
+        name: Obéit au mode
+      - entity: input_number.delai_fan_only_manuel
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_fan_only_manuel
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_fan_only_manuel
+        name: Offre fan_only
+      - entity: input_boolean.fan_actif_fan_only_manuel
+        name: Fan actif
+  - type: entities
+    title: AUTO Virtuel
+    state_color: true
+    entities:
+      - entity: climate.auto_virtuel_manuel
+        name: AUTO Virtuel
+      - entity: input_select.mode_auto_manuel
+        name: Mode
+      - entity: input_number.consigne_auto_manuel
+        name: Consigne
+      - entity: input_number.temperature_auto_manuel
+        name: Température
+      - entity: input_boolean.dispo_auto_manuel
+        name: Disponible
+      - entity: input_boolean.inconnu_auto_manuel
+        name: Inconnu
+      - entity: input_boolean.obeit_auto_manuel
+        name: Obéit au mode
+      - entity: input_number.delai_auto_manuel
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_auto_manuel
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_auto_manuel
+        name: Offre auto
+  - type: entities
+    title: ALL Virtuel
+    state_color: true
+    entities:
+      - entity: climate.all_virtuel_manuel
+        name: ALL Virtuel
+      - entity: input_select.mode_all_manuel
+        name: Mode
+      - entity: input_number.consigne_all_manuel
+        name: Consigne
+      - entity: input_number.consigne_basse_all_manuel
+        name: Consigne basse
+      - entity: input_number.consigne_haute_all_manuel
+        name: Consigne haute
+      - entity: input_number.temperature_all_manuel
+        name: Température
+      - entity: input_select.fan_all_manuel
+        name: Fan
+      - entity: input_select.swing_all_manuel
+        name: Swing
+      - entity: input_select.swing_horizontal_all_manuel
+        name: Swing horizontal
+      - entity: input_boolean.dispo_all_manuel
+        name: Disponible
+      - entity: input_boolean.inconnu_all_manuel
+        name: Inconnu
+      - entity: input_boolean.obeit_all_manuel
+        name: Obéit au mode
+      - entity: input_number.delai_all_manuel
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_all_manuel
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_all_manuel
+        name: Offre heat, cool, heat_cool, auto, dry, fan_only
+      - entity: input_boolean.fan_actif_all_manuel
+        name: Fan actif
+      - entity: input_boolean.swing_actif_all_manuel
+        name: Swing actif
+      - entity: input_boolean.swing_horizontal_actif_all_manuel
+        name: Swing horizontal actif
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Tests manuels
+
+      Sources : HEAT, COOL (pas de 1), DRY, FAN_ONLY, AUTO, ALL (tous les modes), le capteur et une entrée de température externe. Aucune entité n'est déclarée en YAML : créer *Adaptative Manuel* depuis l'interface (vue Adaptative).

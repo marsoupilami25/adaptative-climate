@@ -1,0 +1,996 @@
+# Virtual sources of the case "mono" (Tests mono).
+# Generated once, then edited by hand. Every entity id ends with _mono.
+#
+# Each source shows the state of its helpers; the service calls of Home
+# Assistant change them, when the source obeys (see dev/manual/README.md).
+
+template:
+  - climate:
+      - name: HEAT Virtuel (mono)
+        unique_id: heat_virtuel_mono
+        default_entity_id: climate.heat_virtuel_mono
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'heat'] if is_state('input_boolean.mode_offert_heat_mono', 'on') else ['off'] }}
+        # Inconnu: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.inconnu_heat_mono', 'on') else states('input_select.mode_heat_mono') }}
+        availability: "{{ is_state('input_boolean.dispo_heat_mono', 'on') }}"
+        min_temperature: 8
+        max_temperature: 30
+        current_temperature: "{{ states('input_number.temperature_heat_mono') | float(none) }}"
+        target_temperature: "{{ states('input_number.consigne_heat_mono') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_heat_mono') %}
+          {% set t = states('input_number.temperature_heat_mono') | float(20) %}
+          {% set c = states('input_number.consigne_heat_mono') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        fan_modes: >-
+          {{ state_attr('input_select.fan_heat_mono', 'options') if is_state('input_boolean.fan_actif_heat_mono', 'on') else [] }}
+        fan_mode: >-
+          {{ states('input_select.fan_heat_mono') if is_state('input_boolean.fan_actif_heat_mono', 'on') else none }}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeit_heat_mono
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delai_heat_mono') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_heat_mono
+            data:
+              option: "{{ hvac_mode }}"
+        set_temperature:
+          - condition: state
+            entity_id: input_boolean.applique_heat_mono
+            state: "on"
+          - if: "{{ temperature is defined and temperature is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_heat_mono
+                data:
+                  value: "{{ temperature }}"
+        set_fan_mode:
+          - condition: state
+            entity_id: input_boolean.applique_heat_mono
+            state: "on"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.fan_heat_mono
+            data:
+              option: "{{ fan_mode }}"
+      - name: COOL Virtuel (mono)
+        unique_id: cool_virtuel_mono
+        default_entity_id: climate.cool_virtuel_mono
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'cool'] if is_state('input_boolean.mode_offert_cool_mono', 'on') else ['off'] }}
+        # Inconnu: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.inconnu_cool_mono', 'on') else states('input_select.mode_cool_mono') }}
+        availability: "{{ is_state('input_boolean.dispo_cool_mono', 'on') }}"
+        min_temperature: 16
+        max_temperature: 32
+        target_temperature_step: 1
+        current_temperature: "{{ states('input_number.temperature_cool_mono') | float(none) }}"
+        target_temperature: "{{ states('input_number.consigne_cool_mono') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_cool_mono') %}
+          {% set t = states('input_number.temperature_cool_mono') | float(20) %}
+          {% set c = states('input_number.consigne_cool_mono') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        fan_modes: >-
+          {{ (state_attr('input_select.fan_cool_mono', 'options') | reject('equalto', 'high') | list if is_state('input_boolean.fan_reduit_cool_mono', 'on') else state_attr('input_select.fan_cool_mono', 'options')) if is_state('input_boolean.fan_actif_cool_mono', 'on') else [] }}
+        fan_mode: >-
+          {{ states('input_select.fan_cool_mono') if is_state('input_boolean.fan_actif_cool_mono', 'on') else none }}
+        swing_modes: >-
+          {{ state_attr('input_select.swing_cool_mono', 'options') if is_state('input_boolean.swing_actif_cool_mono', 'on') else [] }}
+        swing_mode: >-
+          {{ states('input_select.swing_cool_mono') if is_state('input_boolean.swing_actif_cool_mono', 'on') else none }}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeit_cool_mono
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delai_cool_mono') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_cool_mono
+            data:
+              option: "{{ hvac_mode }}"
+        set_temperature:
+          - condition: state
+            entity_id: input_boolean.applique_cool_mono
+            state: "on"
+          - if: "{{ temperature is defined and temperature is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_cool_mono
+                data:
+                  value: "{{ temperature }}"
+        set_fan_mode:
+          - condition: state
+            entity_id: input_boolean.applique_cool_mono
+            state: "on"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.fan_cool_mono
+            data:
+              option: "{{ fan_mode }}"
+        set_swing_mode:
+          - condition: state
+            entity_id: input_boolean.applique_cool_mono
+            state: "on"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.swing_cool_mono
+            data:
+              option: "{{ swing_mode }}"
+      - name: DESHUM Virtuel (mono)
+        unique_id: deshum_virtuel_mono
+        default_entity_id: climate.deshum_virtuel_mono
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'dry'] if is_state('input_boolean.mode_offert_deshum_mono', 'on') else ['off'] }}
+        # Inconnu: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.inconnu_deshum_mono', 'on') else states('input_select.mode_deshum_mono') }}
+        availability: "{{ is_state('input_boolean.dispo_deshum_mono', 'on') }}"
+        min_temperature: 7
+        max_temperature: 35
+        current_temperature: "{{ states('input_number.temperature_deshum_mono') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_deshum_mono') %}
+          {% set t = states('input_number.temperature_deshum_mono') | float(20) %}
+          {% set c = states('input_number.consigne_deshum_mono') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        fan_modes: >-
+          {{ state_attr('input_select.fan_deshum_mono', 'options') if is_state('input_boolean.fan_actif_deshum_mono', 'on') else [] }}
+        fan_mode: >-
+          {{ states('input_select.fan_deshum_mono') if is_state('input_boolean.fan_actif_deshum_mono', 'on') else none }}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeit_deshum_mono
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delai_deshum_mono') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_deshum_mono
+            data:
+              option: "{{ hvac_mode }}"
+        set_fan_mode:
+          - condition: state
+            entity_id: input_boolean.applique_deshum_mono
+            state: "on"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.fan_deshum_mono
+            data:
+              option: "{{ fan_mode }}"
+      - name: FAN_ONLY Virtuel (mono)
+        unique_id: fan_only_virtuel_mono
+        default_entity_id: climate.fan_only_virtuel_mono
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'fan_only'] if is_state('input_boolean.mode_offert_fan_only_mono', 'on') else ['off'] }}
+        # Inconnu: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.inconnu_fan_only_mono', 'on') else states('input_select.mode_fan_only_mono') }}
+        availability: "{{ is_state('input_boolean.dispo_fan_only_mono', 'on') }}"
+        min_temperature: 7
+        max_temperature: 35
+        current_temperature: "{{ states('input_number.temperature_fan_only_mono') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_fan_only_mono') %}
+          {% set t = states('input_number.temperature_fan_only_mono') | float(20) %}
+          {% set c = states('input_number.consigne_fan_only_mono') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        fan_modes: >-
+          {{ state_attr('input_select.fan_fan_only_mono', 'options') if is_state('input_boolean.fan_actif_fan_only_mono', 'on') else [] }}
+        fan_mode: >-
+          {{ states('input_select.fan_fan_only_mono') if is_state('input_boolean.fan_actif_fan_only_mono', 'on') else none }}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeit_fan_only_mono
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delai_fan_only_mono') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_fan_only_mono
+            data:
+              option: "{{ hvac_mode }}"
+        set_fan_mode:
+          - condition: state
+            entity_id: input_boolean.applique_fan_only_mono
+            state: "on"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.fan_fan_only_mono
+            data:
+              option: "{{ fan_mode }}"
+      - name: AUTO Virtuel (mono)
+        unique_id: auto_virtuel_mono
+        default_entity_id: climate.auto_virtuel_mono
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'auto'] if is_state('input_boolean.mode_offert_auto_mono', 'on') else ['off'] }}
+        # Inconnu: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.inconnu_auto_mono', 'on') else states('input_select.mode_auto_mono') }}
+        availability: "{{ is_state('input_boolean.dispo_auto_mono', 'on') }}"
+        min_temperature: 10
+        max_temperature: 30
+        current_temperature: "{{ states('input_number.temperature_auto_mono') | float(none) }}"
+        target_temperature: "{{ states('input_number.consigne_auto_mono') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_auto_mono') %}
+          {% set t = states('input_number.temperature_auto_mono') | float(20) %}
+          {% set c = states('input_number.consigne_auto_mono') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeit_auto_mono
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delai_auto_mono') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_auto_mono
+            data:
+              option: "{{ hvac_mode }}"
+        set_temperature:
+          - condition: state
+            entity_id: input_boolean.applique_auto_mono
+            state: "on"
+          - if: "{{ temperature is defined and temperature is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_auto_mono
+                data:
+                  value: "{{ temperature }}"
+      - name: HEAT_COOL Virtuel (mono)
+        unique_id: heat_cool_virtuel_mono
+        default_entity_id: climate.heat_cool_virtuel_mono
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'heat_cool'] if is_state('input_boolean.mode_offert_heat_cool_mono', 'on') else ['off'] }}
+        # Inconnu: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.inconnu_heat_cool_mono', 'on') else states('input_select.mode_heat_cool_mono') }}
+        availability: "{{ is_state('input_boolean.dispo_heat_cool_mono', 'on') }}"
+        min_temperature: 16
+        max_temperature: 30
+        current_temperature: "{{ states('input_number.temperature_heat_cool_mono') | float(none) }}"
+        # Low/high only shown in these modes (low_high_seen, ENT-FEAT-2)
+        target_temperature_low: >-
+          {{ states('input_number.consigne_basse_heat_cool_mono') | float(none) if states('input_select.mode_heat_cool_mono') in ['heat_cool'] else none }}
+        target_temperature_high: >-
+          {{ states('input_number.consigne_haute_heat_cool_mono') | float(none) if states('input_select.mode_heat_cool_mono') in ['heat_cool'] else none }}
+        hvac_action: >-
+          {% set m = states('input_select.mode_heat_cool_mono') %}
+          {% set t = states('input_number.temperature_heat_cool_mono') | float(20) %}
+          {% set c = states('input_number.consigne_heat_cool_mono') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeit_heat_cool_mono
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delai_heat_cool_mono') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_heat_cool_mono
+            data:
+              option: "{{ hvac_mode }}"
+        set_temperature:
+          - condition: state
+            entity_id: input_boolean.applique_heat_cool_mono
+            state: "on"
+          - if: "{{ target_temp_low is defined and target_temp_low is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_basse_heat_cool_mono
+                data:
+                  value: "{{ target_temp_low }}"
+          - if: "{{ target_temp_high is defined and target_temp_high is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_haute_heat_cool_mono
+                data:
+                  value: "{{ target_temp_high }}"
+      - name: PAC Virtuel (mono)
+        unique_id: pac_virtuel_mono
+        default_entity_id: climate.pac_virtuel_mono
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'heat', 'dry'] if is_state('input_boolean.mode_offert_pac_mono', 'on') else ['off'] }}
+        # Inconnu: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.inconnu_pac_mono', 'on') else states('input_select.mode_pac_mono') }}
+        availability: "{{ is_state('input_boolean.dispo_pac_mono', 'on') }}"
+        min_temperature: 10
+        max_temperature: 30
+        current_temperature: "{{ states('input_number.temperature_pac_mono') | float(none) }}"
+        target_temperature: "{{ states('input_number.consigne_pac_mono') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_pac_mono') %}
+          {% set t = states('input_number.temperature_pac_mono') | float(20) %}
+          {% set c = states('input_number.consigne_pac_mono') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeit_pac_mono
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delai_pac_mono') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_pac_mono
+            data:
+              option: "{{ hvac_mode }}"
+        set_temperature:
+          - condition: state
+            entity_id: input_boolean.applique_pac_mono
+            state: "on"
+          - if: "{{ temperature is defined and temperature is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_pac_mono
+                data:
+                  value: "{{ temperature }}"
+      - name: TRV Virtuel (mono)
+        unique_id: trv_virtuel_mono
+        default_entity_id: climate.trv_virtuel_mono
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'heat'] if is_state('input_boolean.mode_offert_trv_mono', 'on') else ['off'] }}
+        # Inconnu: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.inconnu_trv_mono', 'on') else states('input_select.mode_trv_mono') }}
+        availability: "{{ is_state('input_boolean.dispo_trv_mono', 'on') }}"
+        min_temperature: 5
+        max_temperature: 30
+        target_temperature_step: 0.5
+        current_temperature: "{{ states('input_number.temperature_trv_mono') | float(none) }}"
+        target_temperature: "{{ states('input_number.consigne_trv_mono') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_trv_mono') %}
+          {% set t = states('input_number.temperature_trv_mono') | float(20) %}
+          {% set c = states('input_number.consigne_trv_mono') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeit_trv_mono
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delai_trv_mono') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_trv_mono
+            data:
+              option: "{{ hvac_mode }}"
+        set_temperature:
+          - condition: state
+            entity_id: input_boolean.applique_trv_mono
+            state: "on"
+          - if: "{{ temperature is defined and temperature is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.consigne_trv_mono
+                data:
+                  value: "{{ temperature }}"
+  - sensor:
+      - name: Capteur pièce (mono)
+        unique_id: capteur_piece_mono
+        default_entity_id: sensor.capteur_piece_mono
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state: "{{ states('input_number.temperature_capteur_mono') }}"
+        availability: "{{ is_state('input_boolean.dispo_capteur_mono', 'on') }}"
+
+input_select:
+  mode_heat_mono:
+    name: Mode HEAT
+    options: ['off', 'heat']
+    icon: mdi:hvac
+  fan_heat_mono:
+    name: Fan HEAT
+    options: ['low', 'high']
+    icon: mdi:fan
+  mode_cool_mono:
+    name: Mode COOL
+    options: ['off', 'cool']
+    icon: mdi:hvac
+  fan_cool_mono:
+    name: Fan COOL
+    options: ['auto', 'low', 'high']
+    icon: mdi:fan
+  swing_cool_mono:
+    name: Swing COOL
+    options: ['off', 'on']
+    icon: mdi:arrow-oscillating
+  mode_deshum_mono:
+    name: Mode DESHUM
+    options: ['off', 'dry']
+    icon: mdi:hvac
+  fan_deshum_mono:
+    name: Fan DESHUM
+    options: ['low', 'high']
+    icon: mdi:fan
+  mode_fan_only_mono:
+    name: Mode FAN_ONLY
+    options: ['off', 'fan_only']
+    icon: mdi:hvac
+  fan_fan_only_mono:
+    name: Fan FAN_ONLY
+    options: ['low', 'medium', 'high']
+    icon: mdi:fan
+  mode_auto_mono:
+    name: Mode AUTO
+    options: ['off', 'auto']
+    icon: mdi:hvac
+  mode_heat_cool_mono:
+    name: Mode HEAT_COOL
+    options: ['off', 'heat_cool']
+    icon: mdi:hvac
+  mode_pac_mono:
+    name: Mode PAC
+    options: ['off', 'heat', 'dry']
+    icon: mdi:hvac
+  mode_trv_mono:
+    name: Mode TRV
+    options: ['off', 'heat']
+    icon: mdi:hvac
+
+input_number:
+  consigne_heat_mono:
+    name: Consigne HEAT
+    min: 8
+    max: 30
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  temperature_heat_mono:
+    name: Température HEAT
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delai_heat_mono:
+    name: Délai HEAT
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  consigne_cool_mono:
+    name: Consigne COOL
+    min: 16
+    max: 32
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  temperature_cool_mono:
+    name: Température COOL
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delai_cool_mono:
+    name: Délai COOL
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  temperature_deshum_mono:
+    name: Température DESHUM
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delai_deshum_mono:
+    name: Délai DESHUM
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  temperature_fan_only_mono:
+    name: Température FAN_ONLY
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delai_fan_only_mono:
+    name: Délai FAN_ONLY
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  consigne_auto_mono:
+    name: Consigne AUTO
+    min: 10
+    max: 30
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  temperature_auto_mono:
+    name: Température AUTO
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delai_auto_mono:
+    name: Délai AUTO
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  consigne_basse_heat_cool_mono:
+    name: Consigne basse HEAT_COOL
+    min: 16
+    max: 30
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-low
+  consigne_haute_heat_cool_mono:
+    name: Consigne haute HEAT_COOL
+    min: 16
+    max: 30
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-high
+  temperature_heat_cool_mono:
+    name: Température HEAT_COOL
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delai_heat_cool_mono:
+    name: Délai HEAT_COOL
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  consigne_pac_mono:
+    name: Consigne PAC
+    min: 10
+    max: 30
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  temperature_pac_mono:
+    name: Température PAC
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delai_pac_mono:
+    name: Délai PAC
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  consigne_trv_mono:
+    name: Consigne TRV
+    min: 5
+    max: 30
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  temperature_trv_mono:
+    name: Température TRV
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delai_trv_mono:
+    name: Délai TRV
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  temperature_capteur_mono:
+    name: Température capteur pièce
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer
+  temperature_externe_mono:
+    name: Température externe TRV
+    min: 5
+    max: 35
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-lines
+
+input_boolean:
+  dispo_heat_mono:
+    name: HEAT disponible
+    initial: true
+    icon: mdi:power-plug
+  inconnu_heat_mono:
+    name: HEAT inconnu
+    initial: false
+    icon: mdi:help-circle-outline
+  obeit_heat_mono:
+    name: HEAT obéit au mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applique_heat_mono:
+    name: HEAT applique les réglages
+    initial: true
+    icon: mdi:tune-variant
+  mode_offert_heat_mono:
+    name: HEAT offre ses modes
+    initial: true
+    icon: mdi:format-list-checks
+  fan_actif_heat_mono:
+    name: Fan HEAT actif
+    initial: true
+    icon: mdi:fan
+  dispo_cool_mono:
+    name: COOL disponible
+    initial: true
+    icon: mdi:power-plug
+  inconnu_cool_mono:
+    name: COOL inconnu
+    initial: false
+    icon: mdi:help-circle-outline
+  obeit_cool_mono:
+    name: COOL obéit au mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applique_cool_mono:
+    name: COOL applique les réglages
+    initial: true
+    icon: mdi:tune-variant
+  mode_offert_cool_mono:
+    name: COOL offre ses modes
+    initial: true
+    icon: mdi:format-list-checks
+  fan_actif_cool_mono:
+    name: Fan COOL actif
+    initial: true
+    icon: mdi:fan
+  fan_reduit_cool_mono:
+    name: Fan COOL sans high
+    initial: false
+    icon: mdi:fan-minus
+  swing_actif_cool_mono:
+    name: Swing COOL actif
+    initial: true
+    icon: mdi:arrow-oscillating
+  dispo_deshum_mono:
+    name: DESHUM disponible
+    initial: true
+    icon: mdi:power-plug
+  inconnu_deshum_mono:
+    name: DESHUM inconnu
+    initial: false
+    icon: mdi:help-circle-outline
+  obeit_deshum_mono:
+    name: DESHUM obéit au mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applique_deshum_mono:
+    name: DESHUM applique les réglages
+    initial: true
+    icon: mdi:tune-variant
+  mode_offert_deshum_mono:
+    name: DESHUM offre ses modes
+    initial: true
+    icon: mdi:format-list-checks
+  fan_actif_deshum_mono:
+    name: Fan DESHUM actif
+    initial: true
+    icon: mdi:fan
+  dispo_fan_only_mono:
+    name: FAN_ONLY disponible
+    initial: true
+    icon: mdi:power-plug
+  inconnu_fan_only_mono:
+    name: FAN_ONLY inconnu
+    initial: false
+    icon: mdi:help-circle-outline
+  obeit_fan_only_mono:
+    name: FAN_ONLY obéit au mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applique_fan_only_mono:
+    name: FAN_ONLY applique les réglages
+    initial: true
+    icon: mdi:tune-variant
+  mode_offert_fan_only_mono:
+    name: FAN_ONLY offre ses modes
+    initial: true
+    icon: mdi:format-list-checks
+  fan_actif_fan_only_mono:
+    name: Fan FAN_ONLY actif
+    initial: true
+    icon: mdi:fan
+  dispo_auto_mono:
+    name: AUTO disponible
+    initial: true
+    icon: mdi:power-plug
+  inconnu_auto_mono:
+    name: AUTO inconnu
+    initial: false
+    icon: mdi:help-circle-outline
+  obeit_auto_mono:
+    name: AUTO obéit au mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applique_auto_mono:
+    name: AUTO applique les réglages
+    initial: true
+    icon: mdi:tune-variant
+  mode_offert_auto_mono:
+    name: AUTO offre ses modes
+    initial: true
+    icon: mdi:format-list-checks
+  dispo_heat_cool_mono:
+    name: HEAT_COOL disponible
+    initial: true
+    icon: mdi:power-plug
+  inconnu_heat_cool_mono:
+    name: HEAT_COOL inconnu
+    initial: false
+    icon: mdi:help-circle-outline
+  obeit_heat_cool_mono:
+    name: HEAT_COOL obéit au mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applique_heat_cool_mono:
+    name: HEAT_COOL applique les réglages
+    initial: true
+    icon: mdi:tune-variant
+  mode_offert_heat_cool_mono:
+    name: HEAT_COOL offre ses modes
+    initial: true
+    icon: mdi:format-list-checks
+  dispo_pac_mono:
+    name: PAC disponible
+    initial: true
+    icon: mdi:power-plug
+  inconnu_pac_mono:
+    name: PAC inconnu
+    initial: false
+    icon: mdi:help-circle-outline
+  obeit_pac_mono:
+    name: PAC obéit au mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applique_pac_mono:
+    name: PAC applique les réglages
+    initial: true
+    icon: mdi:tune-variant
+  mode_offert_pac_mono:
+    name: PAC offre ses modes
+    initial: true
+    icon: mdi:format-list-checks
+  dispo_trv_mono:
+    name: TRV disponible
+    initial: true
+    icon: mdi:power-plug
+  inconnu_trv_mono:
+    name: TRV inconnu
+    initial: false
+    icon: mdi:help-circle-outline
+  obeit_trv_mono:
+    name: TRV obéit au mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applique_trv_mono:
+    name: TRV applique les réglages
+    initial: true
+    icon: mdi:tune-variant
+  mode_offert_trv_mono:
+    name: TRV offre ses modes
+    initial: true
+    icon: mdi:format-list-checks
+  dispo_capteur_mono:
+    name: Capteur pièce disponible
+    initial: true
+    icon: mdi:power-plug
+
+script:
+  reset_sources_test_mono:
+    alias: Remettre les sources à zéro (mono)
+    icon: mdi:restore
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.dispo_heat_mono
+            - input_boolean.obeit_heat_mono
+            - input_boolean.applique_heat_mono
+            - input_boolean.mode_offert_heat_mono
+            - input_boolean.fan_actif_heat_mono
+            - input_boolean.dispo_cool_mono
+            - input_boolean.obeit_cool_mono
+            - input_boolean.applique_cool_mono
+            - input_boolean.mode_offert_cool_mono
+            - input_boolean.fan_actif_cool_mono
+            - input_boolean.swing_actif_cool_mono
+            - input_boolean.dispo_deshum_mono
+            - input_boolean.obeit_deshum_mono
+            - input_boolean.applique_deshum_mono
+            - input_boolean.mode_offert_deshum_mono
+            - input_boolean.fan_actif_deshum_mono
+            - input_boolean.dispo_fan_only_mono
+            - input_boolean.obeit_fan_only_mono
+            - input_boolean.applique_fan_only_mono
+            - input_boolean.mode_offert_fan_only_mono
+            - input_boolean.fan_actif_fan_only_mono
+            - input_boolean.dispo_auto_mono
+            - input_boolean.obeit_auto_mono
+            - input_boolean.applique_auto_mono
+            - input_boolean.mode_offert_auto_mono
+            - input_boolean.dispo_heat_cool_mono
+            - input_boolean.obeit_heat_cool_mono
+            - input_boolean.applique_heat_cool_mono
+            - input_boolean.mode_offert_heat_cool_mono
+            - input_boolean.dispo_pac_mono
+            - input_boolean.obeit_pac_mono
+            - input_boolean.applique_pac_mono
+            - input_boolean.mode_offert_pac_mono
+            - input_boolean.dispo_trv_mono
+            - input_boolean.obeit_trv_mono
+            - input_boolean.applique_trv_mono
+            - input_boolean.mode_offert_trv_mono
+            - input_boolean.dispo_capteur_mono
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.inconnu_heat_mono
+            - input_boolean.inconnu_cool_mono
+            - input_boolean.fan_reduit_cool_mono
+            - input_boolean.inconnu_deshum_mono
+            - input_boolean.inconnu_fan_only_mono
+            - input_boolean.inconnu_auto_mono
+            - input_boolean.inconnu_heat_cool_mono
+            - input_boolean.inconnu_pac_mono
+            - input_boolean.inconnu_trv_mono
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.mode_heat_mono
+            - input_select.mode_cool_mono
+            - input_select.mode_deshum_mono
+            - input_select.mode_fan_only_mono
+            - input_select.mode_auto_mono
+            - input_select.mode_heat_cool_mono
+            - input_select.mode_pac_mono
+            - input_select.mode_trv_mono
+        data:
+          option: "off"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.fan_heat_mono
+        data:
+          option: "low"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.fan_cool_mono
+        data:
+          option: "auto"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.swing_cool_mono
+        data:
+          option: "off"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.fan_deshum_mono
+        data:
+          option: "low"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.fan_fan_only_mono
+        data:
+          option: "low"
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.temperature_heat_mono
+            - input_number.temperature_cool_mono
+            - input_number.temperature_deshum_mono
+            - input_number.temperature_fan_only_mono
+            - input_number.temperature_auto_mono
+            - input_number.temperature_heat_cool_mono
+            - input_number.temperature_pac_mono
+            - input_number.temperature_trv_mono
+            - input_number.temperature_capteur_mono
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.consigne_heat_mono
+            - input_number.consigne_cool_mono
+            - input_number.consigne_auto_mono
+            - input_number.consigne_pac_mono
+            - input_number.consigne_trv_mono
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.consigne_basse_heat_cool_mono
+        data:
+          value: 19
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.consigne_haute_heat_cool_mono
+        data:
+          value: 25
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.delai_heat_mono
+            - input_number.delai_cool_mono
+            - input_number.delai_deshum_mono
+            - input_number.delai_fan_only_mono
+            - input_number.delai_auto_mono
+            - input_number.delai_heat_cool_mono
+            - input_number.delai_pac_mono
+            - input_number.delai_trv_mono
+        data:
+          value: 0

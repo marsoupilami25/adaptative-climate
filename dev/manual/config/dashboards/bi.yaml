@@ -1,0 +1,182 @@
+# Case bi.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests bi-source
+views:
+- title: BI
+  path: pilotage
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative BI
+    - type: thermostat
+      entity: climate.adaptative_bi
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_bi_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_bi_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_bi_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_bi_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_bi
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: Capteurs
+    state_color: true
+    entities:
+    - entity: sensor.capteur_piece_bi
+      name: Capteur pièce
+    - entity: input_number.temperature_capteur_bi
+      name: Température capteur
+    - entity: input_boolean.dispo_capteur_bi
+      name: Capteur disponible
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Bi-source
+
+      Adaptative BI : *heat_cool* sans source propre, RADIATEUR Virtuel (*heat*, 5–30 °C, offre aussi *fan_only*, que BI ne sert pas) et CLIM Virtuel (*cool*, 16–30 °C au pas de 1). `min_gap` 2, hystérésis 1 °C, monitoring : 1 min. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+      Éteint, régler la plage à 19–24 et *Température capteur* à 21.
+
+      1. **Entrée en heat_cool** (ENT-WANT-1, ENT-TYPE-3) : passer en *heat_cool* : *Phase* `heat`, RADIATEUR passe en *heat* à 19, CLIM reste *off*.
+      2. **Bascule avec hystérésis** (ENT-WANT-3, ENT-PHASE-3) : capteur 25 : rien. Capteur 25,5 : *Phase* `cool`, CLIM passe en *cool* à 24, RADIATEUR à *off*.
+      3. **Retour** : capteur 18 : rien ; 17,5 : *Phase* `heat`.
+      4. **Consignes changées : sans hystérésis** (ENT-PHASE-2, §5.5) : phase `heat`, capteur 22. Régler 17–20 : *Phase* `cool` aussitôt ; RADIATEUR ne reçoit que *off* (sa *Consigne* ne passe pas à 17).
+      5. **Après un redémarrage, la phase est choisie à nouveau** (ENT-WANT-1, ENT-PHASE-1) : plage 19–24, phase `heat` à 21, capteur 22 (reste `heat`). Redémarrer : *Phase* `cool` (la consigne la plus proche).
+      6. **Sans capteur** (ENT-REF-6, ENT-WANT-2) : couper *Capteur disponible* ; *Température* RADIATEUR 20, CLIM 22 : la carte affiche 21 (la moyenne). Phase `heat` : mettre CLIM à 27 : rien (RADIATEUR, la plus basse, n'est pas au-dessus de 25) ; mettre RADIATEUR à 25,5 : *Phase* `cool`.
+      7. **Reprise sur une source de phase** (ENT-TYPE-5) : en *heat_cool* phase `heat`, mettre *Mode* CLIM à *cool* : Adaptative BI passe en *cool*, RADIATEUR à *off*.
+      8. **Mode étranger de la source active** (ENT-STATE-5) : en *heat*, attendre 12 s, mettre *Mode* RADIATEUR à *fan_only* : Adaptative BI passe à *off*, *Modes étrangers* liste RADIATEUR ; rien n'est envoyé.
+      9. **Mode étranger toléré** (ENT-STATE-5) : en *cool*, mettre *Mode* RADIATEUR à *fan_only* : rien n'est envoyé (toléré). Éteindre : RADIATEUR passe à *off*.
+      10. **Source de phase absente** (ENT-PHASE-5) : en *heat_cool* phase `heat`, couper *Disponible* CLIM, capteur 26 : *Phase* `cool`, RADIATEUR à *off*. Rallumer CLIM : elle passe en *cool*.
+      11. **Plus de source** (ENT-STATE-6, MON-SRC-1) : couper les deux *Disponible* : Adaptative BI indisponible ; au bout d'1 min, voyant *Sources* rouge (les deux). Rallumer RADIATEUR : retour en *heat_cool*.
+      12. **Écart minimal** (ENT-TGT-6) : éteint, régler 22–23 : la haute passe à 24.
+- title: Sources
+  path: sources
+  type: sidebar
+  cards:
+  - type: button
+    entity: script.reset_sources_test_bi
+    name: Remettre les sources à zéro
+    icon: mdi:restore
+    tap_action:
+      action: toggle
+  - type: entities
+    title: RADIATEUR Virtuel
+    state_color: true
+    entities:
+      - entity: climate.radiateur_virtuel_bi
+        name: RADIATEUR Virtuel
+      - entity: input_select.mode_radiateur_bi
+        name: Mode
+      - entity: input_number.consigne_radiateur_bi
+        name: Consigne
+      - entity: input_number.temperature_radiateur_bi
+        name: Température
+      - entity: input_boolean.dispo_radiateur_bi
+        name: Disponible
+      - entity: input_boolean.inconnu_radiateur_bi
+        name: Inconnu
+      - entity: input_boolean.obeit_radiateur_bi
+        name: Obéit au mode
+      - entity: input_number.delai_radiateur_bi
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_radiateur_bi
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_radiateur_bi
+        name: Offre heat, fan_only
+  - type: entities
+    title: CLIM Virtuel
+    state_color: true
+    entities:
+      - entity: climate.clim_virtuel_bi
+        name: CLIM Virtuel
+      - entity: input_select.mode_clim_bi
+        name: Mode
+      - entity: input_number.consigne_clim_bi
+        name: Consigne
+      - entity: input_number.temperature_clim_bi
+        name: Température
+      - entity: input_select.fan_clim_bi
+        name: Fan
+      - entity: input_boolean.dispo_clim_bi
+        name: Disponible
+      - entity: input_boolean.inconnu_clim_bi
+        name: Inconnu
+      - entity: input_boolean.obeit_clim_bi
+        name: Obéit au mode
+      - entity: input_number.delai_clim_bi
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_clim_bi
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_clim_bi
+        name: Offre cool
+      - entity: input_boolean.fan_actif_clim_bi
+        name: Fan actif

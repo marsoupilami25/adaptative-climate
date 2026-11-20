@@ -1,0 +1,262 @@
+# Case surv: the monitoring sensors and events.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests monitoring
+views:
+- title: Monitoring
+  path: pilotage
+  type: sidebar
+  cards:
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative SURV
+    - type: thermostat
+      entity: climate.adaptative_surv
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_surv_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_surv_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_surv_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_surv_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_surv
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: vertical-stack
+    cards:
+    - type: heading
+      heading: Adaptative FANTOME
+    - type: thermostat
+      entity: climate.adaptative_fantome
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      content: |-
+        {% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_fantome_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
+        {{ l.get(states('binary_sensor.adaptative_fantome_monitoring_temperatures'), '⚪') }} Températures
+        {% for p in (state_attr('binary_sensor.adaptative_fantome_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_fantome_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+    - type: entities
+      entities:
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: hvac_action
+          name: Action
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: active_entity_id
+          name: Source active
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: phase
+          name: Phase
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: current_temperature
+          name: Température
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: temperature
+          name: Consigne
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: target_temp_low
+          name: Consigne basse
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: target_temp_high
+          name: Consigne haute
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: min_temp
+          name: Min
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: max_temp
+          name: Max
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: target_temp_step
+          name: Pas
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: unavailable_modes
+          name: Modes indisponibles
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: foreign_modes
+          name: Modes étrangers
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: target_gaps
+          name: Écarts de consigne
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: saved_targets
+          name: Consignes gardées
+        - entity: climate.adaptative_fantome
+          type: attribute
+          attribute: saved_settings
+          name: Fan/swing mémorisés
+  - type: entities
+    title: Capteurs
+    state_color: true
+    entities:
+    - entity: sensor.capteur_piece_surv
+      name: Capteur pièce
+    - entity: input_number.temperature_capteur_surv
+      name: Température capteur
+    - entity: input_boolean.dispo_capteur_surv
+      name: Capteur disponible
+  - type: markdown
+    view_layout:
+      position: sidebar
+    content: |-
+      ## Monitoring
+
+      Adaptative SURV : RADIATEUR (*heat*), CLIM (*cool*), capteur de la pièce. Délai du monitoring : 30 s ; confirmation d'un mode : 10 s, nouvel essai : 30 s ; écart maximal 2 °C.
+      Adaptative FANTOME : une source qui n'existe pas (`climate.fantome_surv`). Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+      Les événements : *Outils de développement > Événements*, écouter `adaptative_climate_problem`.
+
+      1. **Source jamais vue** (MON-SRC-5) : FANTOME, éteint : au bout de 30 s après le démarrage, son voyant *Sources* est rouge ; un événement `started`.
+      2. **Source désynchronisée** (MON-SRC-3, SRC-REQ-5, SRC-REQ-6) : couper *Obéit au mode* RADIATEUR, passer SURV en *heat* : au bout de 10 s, voyant *Sources* rouge (pas de délai en plus). Rallumer *Obéit au mode* : au nouvel essai, RADIATEUR passe en *heat*, voyant vert, événement `ended`.
+      3. **Réglage non appliqué** (MON-SRC-4) : en *heat*, attendre 12 s, couper *Applique les réglages*, consigne 23 : au bout de 30 s, voyant rouge. Mettre *Consigne* RADIATEUR à 23 : vert.
+      4. **Source inutilisable** (MON-SRC-1, MON-SRC-2) : en *heat*, couper *Disponible* RADIATEUR : *Inconnu*, au bout de 30 s, voyant rouge. Éteint, couper *Disponible* CLIM : jamais signalé.
+      5. **Écart capteur–source** (MON-TEMP-1, MON-TEMP-3) : éteint, *Température* RADIATEUR 24, capteur 21 : au bout de 30 s, voyant *Températures* rouge ; RADIATEUR à 22 : vert.
+      6. **Écart entre sources** (MON-TEMP-1) : *Température* RADIATEUR 19, CLIM 23 : au bout de 30 s, problème entre les deux sources.
+      7. **Capteur sans valeur** (MON-TEMP-4) : couper *Capteur disponible* : au bout de 30 s, voyant rouge ; rallumer : vert.
+      8. **Un délai par problème** (MON-SENS-3) : couper *Capteur disponible* ; 15 s plus tard, *Température* RADIATEUR 19 et CLIM 23 : les deux problèmes sont signalés à 15 s d'écart.
+      9. **Après un redémarrage** (END-2, MON-SEND-3, MON-LIFE-1) : avec un problème signalé, redémarrer : voyant vert, puis rouge 30 s après.
+      10. **Journal** (MON-LIFE-2, MON-LIFE-3) : chaque problème signalé : un warning dans le journal, le même texte que le `message` de l'événement ; sa fin : une info.
+- title: Sources
+  path: sources
+  type: sidebar
+  cards:
+  - type: button
+    entity: script.reset_sources_test_surv
+    name: Remettre les sources à zéro
+    icon: mdi:restore
+    tap_action:
+      action: toggle
+  - type: entities
+    title: RADIATEUR Virtuel
+    state_color: true
+    entities:
+      - entity: climate.radiateur_virtuel_surv
+        name: RADIATEUR Virtuel
+      - entity: input_select.mode_radiateur_surv
+        name: Mode
+      - entity: input_number.consigne_radiateur_surv
+        name: Consigne
+      - entity: input_number.temperature_radiateur_surv
+        name: Température
+      - entity: input_boolean.dispo_radiateur_surv
+        name: Disponible
+      - entity: input_boolean.inconnu_radiateur_surv
+        name: Inconnu
+      - entity: input_boolean.obeit_radiateur_surv
+        name: Obéit au mode
+      - entity: input_number.delai_radiateur_surv
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_radiateur_surv
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_radiateur_surv
+        name: Offre heat
+  - type: entities
+    title: CLIM Virtuel
+    state_color: true
+    entities:
+      - entity: climate.clim_virtuel_surv
+        name: CLIM Virtuel
+      - entity: input_select.mode_clim_surv
+        name: Mode
+      - entity: input_number.consigne_clim_surv
+        name: Consigne
+      - entity: input_number.temperature_clim_surv
+        name: Température
+      - entity: input_select.fan_clim_surv
+        name: Fan
+      - entity: input_boolean.dispo_clim_surv
+        name: Disponible
+      - entity: input_boolean.inconnu_clim_surv
+        name: Inconnu
+      - entity: input_boolean.obeit_clim_surv
+        name: Obéit au mode
+      - entity: input_number.delai_clim_surv
+        name: Délai avant d'obéir
+      - entity: input_boolean.applique_clim_surv
+        name: Applique les réglages
+      - entity: input_boolean.mode_offert_clim_surv
+        name: Offre cool
+      - entity: input_boolean.fan_actif_clim_surv
+        name: Fan actif

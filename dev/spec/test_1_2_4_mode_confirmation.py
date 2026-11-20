@@ -184,3 +184,26 @@ async def test_src_req_1_unavailable_ends_the_retries_and_the_problem(bench: Ben
     heater.clear_calls()
     await bench.advance(100)
     assert heater.calls == []
+
+
+@spec("MON-SRC-3", "SRC-REQ-5", "CFG-TIMER-1")
+async def test_mon_src_3_out_of_sync_without_the_monitoring_delay(bench: Bench) -> None:
+    """Reported at the confirm timeout, whatever monitoring_delay_timer (900 s here)."""
+    heater = bench.device(HEATER, ["heat"], obey=False)
+    bench.device(AIRCON, ["cool"])
+    await bench.start(
+        [
+            yaml_entry(
+                "Living room",
+                heat_entity=HEATER,
+                cool_entity=AIRCON,
+                request_confirmation_timer=10,
+                request_retry_timer=20,
+            )
+        ]
+    )
+    await ac(bench).set_hvac_mode("heat")
+    await bench.advance(9)
+    assert not out_of_sync(bench)
+    await bench.advance(2)
+    assert out_of_sync(bench)
