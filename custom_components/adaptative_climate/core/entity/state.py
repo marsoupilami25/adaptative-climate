@@ -126,7 +126,8 @@ class EntityStateManagement:
             entity.sem.adopt_all.add(sender)
             self._enter_on(mode, activity="follow", source=sender)
             return
-        entity.notify.log("info", f"{sender} runs {mode}, a mode it does not serve here")
+        # `log` in the spec: at warning level (§0, notation)
+        entity.notify.log("warning", f"{sender} runs {mode}, a mode it does not serve here")
         if self.state == STATE_ON and sender == entity.active_source():
             self._enter_off(apply=False)
 

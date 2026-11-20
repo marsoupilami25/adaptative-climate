@@ -34,6 +34,26 @@ dev/compat/run.sh dev/spec
 
 Details: [compat/README.md](compat/README.md).
 
+## VS Code Testing tab
+
+The repo's `.vscode/` is not versioned. In a new dev environment, create
+`.vscode/settings.json` at the root of the repo:
+
+```json
+{
+  "python.defaultInterpreterPath": "/home/<user>/ha-dev/.venv-test/bin/python",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": ["dev/spec", "dev/unit"]
+}
+```
+
+These are the tests on Home Assistant 2026.11.2. To see them on 2025.1.0 too,
+next to them: run `dev/compat/vscode.sh`, see
+[compat/README.md](compat/README.md#in-the-vs-code-testing-tab).
+
+After a settings change: *Developer: Reload Window*.
+
 ## Manual tests
 
 [manual/README.md](manual/README.md).

@@ -7,14 +7,7 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-venv="${VENV:-$HOME/ha-dev/.venv-test-2025.1}"
-requirements="$repo/dev/compat/requirements.txt"
-
-if [ ! -x "$venv/bin/python" ]; then
-  uv python install 3.13
-  uv venv "$venv" --python 3.13
-fi
-uv pip install --quiet --python "$venv/bin/python" -r "$requirements"
+. "$repo/dev/compat/venv.sh"
 
 cd "$repo"
 exec "$venv/bin/pytest" "$@"
