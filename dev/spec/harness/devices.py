@@ -20,6 +20,7 @@ Nothing here knows the integration under test.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -123,6 +124,8 @@ class Device:
     delay: float = 0.0
     fail: set[str] = field(default_factory=set)
     ignore: set[str] = field(default_factory=set)
+    #: While set and not released, each service call waits for it (a slow device).
+    hold: asyncio.Event | None = field(default=None, repr=False)
     calls: list[Call] = field(default_factory=list)
     # Bound to the current Home Assistant instance by the bench
     hass: HomeAssistant | None = field(default=None, repr=False)
@@ -160,6 +163,8 @@ class Device:
     async def _receive(self, service: str, data: dict[str, Any]) -> None:
         """A service call of Home Assistant reaches the device."""
         self.calls.append(Call(service, dict(data)))
+        if self.hold is not None:
+            await self.hold.wait()
         if service in self.fail:
             raise HomeAssistantError(f"{self.entity_id}: {service} failed (test)")
         if not self.obey or service in self.ignore:
@@ -207,13 +212,17 @@ class Device:
         `hvac_mode` applies the profile of the mode first, then the other
         values given.
         """
+        self.change(**values)
+        await self._settle()
+
+    def change(self, **values: Any) -> None:
+        """Change the device and show it, without letting Home Assistant handle it yet."""
         if "hvac_mode" in values and values["hvac_mode"] is not None:
             self._enter(values.pop("hvac_mode"))
         elif "hvac_mode" in values:
             self.hvac_mode = values.pop("hvac_mode")
         self._apply(values)
         self.write()
-        await self._settle()
 
     async def appear(self) -> None:
         """The source entity appears in Home Assistant (its integration loads late)."""

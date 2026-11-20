@@ -83,8 +83,8 @@ class RepairsPort(Protocol):
 class NotifyPort(Protocol):
     """Logs and the event adaptative_climate_problem."""
 
-    def log(self, level: str, message: str) -> None:
-        """Log at a level: debug, info, warning, error."""
+    def log(self, level: str, message: str) -> str:
+        """Log at a level (debug, info, warning, error); returns the text logged."""
 
     def fire_problem(self, data: dict[str, Any]) -> None:
         """Fire the event adaptative_climate_problem."""

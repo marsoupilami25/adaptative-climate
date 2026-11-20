@@ -25,9 +25,11 @@ class NotifyAdapter:
         self._hass = hass
         self._name = name
 
-    def log(self, level: str, message: str) -> None:
-        """Log at a level."""
-        _LOGGER.log(LEVELS.get(level, logging.INFO), "[%s] %s", self._name, message)
+    def log(self, level: str, message: str) -> str:
+        """Log at a level, prefixed by the name of the entry; returns the text logged."""
+        text = f"{self._name}: {message}"
+        _LOGGER.log(LEVELS.get(level, logging.INFO), "%s", text)
+        return text
 
     def fire_problem(self, data: dict[str, Any]) -> None:
         """Fire adaptative_climate_problem."""

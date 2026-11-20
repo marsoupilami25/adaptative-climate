@@ -74,14 +74,13 @@ class Monitoring(Actor):
         self._by_timer.pop(lifecycle.timer, None)
         self.timers.cancel(lifecycle.timer)
         if lifecycle.state == REPORTED:
-            message = f"{self.entry.name}: problem ended: {lifecycle.problem.message}"
-            self._notify.log("info", message)
+            # The message of the event is the text logged (MON-LIFE-3)
+            message = self._notify.log("info", f"problem ended: {lifecycle.problem.message}")
             self._fire(lifecycle, "ended", message)
 
     def _report(self, lifecycle: ProblemLifecycle) -> None:
         lifecycle.state = REPORTED
-        message = f"{self.entry.name}: {lifecycle.problem.message}"
-        self._notify.log("warning", message)
+        message = self._notify.log("warning", lifecycle.problem.message)
         self._fire(lifecycle, "started", message)
 
     def _fire(self, lifecycle: ProblemLifecycle, status: str, message: str) -> None:
