@@ -19,6 +19,7 @@ spec = pytest.mark.spec
 HEATER = "climate.heater"
 AIRCON = "climate.aircon"
 PUMP = "climate.heat_pump"
+DRYER = "climate.dryer"
 ROOM = "sensor.room"
 DELAY = 60
 
@@ -111,14 +112,23 @@ async def test_mon_sens_3_each_problem_keeps_its_own_delay(bench: Bench) -> None
 @spec("MON-SENS-4", "ENT-NOSRC-2")
 async def test_mon_sens_4_never_unavailable_while_loaded(bench: Bench) -> None:
     bench.device(HEATER, ["heat"])
-    await bench.start([yaml_entry("Living room", heat_entity=HEATER, monitoring_delay_timer=DELAY)])
+    bench.sensor(ROOM, 21.0)
+    await bench.start(
+        [
+            yaml_entry(
+                "Living room", heat_entity=HEATER, temperature_sensor=ROOM,
+                monitoring_delay_timer=DELAY,
+            )
+        ]
+    )
     await ac(bench).set_hvac_mode("heat")
     await bench.devices[HEATER].set(available=False)
     assert ac(bench).state == "unavailable"
     assert sources(bench).available
     assert temperatures(bench).available
+    await bench.sensors[ROOM].set(None)
     await bench.advance(DELAY + 1)
-    assert reports(sources(bench), HEATER)  # it reports on the source away
+    assert reports(temperatures(bench), ROOM)  # it still reports, the entity unavailable
 
 
 # --- MON-SRC-1, MON-SRC-2: source unusable -------------------------------------------------------------
@@ -148,19 +158,35 @@ async def test_mon_src_1_ends_when_the_mode_no_longer_uses_it(bench: Bench) -> N
     assert sources(bench).state == "off"
 
 
-@spec("MON-SRC-1")
-async def test_mon_src_1_in_no_source(bench: Bench) -> None:
+@spec("MON-SRC-2", "ENT-NOSRC-2")
+async def test_mon_src_2_not_in_no_source(bench: Bench) -> None:
+    """Its only source unusable: the entity is unavailable, which already says it."""
     heater = bench.device(HEATER, ["heat"])
     await bench.start([yaml_entry("Living room", heat_entity=HEATER, monitoring_delay_timer=DELAY)])
     await ac(bench).set_hvac_mode("heat")
     await heater.set(available=False)
+    assert ac(bench).state == "unavailable"
+    await bench.advance(3 * DELAY)
+    assert sources(bench).state == "off"
+
+
+@spec("MON-SRC-1", "MON-SRC-2")
+async def test_mon_src_2_ends_when_no_source_is_left(bench: Bench) -> None:
+    heater, aircon = await start(bench)
+    await ac(bench).set_hvac_mode("heat")
+    await heater.set(available=False)  # WAITING(heat): the aircon is still available
     await bench.advance(DELAY + 1)
     assert reports(sources(bench), HEATER)
+    await aircon.set(available=False)  # NO_SOURCE
+    assert ac(bench).state == "unavailable"
+    assert sources(bench).state == "off"
 
 
 @spec("MON-SRC-1", "MON-SRC-2")
 async def test_mon_src_1_bi_source_only_the_source_of_the_current_phase(bench: Bench) -> None:
-    heater, aircon = await start(bench, room=21.0)
+    """A dryer keeps a source available: without phase source, WAITING(heat_cool)."""
+    bench.device(DRYER, ["dry"], current_temperature=21.0)
+    heater, aircon = await start(bench, room=21.0, dry_entity=DRYER)
     await ac(bench).set_temperature(target_temp_low=19.0, target_temp_high=24.0)
     await ac(bench).set_hvac_mode("heat_cool")  # phase heat
     await aircon.set(available=False)  # the other phase: may be stopped for the season

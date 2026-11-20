@@ -254,15 +254,13 @@ class ACEntity(Actor):
         delay = entry.monitoring_delay_timer
         problems: list[Problem] = []
         state = self.stm.state
-        stored_mode = self.stored.mode
         unusable: list[str] = []
-        if stored_mode != OFF and state != INIT:
-            if state == WAITING:
-                unusable = entry.sources_of(self.stm.mode)
-            elif state == NO_SOURCE:
-                unusable = entry.sources_of(stored_mode)
-            elif state == STATE_ON and entry.is_bi(self.stm.mode) and self.mom.state == WAITING_PHASE:
-                unusable = [self.active_source()]  # MON-SRC-1: only the source of the phase
+        # MON-SRC-1, MON-SRC-2: only while the entity waits for its source; in NO_SOURCE
+        # the entity is unavailable, which already says it.
+        if state == WAITING:
+            unusable = entry.sources_of(self.stm.mode)
+        elif state == STATE_ON and entry.is_bi(self.stm.mode) and self.mom.state == WAITING_PHASE:
+            unusable = [self.active_source()]  # only the source of the phase
         for source_id in unusable:
             if source_id and self.source_state(source_id).unusable:
                 problems.append(

@@ -3231,40 +3231,43 @@ has to do when one turns on:
 
 | Problem | Judged by | Up (reported) | Down |
 |---|---|---|---|
-| Source unusable (per source, MON-SRC-1) | entity: stored mode, state, phase | a source of the stored mode (in `ON(heat_cool)` bi-source: the source of the current phase) is `UNUSABLE`, for `monitoring_delay_timer` (§3.1.5) | the source is available again, or the stored mode (or the phase) no longer uses it |
+| Source unusable (per source, MON-SRC-1) | entity: state, phase | the entity waits for that source, `UNUSABLE` (`WAITING(m)`; in `ON(heat_cool)` bi-source: `WAITING_PHASE(p)`, the source of the current phase), for `monitoring_delay_timer` (§3.1.5) | the source is available again, or the entity no longer waits for it (another mode or phase, `OFF`, `NO_SOURCE`) |
 | Source not discovered (per source, MON-SRC-5) | source: its state | the source is `UNDISCOVERED` for `monitoring_delay_timer` (§3.1.5), whatever the stored mode | the source is discovered (SRC-STATE-8) |
 | Source out of sync (per source, MON-SRC-3) | source: mode request confirmation (SRC-REQ-9) | timeout of a mode request confirmation: the source entity does not show the state asked after `request_confirmation_timer` (SRC-REQ-5) | the source entity shows the state asked; or the retries stop: new request, `SE=>S_unavailable` / `SE=>S_unknown` / `Sdsm=>Sx_served_mode_lost`, change of the source entity during the retry wait (SRC-REQ-7) |
 | Setting not applied (per source and setting, MON-SRC-4) | source: setting request management (SRC-SET-9) | the source entity in `ON(m)` shows another setting (temperature target, fan, swing) than the one sent, outside the settle time and the mode request confirmation, for `monitoring_delay_timer` (§3.1.5, 900 s by default, 30 s at least) | the source entity shows the setting sent, or the source leaves `ACTIVE` (SRC-SET-9) |
 
 - **MON-SRC-1** Source unusable: reported after `monitoring_delay_timer`
-  while the stored mode is not `off` and a source of that mode is
-  `UNUSABLE`. The delay absorbs a source entity loaded after the
-  integration when Home Assistant starts, and short outages of a device
-  (Wi-Fi, cloud): the state is already shown meanwhile (`WAITING(m)`,
+  while the entity waits for an `UNUSABLE` source (`WAITING(m)`, §1.3.2.5).
+  The delay absorbs a source entity loaded after the integration when
+  Home Assistant starts, and short outages of a device (Wi-Fi, cloud):
+  the state is already shown meanwhile (`WAITING(m)`,
   `unavailable_modes`). The sources reported:
   - the source of the current mode, in `WAITING(m)`;
-  - the `UNUSABLE` sources of the stored mode, in `NO_SOURCE` (none if
-    it is `off`, MON-SRC-2);
   - in `ON(heat_cool)` bi-source, only the source of the current phase,
     in `WAITING_PHASE(p)`: the source of the other phase is not reported,
-    even `UNUSABLE` (MON-SRC-2). In `WAITING(heat_cool)` and `NO_SOURCE`,
-    every `UNUSABLE` phase source is reported, as for a mode, even if the
-    mode management keeps a phase (ENT-PHASE-6). An `UNUSABLE` source stopped for the season is then
-    reported only while the other one is not available either.
-- **MON-SRC-2** Source unusable is never reported while the stored mode is
-  `off`. The monitoring only reports a source that is in the way:
+    even `UNUSABLE` (MON-SRC-2). In `WAITING(heat_cool)`, every
+    `UNUSABLE` phase source is reported, as for a mode, even if the mode
+    management keeps a phase (ENT-PHASE-6). An `UNUSABLE` source stopped
+    for the season is then reported only while the other one is not
+    available either.
+- **MON-SRC-2** Source unusable is reported only in `WAITING`. The
+  monitoring only reports a source that is in the way, and that the
+  entity does not already show:
   - in `OFF`, the entity asks nothing of its sources, so a source
     `UNUSABLE` blocks nothing. It is only met when its mode is asked:
     the user request is refused, and the mode is listed in
     `unavailable_modes` (ENT-HVAC-4);
+  - in `NO_SOURCE`, no source is available, and the entity is
+    `unavailable` (ENT-NOSRC-2): that already says it. An entity with a
+    single source entity is never in `WAITING`: when that source is
+    `UNUSABLE`, the entity is `unavailable`, and nothing is reported;
   - a device unplugged for the season (a radiator in summer, an AC at
     the breaker in winter) is normal: reported in `OFF`, it would keep
     `monitoring_sources` on for months, and the sensor would no longer
     mean anything;
-  - for the same reason, in `ON(m)` only the sources of `m` are
-    reported, and in `ON(heat_cool)` bi-source only the source of the
-    current phase: the other phase source may be stopped for the season
-    (MON-SRC-1).
+  - for the same reason, the sources of the other modes are not
+    reported, nor, in `ON(heat_cool)` bi-source, the source of the other
+    phase: it may be stopped for the season (MON-SRC-1).
 - **MON-SRC-3** Source out of sync (judged by the source, SRC-REQ-9):
   - reported at the first timeout of a mode request confirmation where the
     source entity does not show the state asked (SRC-REQ-5);
@@ -3282,8 +3285,8 @@ has to do when one turns on:
   the source entity shows the setting sent, or when the source leaves
   `ACTIVE` (SRC-SET-9).
 - **MON-SRC-5** Source not discovered: a source that stays `UNDISCOVERED`
-  (§1.2.3.2) for `monitoring_delay_timer` is reported, whatever the stored
-  mode (in `OFF` too, unlike MON-SRC-2). Its source entity was never seen
+  (§1.2.3.2) for `monitoring_delay_timer` is reported, whatever the state
+  of the entity (in `OFF` and `NO_SOURCE` too, unlike MON-SRC-2). Its source entity was never seen
   usable: it is more likely a configuration error (wrong entity id,
   integration missing or not loaded) than a device away for a while. The
   delay lets a source entity loaded after the integration be discovered
