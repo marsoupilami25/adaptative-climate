@@ -1,0 +1,293 @@
+# Virtual sources of the case "monitor" (Tests monitoring).
+# Generated once, then edited by hand. Every entity id ends with _monitor.
+#
+# Each source shows the state of its helpers; the service calls of Home
+# Assistant change them, when the source obeys (see dev/manual/README.md).
+
+template:
+  - climate:
+      - name: RADIATOR Virtual (monitor)
+        unique_id: radiator_virtual_monitor
+        default_entity_id: climate.radiator_virtual_monitor
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'heat'] if is_state('input_boolean.offers_radiator_monitor', 'on') else ['off'] }}
+        # Unknown: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.unknown_radiator_monitor', 'on') else states('input_select.mode_radiator_monitor') }}
+        availability: "{{ is_state('input_boolean.available_radiator_monitor', 'on') }}"
+        min_temperature: 5
+        max_temperature: 30
+        current_temperature: "{{ states('input_number.temperature_radiator_monitor') | float(none) }}"
+        target_temperature: "{{ states('input_number.target_radiator_monitor') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_radiator_monitor') %}
+          {% set t = states('input_number.temperature_radiator_monitor') | float(20) %}
+          {% set c = states('input_number.target_radiator_monitor') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeys_radiator_monitor
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delay_radiator_monitor') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_radiator_monitor
+            data:
+              option: "{{ hvac_mode }}"
+        set_temperature:
+          - condition: state
+            entity_id: input_boolean.applies_radiator_monitor
+            state: "on"
+          - if: "{{ temperature is defined and temperature is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.target_radiator_monitor
+                data:
+                  value: "{{ temperature }}"
+      - name: AIRCON Virtual (monitor)
+        unique_id: aircon_virtual_monitor
+        default_entity_id: climate.aircon_virtual_monitor
+        # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
+        hvac_modes: >-
+          {{ ['off', 'cool'] if is_state('input_boolean.offers_aircon_monitor', 'on') else ['off'] }}
+        # Unknown: the state is unknown
+        hvac_mode: >-
+          {{ none if is_state('input_boolean.unknown_aircon_monitor', 'on') else states('input_select.mode_aircon_monitor') }}
+        availability: "{{ is_state('input_boolean.available_aircon_monitor', 'on') }}"
+        min_temperature: 16
+        max_temperature: 30
+        current_temperature: "{{ states('input_number.temperature_aircon_monitor') | float(none) }}"
+        target_temperature: "{{ states('input_number.target_aircon_monitor') | float(none) }}"
+        hvac_action: >-
+          {% set m = states('input_select.mode_aircon_monitor') %}
+          {% set t = states('input_number.temperature_aircon_monitor') | float(20) %}
+          {% set c = states('input_number.target_aircon_monitor') | float(20) %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+        fan_modes: >-
+          {{ state_attr('input_select.fan_aircon_monitor', 'options') if is_state('input_boolean.fan_on_aircon_monitor', 'on') else [] }}
+        fan_mode: >-
+          {{ states('input_select.fan_aircon_monitor') if is_state('input_boolean.fan_on_aircon_monitor', 'on') else none }}
+        set_hvac_mode:
+          - condition: state
+            entity_id: input_boolean.obeys_aircon_monitor
+            state: "on"
+          - delay:
+              seconds: "{{ states('input_number.delay_aircon_monitor') | int(0) }}"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.mode_aircon_monitor
+            data:
+              option: "{{ hvac_mode }}"
+        set_temperature:
+          - condition: state
+            entity_id: input_boolean.applies_aircon_monitor
+            state: "on"
+          - if: "{{ temperature is defined and temperature is not none }}"
+            then:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.target_aircon_monitor
+                data:
+                  value: "{{ temperature }}"
+        set_fan_mode:
+          - condition: state
+            entity_id: input_boolean.applies_aircon_monitor
+            state: "on"
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.fan_aircon_monitor
+            data:
+              option: "{{ fan_mode }}"
+  - sensor:
+      - name: Room sensor (monitor)
+        unique_id: room_sensor_monitor
+        default_entity_id: sensor.room_sensor_monitor
+        device_class: temperature
+        unit_of_measurement: "°C"
+        state: "{{ states('input_number.room_temperature_monitor') }}"
+        availability: "{{ is_state('input_boolean.room_sensor_available_monitor', 'on') }}"
+
+input_select:
+  mode_radiator_monitor:
+    name: Mode RADIATOR
+    options: ['off', 'heat']
+    icon: mdi:hvac
+  mode_aircon_monitor:
+    name: Mode AIRCON
+    options: ['off', 'cool']
+    icon: mdi:hvac
+  fan_aircon_monitor:
+    name: Fan AIRCON
+    options: ['auto', 'low', 'high']
+    icon: mdi:fan
+
+input_number:
+  target_radiator_monitor:
+    name: Target RADIATOR
+    min: 5
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  temperature_radiator_monitor:
+    name: Temperature RADIATOR
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delay_radiator_monitor:
+    name: Delay RADIATOR
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  target_aircon_monitor:
+    name: Target AIRCON
+    min: 16
+    max: 30
+    step: 0.5
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer-check
+  temperature_aircon_monitor:
+    name: Temperature AIRCON
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:home-thermometer
+  delay_aircon_monitor:
+    name: Delay AIRCON
+    min: 0
+    max: 120
+    step: 1
+    unit_of_measurement: "s"
+    mode: box
+    icon: mdi:timer-sand
+    initial: 0
+  room_temperature_monitor:
+    name: Room temperature
+    min: 0
+    max: 40
+    step: 0.1
+    unit_of_measurement: "°C"
+    mode: box
+    icon: mdi:thermometer
+
+input_boolean:
+  available_radiator_monitor:
+    name: RADIATOR available
+    initial: true
+    icon: mdi:power-plug
+  unknown_radiator_monitor:
+    name: RADIATOR unknown
+    initial: false
+    icon: mdi:help-circle-outline
+  obeys_radiator_monitor:
+    name: RADIATOR obeys the mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applies_radiator_monitor:
+    name: RADIATOR applies the settings
+    initial: true
+    icon: mdi:tune-variant
+  offers_radiator_monitor:
+    name: RADIATOR offers its modes
+    initial: true
+    icon: mdi:format-list-checks
+  available_aircon_monitor:
+    name: AIRCON available
+    initial: true
+    icon: mdi:power-plug
+  unknown_aircon_monitor:
+    name: AIRCON unknown
+    initial: false
+    icon: mdi:help-circle-outline
+  obeys_aircon_monitor:
+    name: AIRCON obeys the mode
+    initial: true
+    icon: mdi:check-circle-outline
+  applies_aircon_monitor:
+    name: AIRCON applies the settings
+    initial: true
+    icon: mdi:tune-variant
+  offers_aircon_monitor:
+    name: AIRCON offers its modes
+    initial: true
+    icon: mdi:format-list-checks
+  fan_on_aircon_monitor:
+    name: Fan AIRCON on
+    initial: true
+    icon: mdi:fan
+  room_sensor_available_monitor:
+    name: Room sensor available
+    initial: true
+    icon: mdi:power-plug
+
+script:
+  reset_sources_monitor:
+    alias: Reset the sources (monitor)
+    icon: mdi:restore
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.available_radiator_monitor
+            - input_boolean.obeys_radiator_monitor
+            - input_boolean.applies_radiator_monitor
+            - input_boolean.offers_radiator_monitor
+            - input_boolean.available_aircon_monitor
+            - input_boolean.obeys_aircon_monitor
+            - input_boolean.applies_aircon_monitor
+            - input_boolean.offers_aircon_monitor
+            - input_boolean.fan_on_aircon_monitor
+            - input_boolean.room_sensor_available_monitor
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.unknown_radiator_monitor
+            - input_boolean.unknown_aircon_monitor
+      - action: input_select.select_option
+        target:
+          entity_id:
+            - input_select.mode_radiator_monitor
+            - input_select.mode_aircon_monitor
+        data:
+          option: "off"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.fan_aircon_monitor
+        data:
+          option: "auto"
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.temperature_radiator_monitor
+            - input_number.temperature_aircon_monitor
+            - input_number.room_temperature_monitor
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.target_radiator_monitor
+            - input_number.target_aircon_monitor
+        data:
+          value: 20
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.delay_radiator_monitor
+            - input_number.delay_aircon_monitor
+        data:
+          value: 0

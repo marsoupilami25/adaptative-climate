@@ -6,48 +6,48 @@
 
 template:
   - climate:
-      - name: ALL Virtuel (unique)
-        unique_id: all_virtuel_unique
-        default_entity_id: climate.all_virtuel_unique
+      - name: ALL Virtual (unique)
+        unique_id: all_virtual_unique
+        default_entity_id: climate.all_virtual_unique
         # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
         hvac_modes: >-
-          {{ ['off', 'heat', 'cool', 'heat_cool', 'auto', 'dry', 'fan_only'] if is_state('input_boolean.mode_offert_all_unique', 'on') else ['off'] }}
-        # Inconnu: the state is unknown
+          {{ ['off', 'heat', 'cool', 'heat_cool', 'auto', 'dry', 'fan_only'] if is_state('input_boolean.offers_all_unique', 'on') else ['off'] }}
+        # Unknown: the state is unknown
         hvac_mode: >-
-          {{ none if is_state('input_boolean.inconnu_all_unique', 'on') else states('input_select.mode_all_unique') }}
-        availability: "{{ is_state('input_boolean.dispo_all_unique', 'on') }}"
+          {{ none if is_state('input_boolean.unknown_all_unique', 'on') else states('input_select.mode_all_unique') }}
+        availability: "{{ is_state('input_boolean.available_all_unique', 'on') }}"
         min_temperature: 8
         max_temperature: 32
         current_temperature: "{{ states('input_number.temperature_all_unique') | float(none) }}"
-        target_temperature: "{{ states('input_number.consigne_all_unique') | float(none) }}"
+        target_temperature: "{{ states('input_number.target_all_unique') | float(none) }}"
         # Low/high only shown in these modes (low_high_seen, ENT-FEAT-2)
         target_temperature_low: >-
-          {{ states('input_number.consigne_basse_all_unique') | float(none) if states('input_select.mode_all_unique') in ['heat_cool', 'auto'] else none }}
+          {{ states('input_number.target_low_all_unique') | float(none) if states('input_select.mode_all_unique') in ['heat_cool', 'auto'] else none }}
         target_temperature_high: >-
-          {{ states('input_number.consigne_haute_all_unique') | float(none) if states('input_select.mode_all_unique') in ['heat_cool', 'auto'] else none }}
+          {{ states('input_number.target_high_all_unique') | float(none) if states('input_select.mode_all_unique') in ['heat_cool', 'auto'] else none }}
         hvac_action: >-
           {% set m = states('input_select.mode_all_unique') %}
           {% set t = states('input_number.temperature_all_unique') | float(20) %}
-          {% set c = states('input_number.consigne_all_unique') | float(20) %}
+          {% set c = states('input_number.target_all_unique') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
-          {{ state_attr('input_select.fan_all_unique', 'options') if is_state('input_boolean.fan_actif_all_unique', 'on') else [] }}
+          {{ state_attr('input_select.fan_all_unique', 'options') if is_state('input_boolean.fan_on_all_unique', 'on') else [] }}
         fan_mode: >-
-          {{ states('input_select.fan_all_unique') if is_state('input_boolean.fan_actif_all_unique', 'on') else none }}
+          {{ states('input_select.fan_all_unique') if is_state('input_boolean.fan_on_all_unique', 'on') else none }}
         swing_modes: >-
-          {{ state_attr('input_select.swing_all_unique', 'options') if is_state('input_boolean.swing_actif_all_unique', 'on') else [] }}
+          {{ state_attr('input_select.swing_all_unique', 'options') if is_state('input_boolean.swing_on_all_unique', 'on') else [] }}
         swing_mode: >-
-          {{ states('input_select.swing_all_unique') if is_state('input_boolean.swing_actif_all_unique', 'on') else none }}
+          {{ states('input_select.swing_all_unique') if is_state('input_boolean.swing_on_all_unique', 'on') else none }}
         swing_horizontal_modes: >-
-          {{ state_attr('input_select.swing_horizontal_all_unique', 'options') if is_state('input_boolean.swing_horizontal_actif_all_unique', 'on') else [] }}
+          {{ state_attr('input_select.swing_horizontal_all_unique', 'options') if is_state('input_boolean.swing_horizontal_on_all_unique', 'on') else [] }}
         swing_horizontal_mode: >-
-          {{ states('input_select.swing_horizontal_all_unique') if is_state('input_boolean.swing_horizontal_actif_all_unique', 'on') else none }}
+          {{ states('input_select.swing_horizontal_all_unique') if is_state('input_boolean.swing_horizontal_on_all_unique', 'on') else none }}
         set_hvac_mode:
           - condition: state
-            entity_id: input_boolean.obeit_all_unique
+            entity_id: input_boolean.obeys_all_unique
             state: "on"
           - delay:
-              seconds: "{{ states('input_number.delai_all_unique') | int(0) }}"
+              seconds: "{{ states('input_number.delay_all_unique') | int(0) }}"
           - action: input_select.select_option
             target:
               entity_id: input_select.mode_all_unique
@@ -55,32 +55,32 @@ template:
               option: "{{ hvac_mode }}"
         set_temperature:
           - condition: state
-            entity_id: input_boolean.applique_all_unique
+            entity_id: input_boolean.applies_all_unique
             state: "on"
           - if: "{{ temperature is defined and temperature is not none }}"
             then:
               - action: input_number.set_value
                 target:
-                  entity_id: input_number.consigne_all_unique
+                  entity_id: input_number.target_all_unique
                 data:
                   value: "{{ temperature }}"
           - if: "{{ target_temp_low is defined and target_temp_low is not none }}"
             then:
               - action: input_number.set_value
                 target:
-                  entity_id: input_number.consigne_basse_all_unique
+                  entity_id: input_number.target_low_all_unique
                 data:
                   value: "{{ target_temp_low }}"
           - if: "{{ target_temp_high is defined and target_temp_high is not none }}"
             then:
               - action: input_number.set_value
                 target:
-                  entity_id: input_number.consigne_haute_all_unique
+                  entity_id: input_number.target_high_all_unique
                 data:
                   value: "{{ target_temp_high }}"
         set_fan_mode:
           - condition: state
-            entity_id: input_boolean.applique_all_unique
+            entity_id: input_boolean.applies_all_unique
             state: "on"
           - action: input_select.select_option
             target:
@@ -89,7 +89,7 @@ template:
               option: "{{ fan_mode }}"
         set_swing_mode:
           - condition: state
-            entity_id: input_boolean.applique_all_unique
+            entity_id: input_boolean.applies_all_unique
             state: "on"
           - action: input_select.select_option
             target:
@@ -98,7 +98,7 @@ template:
               option: "{{ swing_mode }}"
         set_swing_horizontal_mode:
           - condition: state
-            entity_id: input_boolean.applique_all_unique
+            entity_id: input_boolean.applies_all_unique
             state: "on"
           - action: input_select.select_option
             target:
@@ -120,45 +120,45 @@ input_select:
     options: ['off', 'on']
     icon: mdi:arrow-oscillating
   swing_horizontal_all_unique:
-    name: Swing horizontal ALL
+    name: Horizontal swing ALL
     options: ['off', 'left', 'right']
     icon: mdi:arrow-left-right
 
 input_number:
-  consigne_all_unique:
-    name: Consigne ALL
+  target_all_unique:
+    name: Target ALL
     min: 8
     max: 32
-    step: 0.1
+    step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
-  consigne_basse_all_unique:
-    name: Consigne basse ALL
+  target_low_all_unique:
+    name: Target low ALL
     min: 8
     max: 32
-    step: 0.1
+    step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-low
-  consigne_haute_all_unique:
-    name: Consigne haute ALL
+  target_high_all_unique:
+    name: Target high ALL
     min: 8
     max: 32
-    step: 0.1
+    step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-high
   temperature_all_unique:
-    name: Température ALL
+    name: Temperature ALL
     min: 0
     max: 40
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:home-thermometer
-  delai_all_unique:
-    name: Délai ALL
+  delay_all_unique:
+    name: Delay ALL
     min: 0
     max: 120
     step: 1
@@ -168,58 +168,58 @@ input_number:
     initial: 0
 
 input_boolean:
-  dispo_all_unique:
-    name: ALL disponible
+  available_all_unique:
+    name: ALL available
     initial: true
     icon: mdi:power-plug
-  inconnu_all_unique:
-    name: ALL inconnu
+  unknown_all_unique:
+    name: ALL unknown
     initial: false
     icon: mdi:help-circle-outline
-  obeit_all_unique:
-    name: ALL obéit au mode
+  obeys_all_unique:
+    name: ALL obeys the mode
     initial: true
     icon: mdi:check-circle-outline
-  applique_all_unique:
-    name: ALL applique les réglages
+  applies_all_unique:
+    name: ALL applies the settings
     initial: true
     icon: mdi:tune-variant
-  mode_offert_all_unique:
-    name: ALL offre ses modes
+  offers_all_unique:
+    name: ALL offers its modes
     initial: true
     icon: mdi:format-list-checks
-  fan_actif_all_unique:
-    name: Fan ALL actif
+  fan_on_all_unique:
+    name: Fan ALL on
     initial: true
     icon: mdi:fan
-  swing_actif_all_unique:
-    name: Swing ALL actif
+  swing_on_all_unique:
+    name: Swing ALL on
     initial: true
     icon: mdi:arrow-oscillating
-  swing_horizontal_actif_all_unique:
-    name: Swing horizontal ALL actif
+  swing_horizontal_on_all_unique:
+    name: Horizontal swing ALL on
     initial: true
     icon: mdi:arrow-left-right
 
 script:
-  reset_sources_test_unique:
-    alias: Remettre les sources à zéro (unique)
+  reset_sources_unique:
+    alias: Reset the sources (unique)
     icon: mdi:restore
     sequence:
       - action: input_boolean.turn_on
         target:
           entity_id:
-            - input_boolean.dispo_all_unique
-            - input_boolean.obeit_all_unique
-            - input_boolean.applique_all_unique
-            - input_boolean.mode_offert_all_unique
-            - input_boolean.fan_actif_all_unique
-            - input_boolean.swing_actif_all_unique
-            - input_boolean.swing_horizontal_actif_all_unique
+            - input_boolean.available_all_unique
+            - input_boolean.obeys_all_unique
+            - input_boolean.applies_all_unique
+            - input_boolean.offers_all_unique
+            - input_boolean.fan_on_all_unique
+            - input_boolean.swing_on_all_unique
+            - input_boolean.swing_horizontal_on_all_unique
       - action: input_boolean.turn_off
         target:
           entity_id:
-            - input_boolean.inconnu_all_unique
+            - input_boolean.unknown_all_unique
       - action: input_select.select_option
         target:
           entity_id:
@@ -250,22 +250,22 @@ script:
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.consigne_all_unique
+            - input_number.target_all_unique
         data:
           value: 20
       - action: input_number.set_value
         target:
-          entity_id: input_number.consigne_basse_all_unique
+          entity_id: input_number.target_low_all_unique
         data:
           value: 19
       - action: input_number.set_value
         target:
-          entity_id: input_number.consigne_haute_all_unique
+          entity_id: input_number.target_high_all_unique
         data:
           value: 25
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.delai_all_unique
+            - input_number.delay_all_unique
         data:
           value: 0

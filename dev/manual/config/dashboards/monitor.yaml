@@ -1,0 +1,219 @@
+# Case monitor: the monitoring sensors and events.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests monitoring
+views:
+- title: Monitoring
+  path: pilotage
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: thermostat
+      entity: climate.adaptative_monitor
+      name: Adaptative MONITOR
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.adaptative_monitor' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_monitor_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_monitor_monitoring_temperatures'), '⚪') }} Temperatures
+        {% for p in (state_attr('binary_sensor.adaptative_monitor_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_monitor_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+    - type: thermostat
+      entity: climate.adaptative_ghost
+      name: Adaptative GHOST
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.adaptative_ghost' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_ghost_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_ghost_monitoring_temperatures'), '⚪') }} Temperatures
+        {% for p in (state_attr('binary_sensor.adaptative_ghost_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_ghost_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+  - type: grid
+    cards:
+    - type: entities
+      title: RADIATOR Virtual
+      entities:
+      - entity: input_select.mode_radiator_monitor
+        name: Mode
+      - entity: input_number.target_radiator_monitor
+        name: Target
+      - entity: input_number.temperature_radiator_monitor
+        name: Temperature
+      - entity: input_number.delay_radiator_monitor
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.radiator_virtual_monitor' %}
+        | Shown by RADIATOR Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_radiator_monitor
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_radiator_monitor
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_radiator_monitor
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_radiator_monitor
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_radiator_monitor
+        name: Offers heat
+        tap_action:
+          action: toggle
+    - type: entities
+      title: AIRCON Virtual
+      entities:
+      - entity: input_select.mode_aircon_monitor
+        name: Mode
+      - entity: input_number.target_aircon_monitor
+        name: Target
+      - entity: input_number.temperature_aircon_monitor
+        name: Temperature
+      - entity: input_select.fan_aircon_monitor
+        name: Fan
+      - entity: input_number.delay_aircon_monitor
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.aircon_virtual_monitor' %}
+        | Shown by AIRCON Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_aircon_monitor
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_aircon_monitor
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_aircon_monitor
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_aircon_monitor
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_aircon_monitor
+        name: Offers cool
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_aircon_monitor
+        name: Fan on
+        tap_action:
+          action: toggle
+    - type: entities
+      title: Sensors
+      state_color: true
+      entities:
+      - entity: sensor.room_sensor_monitor
+        name: Room sensor
+      - entity: input_number.room_temperature_monitor
+        name: Room temperature
+      - entity: input_boolean.room_sensor_available_monitor
+        name: Room sensor available
+    - type: button
+      entity: script.reset_sources_monitor
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Monitoring
+
+        Adaptative MONITOR: RADIATOR Virtual (*heat*), AIRCON Virtual (*cool*), the room sensor. Monitoring delay 30 s; confirmation of a mode 10 s, next try 30 s; largest gap 2 °C.
+        Adaptative GHOST: a source that does not exist (`climate.ghost_monitor`). Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+        Events: *Developer tools > Events*, listen to `adaptative_climate_problem`.
+
+        1. **Source never seen** (MON-SRC-5): Adaptative GHOST, *off*: 30 s after the start, its light *Sources* is red; a `started` event.
+        2. **Source out of sync** (MON-SRC-3, SRC-REQ-5, SRC-REQ-6): on RADIATOR Virtual, *Obeys the mode* off; Adaptative MONITOR to *heat*: after 10 s, light *Sources* red (no extra delay). *Obeys the mode* on: at the next try, RADIATOR Virtual goes to *heat*, light green, event `ended`.
+        3. **Setting not applied** (MON-SRC-4): Adaptative MONITOR in *heat*, wait 12 s. On RADIATOR Virtual, *Applies settings* off; target 23 on Adaptative MONITOR: after 30 s, light red. On RADIATOR Virtual, *Target* 23: green.
+        4. **Source unusable** (MON-SRC-1, MON-SRC-2): Adaptative MONITOR in *heat*. On RADIATOR Virtual, *Available* off: Adaptative MONITOR *Unknown*; after 30 s, light red. Adaptative MONITOR *off*, on AIRCON Virtual *Available* off: never reported.
+        5. **Gap sensor–source** (MON-TEMP-1, MON-TEMP-3): Adaptative MONITOR *off*. *Temperature* of RADIATOR Virtual 24, *Room temperature* 21: after 30 s, light *Temperatures* red; RADIATOR Virtual to 22: green.
+        6. **Gap between sources** (MON-TEMP-1): *Temperature* of RADIATOR Virtual 19, of AIRCON Virtual 23: after 30 s, a problem between the two sources.
+        7. **Sensor without value** (MON-TEMP-4): *Room sensor available* off: after 30 s, light red; on: green.
+        8. **A delay per problem** (MON-SENS-3): *Room sensor available* off; 15 s later, *Temperature* of RADIATOR Virtual 19 and of AIRCON Virtual 23: both problems are reported 15 s apart.
+        9. **After a restart** (END-2, MON-SEND-3, MON-LIFE-1): with a problem reported, restart: light green, then red 30 s later.
+        10. **Log** (MON-LIFE-2, MON-LIFE-3): each problem reported: a warning in the log, the same text as the `message` of the event; its end: an info.
+
+        </small>

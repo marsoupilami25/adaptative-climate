@@ -6,43 +6,43 @@
 
 template:
   - climate:
-      - name: HEAT Virtuel (multi)
-        unique_id: heat_virtuel_multi
-        default_entity_id: climate.heat_virtuel_multi
+      - name: HEAT Virtual (multi)
+        unique_id: heat_virtual_multi
+        default_entity_id: climate.heat_virtual_multi
         # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
         hvac_modes: >-
-          {{ ['off', 'heat'] if is_state('input_boolean.mode_offert_heat_multi', 'on') else ['off'] }}
-        # Inconnu: the state is unknown
+          {{ ['off', 'heat'] if is_state('input_boolean.offers_heat_multi', 'on') else ['off'] }}
+        # Unknown: the state is unknown
         hvac_mode: >-
-          {{ none if is_state('input_boolean.inconnu_heat_multi', 'on') else states('input_select.mode_heat_multi') }}
-        availability: "{{ is_state('input_boolean.dispo_heat_multi', 'on') }}"
+          {{ none if is_state('input_boolean.unknown_heat_multi', 'on') else states('input_select.mode_heat_multi') }}
+        availability: "{{ is_state('input_boolean.available_heat_multi', 'on') }}"
         min_temperature: 5
         max_temperature: 30
         current_temperature: "{{ states('input_number.temperature_heat_multi') | float(none) }}"
-        target_temperature: "{{ states('input_number.consigne_heat_multi') | float(none) }}"
+        target_temperature: "{{ states('input_number.target_heat_multi') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_heat_multi') %}
           {% set t = states('input_number.temperature_heat_multi') | float(20) %}
-          {% set c = states('input_number.consigne_heat_multi') | float(20) %}
+          {% set c = states('input_number.target_heat_multi') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
-          {{ state_attr('input_select.fan_heat_multi', 'options') if is_state('input_boolean.fan_actif_heat_multi', 'on') else [] }}
+          {{ state_attr('input_select.fan_heat_multi', 'options') if is_state('input_boolean.fan_on_heat_multi', 'on') else [] }}
         fan_mode: >-
-          {{ states('input_select.fan_heat_multi') if is_state('input_boolean.fan_actif_heat_multi', 'on') else none }}
+          {{ states('input_select.fan_heat_multi') if is_state('input_boolean.fan_on_heat_multi', 'on') else none }}
         swing_modes: >-
-          {{ state_attr('input_select.swing_heat_multi', 'options') if is_state('input_boolean.swing_actif_heat_multi', 'on') else [] }}
+          {{ state_attr('input_select.swing_heat_multi', 'options') if is_state('input_boolean.swing_on_heat_multi', 'on') else [] }}
         swing_mode: >-
-          {{ states('input_select.swing_heat_multi') if is_state('input_boolean.swing_actif_heat_multi', 'on') else none }}
+          {{ states('input_select.swing_heat_multi') if is_state('input_boolean.swing_on_heat_multi', 'on') else none }}
         swing_horizontal_modes: >-
-          {{ state_attr('input_select.swing_horizontal_heat_multi', 'options') if is_state('input_boolean.swing_horizontal_actif_heat_multi', 'on') else [] }}
+          {{ state_attr('input_select.swing_horizontal_heat_multi', 'options') if is_state('input_boolean.swing_horizontal_on_heat_multi', 'on') else [] }}
         swing_horizontal_mode: >-
-          {{ states('input_select.swing_horizontal_heat_multi') if is_state('input_boolean.swing_horizontal_actif_heat_multi', 'on') else none }}
+          {{ states('input_select.swing_horizontal_heat_multi') if is_state('input_boolean.swing_horizontal_on_heat_multi', 'on') else none }}
         set_hvac_mode:
           - condition: state
-            entity_id: input_boolean.obeit_heat_multi
+            entity_id: input_boolean.obeys_heat_multi
             state: "on"
           - delay:
-              seconds: "{{ states('input_number.delai_heat_multi') | int(0) }}"
+              seconds: "{{ states('input_number.delay_heat_multi') | int(0) }}"
           - action: input_select.select_option
             target:
               entity_id: input_select.mode_heat_multi
@@ -50,18 +50,18 @@ template:
               option: "{{ hvac_mode }}"
         set_temperature:
           - condition: state
-            entity_id: input_boolean.applique_heat_multi
+            entity_id: input_boolean.applies_heat_multi
             state: "on"
           - if: "{{ temperature is defined and temperature is not none }}"
             then:
               - action: input_number.set_value
                 target:
-                  entity_id: input_number.consigne_heat_multi
+                  entity_id: input_number.target_heat_multi
                 data:
                   value: "{{ temperature }}"
         set_fan_mode:
           - condition: state
-            entity_id: input_boolean.applique_heat_multi
+            entity_id: input_boolean.applies_heat_multi
             state: "on"
           - action: input_select.select_option
             target:
@@ -70,7 +70,7 @@ template:
               option: "{{ fan_mode }}"
         set_swing_mode:
           - condition: state
-            entity_id: input_boolean.applique_heat_multi
+            entity_id: input_boolean.applies_heat_multi
             state: "on"
           - action: input_select.select_option
             target:
@@ -79,51 +79,51 @@ template:
               option: "{{ swing_mode }}"
         set_swing_horizontal_mode:
           - condition: state
-            entity_id: input_boolean.applique_heat_multi
+            entity_id: input_boolean.applies_heat_multi
             state: "on"
           - action: input_select.select_option
             target:
               entity_id: input_select.swing_horizontal_heat_multi
             data:
               option: "{{ swing_horizontal_mode }}"
-      - name: COOL Virtuel (multi)
-        unique_id: cool_virtuel_multi
-        default_entity_id: climate.cool_virtuel_multi
+      - name: COOL Virtual (multi)
+        unique_id: cool_virtual_multi
+        default_entity_id: climate.cool_virtual_multi
         # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
         hvac_modes: >-
-          {{ ['off', 'cool'] if is_state('input_boolean.mode_offert_cool_multi', 'on') else ['off'] }}
-        # Inconnu: the state is unknown
+          {{ ['off', 'cool'] if is_state('input_boolean.offers_cool_multi', 'on') else ['off'] }}
+        # Unknown: the state is unknown
         hvac_mode: >-
-          {{ none if is_state('input_boolean.inconnu_cool_multi', 'on') else states('input_select.mode_cool_multi') }}
-        availability: "{{ is_state('input_boolean.dispo_cool_multi', 'on') }}"
+          {{ none if is_state('input_boolean.unknown_cool_multi', 'on') else states('input_select.mode_cool_multi') }}
+        availability: "{{ is_state('input_boolean.available_cool_multi', 'on') }}"
         min_temperature: 16
         max_temperature: 32
         target_temperature_step: 1
         current_temperature: "{{ states('input_number.temperature_cool_multi') | float(none) }}"
-        target_temperature: "{{ states('input_number.consigne_cool_multi') | float(none) }}"
+        target_temperature: "{{ states('input_number.target_cool_multi') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_cool_multi') %}
           {% set t = states('input_number.temperature_cool_multi') | float(20) %}
-          {% set c = states('input_number.consigne_cool_multi') | float(20) %}
+          {% set c = states('input_number.target_cool_multi') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
-          {{ (state_attr('input_select.fan_cool_multi', 'options') | reject('equalto', 'medium') | list if is_state('input_boolean.fan_reduit_cool_multi', 'on') else state_attr('input_select.fan_cool_multi', 'options')) if is_state('input_boolean.fan_actif_cool_multi', 'on') else [] }}
+          {{ (state_attr('input_select.fan_cool_multi', 'options') | reject('equalto', 'medium') | list if is_state('input_boolean.fan_reduced_cool_multi', 'on') else state_attr('input_select.fan_cool_multi', 'options')) if is_state('input_boolean.fan_on_cool_multi', 'on') else [] }}
         fan_mode: >-
-          {{ states('input_select.fan_cool_multi') if is_state('input_boolean.fan_actif_cool_multi', 'on') else none }}
+          {{ states('input_select.fan_cool_multi') if is_state('input_boolean.fan_on_cool_multi', 'on') else none }}
         swing_modes: >-
-          {{ state_attr('input_select.swing_cool_multi', 'options') if is_state('input_boolean.swing_actif_cool_multi', 'on') else [] }}
+          {{ state_attr('input_select.swing_cool_multi', 'options') if is_state('input_boolean.swing_on_cool_multi', 'on') else [] }}
         swing_mode: >-
-          {{ states('input_select.swing_cool_multi') if is_state('input_boolean.swing_actif_cool_multi', 'on') else none }}
+          {{ states('input_select.swing_cool_multi') if is_state('input_boolean.swing_on_cool_multi', 'on') else none }}
         swing_horizontal_modes: >-
-          {{ state_attr('input_select.swing_horizontal_cool_multi', 'options') if is_state('input_boolean.swing_horizontal_actif_cool_multi', 'on') else [] }}
+          {{ state_attr('input_select.swing_horizontal_cool_multi', 'options') if is_state('input_boolean.swing_horizontal_on_cool_multi', 'on') else [] }}
         swing_horizontal_mode: >-
-          {{ states('input_select.swing_horizontal_cool_multi') if is_state('input_boolean.swing_horizontal_actif_cool_multi', 'on') else none }}
+          {{ states('input_select.swing_horizontal_cool_multi') if is_state('input_boolean.swing_horizontal_on_cool_multi', 'on') else none }}
         set_hvac_mode:
           - condition: state
-            entity_id: input_boolean.obeit_cool_multi
+            entity_id: input_boolean.obeys_cool_multi
             state: "on"
           - delay:
-              seconds: "{{ states('input_number.delai_cool_multi') | int(0) }}"
+              seconds: "{{ states('input_number.delay_cool_multi') | int(0) }}"
           - action: input_select.select_option
             target:
               entity_id: input_select.mode_cool_multi
@@ -131,18 +131,18 @@ template:
               option: "{{ hvac_mode }}"
         set_temperature:
           - condition: state
-            entity_id: input_boolean.applique_cool_multi
+            entity_id: input_boolean.applies_cool_multi
             state: "on"
           - if: "{{ temperature is defined and temperature is not none }}"
             then:
               - action: input_number.set_value
                 target:
-                  entity_id: input_number.consigne_cool_multi
+                  entity_id: input_number.target_cool_multi
                 data:
                   value: "{{ temperature }}"
         set_fan_mode:
           - condition: state
-            entity_id: input_boolean.applique_cool_multi
+            entity_id: input_boolean.applies_cool_multi
             state: "on"
           - action: input_select.select_option
             target:
@@ -151,7 +151,7 @@ template:
               option: "{{ fan_mode }}"
         set_swing_mode:
           - condition: state
-            entity_id: input_boolean.applique_cool_multi
+            entity_id: input_boolean.applies_cool_multi
             state: "on"
           - action: input_select.select_option
             target:
@@ -160,46 +160,46 @@ template:
               option: "{{ swing_mode }}"
         set_swing_horizontal_mode:
           - condition: state
-            entity_id: input_boolean.applique_cool_multi
+            entity_id: input_boolean.applies_cool_multi
             state: "on"
           - action: input_select.select_option
             target:
               entity_id: input_select.swing_horizontal_cool_multi
             data:
               option: "{{ swing_horizontal_mode }}"
-      - name: DRY Virtuel (multi)
-        unique_id: dry_virtuel_multi
-        default_entity_id: climate.dry_virtuel_multi
+      - name: DRY Virtual (multi)
+        unique_id: dry_virtual_multi
+        default_entity_id: climate.dry_virtual_multi
         # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
         hvac_modes: >-
-          {{ ['off', 'dry'] if is_state('input_boolean.mode_offert_dry_multi', 'on') else ['off'] }}
-        # Inconnu: the state is unknown
+          {{ ['off', 'dry'] if is_state('input_boolean.offers_dry_multi', 'on') else ['off'] }}
+        # Unknown: the state is unknown
         hvac_mode: >-
-          {{ none if is_state('input_boolean.inconnu_dry_multi', 'on') else states('input_select.mode_dry_multi') }}
-        availability: "{{ is_state('input_boolean.dispo_dry_multi', 'on') }}"
+          {{ none if is_state('input_boolean.unknown_dry_multi', 'on') else states('input_select.mode_dry_multi') }}
+        availability: "{{ is_state('input_boolean.available_dry_multi', 'on') }}"
         min_temperature: 18
         max_temperature: 30
         current_temperature: "{{ states('input_number.temperature_dry_multi') | float(none) }}"
-        target_temperature: "{{ states('input_number.consigne_dry_multi') | float(none) }}"
+        target_temperature: "{{ states('input_number.target_dry_multi') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_dry_multi') %}
           {% set t = states('input_number.temperature_dry_multi') | float(20) %}
-          {% set c = states('input_number.consigne_dry_multi') | float(20) %}
+          {% set c = states('input_number.target_dry_multi') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
-          {{ state_attr('input_select.fan_dry_multi', 'options') if is_state('input_boolean.fan_actif_dry_multi', 'on') else [] }}
+          {{ state_attr('input_select.fan_dry_multi', 'options') if is_state('input_boolean.fan_on_dry_multi', 'on') else [] }}
         fan_mode: >-
-          {{ states('input_select.fan_dry_multi') if is_state('input_boolean.fan_actif_dry_multi', 'on') else none }}
+          {{ states('input_select.fan_dry_multi') if is_state('input_boolean.fan_on_dry_multi', 'on') else none }}
         swing_modes: >-
-          {{ state_attr('input_select.swing_dry_multi', 'options') if is_state('input_boolean.swing_actif_dry_multi', 'on') else [] }}
+          {{ state_attr('input_select.swing_dry_multi', 'options') if is_state('input_boolean.swing_on_dry_multi', 'on') else [] }}
         swing_mode: >-
-          {{ states('input_select.swing_dry_multi') if is_state('input_boolean.swing_actif_dry_multi', 'on') else none }}
+          {{ states('input_select.swing_dry_multi') if is_state('input_boolean.swing_on_dry_multi', 'on') else none }}
         set_hvac_mode:
           - condition: state
-            entity_id: input_boolean.obeit_dry_multi
+            entity_id: input_boolean.obeys_dry_multi
             state: "on"
           - delay:
-              seconds: "{{ states('input_number.delai_dry_multi') | int(0) }}"
+              seconds: "{{ states('input_number.delay_dry_multi') | int(0) }}"
           - action: input_select.select_option
             target:
               entity_id: input_select.mode_dry_multi
@@ -207,18 +207,18 @@ template:
               option: "{{ hvac_mode }}"
         set_temperature:
           - condition: state
-            entity_id: input_boolean.applique_dry_multi
+            entity_id: input_boolean.applies_dry_multi
             state: "on"
           - if: "{{ temperature is defined and temperature is not none }}"
             then:
               - action: input_number.set_value
                 target:
-                  entity_id: input_number.consigne_dry_multi
+                  entity_id: input_number.target_dry_multi
                 data:
                   value: "{{ temperature }}"
         set_fan_mode:
           - condition: state
-            entity_id: input_boolean.applique_dry_multi
+            entity_id: input_boolean.applies_dry_multi
             state: "on"
           - action: input_select.select_option
             target:
@@ -227,41 +227,41 @@ template:
               option: "{{ fan_mode }}"
         set_swing_mode:
           - condition: state
-            entity_id: input_boolean.applique_dry_multi
+            entity_id: input_boolean.applies_dry_multi
             state: "on"
           - action: input_select.select_option
             target:
               entity_id: input_select.swing_dry_multi
             data:
               option: "{{ swing_mode }}"
-      - name: FAN_ONLY Virtuel (multi)
-        unique_id: fan_only_virtuel_multi
-        default_entity_id: climate.fan_only_virtuel_multi
+      - name: FAN_ONLY Virtual (multi)
+        unique_id: fan_only_virtual_multi
+        default_entity_id: climate.fan_only_virtual_multi
         # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
         hvac_modes: >-
-          {{ ['off', 'fan_only'] if is_state('input_boolean.mode_offert_fan_only_multi', 'on') else ['off'] }}
-        # Inconnu: the state is unknown
+          {{ ['off', 'fan_only'] if is_state('input_boolean.offers_fan_only_multi', 'on') else ['off'] }}
+        # Unknown: the state is unknown
         hvac_mode: >-
-          {{ none if is_state('input_boolean.inconnu_fan_only_multi', 'on') else states('input_select.mode_fan_only_multi') }}
-        availability: "{{ is_state('input_boolean.dispo_fan_only_multi', 'on') }}"
+          {{ none if is_state('input_boolean.unknown_fan_only_multi', 'on') else states('input_select.mode_fan_only_multi') }}
+        availability: "{{ is_state('input_boolean.available_fan_only_multi', 'on') }}"
         min_temperature: 7
         max_temperature: 35
         current_temperature: "{{ states('input_number.temperature_fan_only_multi') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_fan_only_multi') %}
           {% set t = states('input_number.temperature_fan_only_multi') | float(20) %}
-          {% set c = states('input_number.consigne_fan_only_multi') | float(20) %}
+          {% set c = states('input_number.target_fan_only_multi') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
-          {{ state_attr('input_select.fan_fan_only_multi', 'options') if is_state('input_boolean.fan_actif_fan_only_multi', 'on') else [] }}
+          {{ state_attr('input_select.fan_fan_only_multi', 'options') if is_state('input_boolean.fan_on_fan_only_multi', 'on') else [] }}
         fan_mode: >-
-          {{ states('input_select.fan_fan_only_multi') if is_state('input_boolean.fan_actif_fan_only_multi', 'on') else none }}
+          {{ states('input_select.fan_fan_only_multi') if is_state('input_boolean.fan_on_fan_only_multi', 'on') else none }}
         set_hvac_mode:
           - condition: state
-            entity_id: input_boolean.obeit_fan_only_multi
+            entity_id: input_boolean.obeys_fan_only_multi
             state: "on"
           - delay:
-              seconds: "{{ states('input_number.delai_fan_only_multi') | int(0) }}"
+              seconds: "{{ states('input_number.delay_fan_only_multi') | int(0) }}"
           - action: input_select.select_option
             target:
               entity_id: input_select.mode_fan_only_multi
@@ -269,42 +269,42 @@ template:
               option: "{{ hvac_mode }}"
         set_fan_mode:
           - condition: state
-            entity_id: input_boolean.applique_fan_only_multi
+            entity_id: input_boolean.applies_fan_only_multi
             state: "on"
           - action: input_select.select_option
             target:
               entity_id: input_select.fan_fan_only_multi
             data:
               option: "{{ fan_mode }}"
-      - name: AUTO Virtuel (multi)
-        unique_id: auto_virtuel_multi
-        default_entity_id: climate.auto_virtuel_multi
+      - name: AUTO Virtual (multi)
+        unique_id: auto_virtual_multi
+        default_entity_id: climate.auto_virtual_multi
         # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
         hvac_modes: >-
-          {{ ['off', 'auto'] if is_state('input_boolean.mode_offert_auto_multi', 'on') else ['off'] }}
-        # Inconnu: the state is unknown
+          {{ ['off', 'auto'] if is_state('input_boolean.offers_auto_multi', 'on') else ['off'] }}
+        # Unknown: the state is unknown
         hvac_mode: >-
-          {{ none if is_state('input_boolean.inconnu_auto_multi', 'on') else states('input_select.mode_auto_multi') }}
-        availability: "{{ is_state('input_boolean.dispo_auto_multi', 'on') }}"
+          {{ none if is_state('input_boolean.unknown_auto_multi', 'on') else states('input_select.mode_auto_multi') }}
+        availability: "{{ is_state('input_boolean.available_auto_multi', 'on') }}"
         min_temperature: 10
         max_temperature: 30
         current_temperature: "{{ states('input_number.temperature_auto_multi') | float(none) }}"
-        target_temperature: "{{ states('input_number.consigne_auto_multi') | float(none) }}"
+        target_temperature: "{{ states('input_number.target_auto_multi') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_auto_multi') %}
           {% set t = states('input_number.temperature_auto_multi') | float(20) %}
-          {% set c = states('input_number.consigne_auto_multi') | float(20) %}
+          {% set c = states('input_number.target_auto_multi') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
-          {{ state_attr('input_select.fan_auto_multi', 'options') if is_state('input_boolean.fan_actif_auto_multi', 'on') else [] }}
+          {{ state_attr('input_select.fan_auto_multi', 'options') if is_state('input_boolean.fan_on_auto_multi', 'on') else [] }}
         fan_mode: >-
-          {{ states('input_select.fan_auto_multi') if is_state('input_boolean.fan_actif_auto_multi', 'on') else none }}
+          {{ states('input_select.fan_auto_multi') if is_state('input_boolean.fan_on_auto_multi', 'on') else none }}
         set_hvac_mode:
           - condition: state
-            entity_id: input_boolean.obeit_auto_multi
+            entity_id: input_boolean.obeys_auto_multi
             state: "on"
           - delay:
-              seconds: "{{ states('input_number.delai_auto_multi') | int(0) }}"
+              seconds: "{{ states('input_number.delay_auto_multi') | int(0) }}"
           - action: input_select.select_option
             target:
               entity_id: input_select.mode_auto_multi
@@ -312,18 +312,18 @@ template:
               option: "{{ hvac_mode }}"
         set_temperature:
           - condition: state
-            entity_id: input_boolean.applique_auto_multi
+            entity_id: input_boolean.applies_auto_multi
             state: "on"
           - if: "{{ temperature is defined and temperature is not none }}"
             then:
               - action: input_number.set_value
                 target:
-                  entity_id: input_number.consigne_auto_multi
+                  entity_id: input_number.target_auto_multi
                 data:
                   value: "{{ temperature }}"
         set_fan_mode:
           - condition: state
-            entity_id: input_boolean.applique_auto_multi
+            entity_id: input_boolean.applies_auto_multi
             state: "on"
           - action: input_select.select_option
             target:
@@ -331,13 +331,13 @@ template:
             data:
               option: "{{ fan_mode }}"
   - sensor:
-      - name: Capteur pièce (multi)
-        unique_id: capteur_piece_multi
-        default_entity_id: sensor.capteur_piece_multi
+      - name: Room sensor (multi)
+        unique_id: room_sensor_multi
+        default_entity_id: sensor.room_sensor_multi
         device_class: temperature
         unit_of_measurement: "°C"
-        state: "{{ states('input_number.temperature_capteur_multi') }}"
-        availability: "{{ is_state('input_boolean.dispo_capteur_multi', 'on') }}"
+        state: "{{ states('input_number.room_temperature_multi') }}"
+        availability: "{{ is_state('input_boolean.room_sensor_available_multi', 'on') }}"
 
 input_select:
   mode_heat_multi:
@@ -353,7 +353,7 @@ input_select:
     options: ['Off', 'On']
     icon: mdi:arrow-oscillating
   swing_horizontal_heat_multi:
-    name: Swing horizontal HEAT
+    name: Horizontal swing HEAT
     options: ['Off', 'Left', 'Right']
     icon: mdi:arrow-left-right
   mode_cool_multi:
@@ -369,7 +369,7 @@ input_select:
     options: ['off', 'on']
     icon: mdi:arrow-oscillating
   swing_horizontal_cool_multi:
-    name: Swing horizontal COOL
+    name: Horizontal swing COOL
     options: ['off', 'left', 'right']
     icon: mdi:arrow-left-right
   mode_dry_multi:
@@ -402,24 +402,24 @@ input_select:
     icon: mdi:fan
 
 input_number:
-  consigne_heat_multi:
-    name: Consigne HEAT
+  target_heat_multi:
+    name: Target HEAT
     min: 5
     max: 30
-    step: 0.1
+    step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
   temperature_heat_multi:
-    name: Température HEAT
+    name: Temperature HEAT
     min: 0
     max: 40
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:home-thermometer
-  delai_heat_multi:
-    name: Délai HEAT
+  delay_heat_multi:
+    name: Delay HEAT
     min: 0
     max: 120
     step: 1
@@ -427,24 +427,24 @@ input_number:
     mode: box
     icon: mdi:timer-sand
     initial: 0
-  consigne_cool_multi:
-    name: Consigne COOL
+  target_cool_multi:
+    name: Target COOL
     min: 16
     max: 32
-    step: 0.1
+    step: 1
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
   temperature_cool_multi:
-    name: Température COOL
+    name: Temperature COOL
     min: 0
     max: 40
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:home-thermometer
-  delai_cool_multi:
-    name: Délai COOL
+  delay_cool_multi:
+    name: Delay COOL
     min: 0
     max: 120
     step: 1
@@ -452,24 +452,24 @@ input_number:
     mode: box
     icon: mdi:timer-sand
     initial: 0
-  consigne_dry_multi:
-    name: Consigne DRY
+  target_dry_multi:
+    name: Target DRY
     min: 18
     max: 30
-    step: 0.1
+    step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
   temperature_dry_multi:
-    name: Température DRY
+    name: Temperature DRY
     min: 0
     max: 40
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:home-thermometer
-  delai_dry_multi:
-    name: Délai DRY
+  delay_dry_multi:
+    name: Delay DRY
     min: 0
     max: 120
     step: 1
@@ -478,15 +478,15 @@ input_number:
     icon: mdi:timer-sand
     initial: 0
   temperature_fan_only_multi:
-    name: Température FAN_ONLY
+    name: Temperature FAN_ONLY
     min: 0
     max: 40
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:home-thermometer
-  delai_fan_only_multi:
-    name: Délai FAN_ONLY
+  delay_fan_only_multi:
+    name: Delay FAN_ONLY
     min: 0
     max: 120
     step: 1
@@ -494,24 +494,24 @@ input_number:
     mode: box
     icon: mdi:timer-sand
     initial: 0
-  consigne_auto_multi:
-    name: Consigne AUTO
+  target_auto_multi:
+    name: Target AUTO
     min: 10
     max: 30
-    step: 0.1
+    step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
   temperature_auto_multi:
-    name: Température AUTO
+    name: Temperature AUTO
     min: 0
     max: 40
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:home-thermometer
-  delai_auto_multi:
-    name: Délai AUTO
+  delay_auto_multi:
+    name: Delay AUTO
     min: 0
     max: 120
     step: 1
@@ -519,8 +519,8 @@ input_number:
     mode: box
     icon: mdi:timer-sand
     initial: 0
-  temperature_capteur_multi:
-    name: Température capteur pièce
+  room_temperature_multi:
+    name: Room temperature
     min: 0
     max: 40
     step: 0.1
@@ -529,203 +529,203 @@ input_number:
     icon: mdi:thermometer
 
 input_boolean:
-  dispo_heat_multi:
-    name: HEAT disponible
+  available_heat_multi:
+    name: HEAT available
     initial: true
     icon: mdi:power-plug
-  inconnu_heat_multi:
-    name: HEAT inconnu
+  unknown_heat_multi:
+    name: HEAT unknown
     initial: false
     icon: mdi:help-circle-outline
-  obeit_heat_multi:
-    name: HEAT obéit au mode
+  obeys_heat_multi:
+    name: HEAT obeys the mode
     initial: true
     icon: mdi:check-circle-outline
-  applique_heat_multi:
-    name: HEAT applique les réglages
+  applies_heat_multi:
+    name: HEAT applies the settings
     initial: true
     icon: mdi:tune-variant
-  mode_offert_heat_multi:
-    name: HEAT offre ses modes
+  offers_heat_multi:
+    name: HEAT offers its modes
     initial: true
     icon: mdi:format-list-checks
-  fan_actif_heat_multi:
-    name: Fan HEAT actif
+  fan_on_heat_multi:
+    name: Fan HEAT on
     initial: true
     icon: mdi:fan
-  swing_actif_heat_multi:
-    name: Swing HEAT actif
+  swing_on_heat_multi:
+    name: Swing HEAT on
     initial: true
     icon: mdi:arrow-oscillating
-  swing_horizontal_actif_heat_multi:
-    name: Swing horizontal HEAT actif
+  swing_horizontal_on_heat_multi:
+    name: Horizontal swing HEAT on
     initial: true
     icon: mdi:arrow-left-right
-  dispo_cool_multi:
-    name: COOL disponible
+  available_cool_multi:
+    name: COOL available
     initial: true
     icon: mdi:power-plug
-  inconnu_cool_multi:
-    name: COOL inconnu
+  unknown_cool_multi:
+    name: COOL unknown
     initial: false
     icon: mdi:help-circle-outline
-  obeit_cool_multi:
-    name: COOL obéit au mode
+  obeys_cool_multi:
+    name: COOL obeys the mode
     initial: true
     icon: mdi:check-circle-outline
-  applique_cool_multi:
-    name: COOL applique les réglages
+  applies_cool_multi:
+    name: COOL applies the settings
     initial: true
     icon: mdi:tune-variant
-  mode_offert_cool_multi:
-    name: COOL offre ses modes
+  offers_cool_multi:
+    name: COOL offers its modes
     initial: true
     icon: mdi:format-list-checks
-  fan_actif_cool_multi:
-    name: Fan COOL actif
+  fan_on_cool_multi:
+    name: Fan COOL on
     initial: true
     icon: mdi:fan
-  fan_reduit_cool_multi:
-    name: Fan COOL sans medium
+  fan_reduced_cool_multi:
+    name: Fan COOL without medium
     initial: false
     icon: mdi:fan-minus
-  swing_actif_cool_multi:
-    name: Swing COOL actif
+  swing_on_cool_multi:
+    name: Swing COOL on
     initial: true
     icon: mdi:arrow-oscillating
-  swing_horizontal_actif_cool_multi:
-    name: Swing horizontal COOL actif
+  swing_horizontal_on_cool_multi:
+    name: Horizontal swing COOL on
     initial: true
     icon: mdi:arrow-left-right
-  dispo_dry_multi:
-    name: DRY disponible
+  available_dry_multi:
+    name: DRY available
     initial: true
     icon: mdi:power-plug
-  inconnu_dry_multi:
-    name: DRY inconnu
+  unknown_dry_multi:
+    name: DRY unknown
     initial: false
     icon: mdi:help-circle-outline
-  obeit_dry_multi:
-    name: DRY obéit au mode
+  obeys_dry_multi:
+    name: DRY obeys the mode
     initial: true
     icon: mdi:check-circle-outline
-  applique_dry_multi:
-    name: DRY applique les réglages
+  applies_dry_multi:
+    name: DRY applies the settings
     initial: true
     icon: mdi:tune-variant
-  mode_offert_dry_multi:
-    name: DRY offre ses modes
+  offers_dry_multi:
+    name: DRY offers its modes
     initial: true
     icon: mdi:format-list-checks
-  fan_actif_dry_multi:
-    name: Fan DRY actif
+  fan_on_dry_multi:
+    name: Fan DRY on
     initial: true
     icon: mdi:fan
-  swing_actif_dry_multi:
-    name: Swing DRY actif
+  swing_on_dry_multi:
+    name: Swing DRY on
     initial: true
     icon: mdi:arrow-oscillating
-  dispo_fan_only_multi:
-    name: FAN_ONLY disponible
+  available_fan_only_multi:
+    name: FAN_ONLY available
     initial: true
     icon: mdi:power-plug
-  inconnu_fan_only_multi:
-    name: FAN_ONLY inconnu
+  unknown_fan_only_multi:
+    name: FAN_ONLY unknown
     initial: false
     icon: mdi:help-circle-outline
-  obeit_fan_only_multi:
-    name: FAN_ONLY obéit au mode
+  obeys_fan_only_multi:
+    name: FAN_ONLY obeys the mode
     initial: true
     icon: mdi:check-circle-outline
-  applique_fan_only_multi:
-    name: FAN_ONLY applique les réglages
+  applies_fan_only_multi:
+    name: FAN_ONLY applies the settings
     initial: true
     icon: mdi:tune-variant
-  mode_offert_fan_only_multi:
-    name: FAN_ONLY offre ses modes
+  offers_fan_only_multi:
+    name: FAN_ONLY offers its modes
     initial: true
     icon: mdi:format-list-checks
-  fan_actif_fan_only_multi:
-    name: Fan FAN_ONLY actif
+  fan_on_fan_only_multi:
+    name: Fan FAN_ONLY on
     initial: true
     icon: mdi:fan
-  dispo_auto_multi:
-    name: AUTO disponible
+  available_auto_multi:
+    name: AUTO available
     initial: true
     icon: mdi:power-plug
-  inconnu_auto_multi:
-    name: AUTO inconnu
+  unknown_auto_multi:
+    name: AUTO unknown
     initial: false
     icon: mdi:help-circle-outline
-  obeit_auto_multi:
-    name: AUTO obéit au mode
+  obeys_auto_multi:
+    name: AUTO obeys the mode
     initial: true
     icon: mdi:check-circle-outline
-  applique_auto_multi:
-    name: AUTO applique les réglages
+  applies_auto_multi:
+    name: AUTO applies the settings
     initial: true
     icon: mdi:tune-variant
-  mode_offert_auto_multi:
-    name: AUTO offre ses modes
+  offers_auto_multi:
+    name: AUTO offers its modes
     initial: true
     icon: mdi:format-list-checks
-  fan_actif_auto_multi:
-    name: Fan AUTO actif
+  fan_on_auto_multi:
+    name: Fan AUTO on
     initial: true
     icon: mdi:fan
-  dispo_capteur_multi:
-    name: Capteur pièce disponible
+  room_sensor_available_multi:
+    name: Room sensor available
     initial: true
     icon: mdi:power-plug
 
 script:
-  reset_sources_test_multi:
-    alias: Remettre les sources à zéro (multi)
+  reset_sources_multi:
+    alias: Reset the sources (multi)
     icon: mdi:restore
     sequence:
       - action: input_boolean.turn_on
         target:
           entity_id:
-            - input_boolean.dispo_heat_multi
-            - input_boolean.obeit_heat_multi
-            - input_boolean.applique_heat_multi
-            - input_boolean.mode_offert_heat_multi
-            - input_boolean.fan_actif_heat_multi
-            - input_boolean.swing_actif_heat_multi
-            - input_boolean.swing_horizontal_actif_heat_multi
-            - input_boolean.dispo_cool_multi
-            - input_boolean.obeit_cool_multi
-            - input_boolean.applique_cool_multi
-            - input_boolean.mode_offert_cool_multi
-            - input_boolean.fan_actif_cool_multi
-            - input_boolean.swing_actif_cool_multi
-            - input_boolean.swing_horizontal_actif_cool_multi
-            - input_boolean.dispo_dry_multi
-            - input_boolean.obeit_dry_multi
-            - input_boolean.applique_dry_multi
-            - input_boolean.mode_offert_dry_multi
-            - input_boolean.fan_actif_dry_multi
-            - input_boolean.swing_actif_dry_multi
-            - input_boolean.dispo_fan_only_multi
-            - input_boolean.obeit_fan_only_multi
-            - input_boolean.applique_fan_only_multi
-            - input_boolean.mode_offert_fan_only_multi
-            - input_boolean.fan_actif_fan_only_multi
-            - input_boolean.dispo_auto_multi
-            - input_boolean.obeit_auto_multi
-            - input_boolean.applique_auto_multi
-            - input_boolean.mode_offert_auto_multi
-            - input_boolean.fan_actif_auto_multi
-            - input_boolean.dispo_capteur_multi
+            - input_boolean.available_heat_multi
+            - input_boolean.obeys_heat_multi
+            - input_boolean.applies_heat_multi
+            - input_boolean.offers_heat_multi
+            - input_boolean.fan_on_heat_multi
+            - input_boolean.swing_on_heat_multi
+            - input_boolean.swing_horizontal_on_heat_multi
+            - input_boolean.available_cool_multi
+            - input_boolean.obeys_cool_multi
+            - input_boolean.applies_cool_multi
+            - input_boolean.offers_cool_multi
+            - input_boolean.fan_on_cool_multi
+            - input_boolean.swing_on_cool_multi
+            - input_boolean.swing_horizontal_on_cool_multi
+            - input_boolean.available_dry_multi
+            - input_boolean.obeys_dry_multi
+            - input_boolean.applies_dry_multi
+            - input_boolean.offers_dry_multi
+            - input_boolean.fan_on_dry_multi
+            - input_boolean.swing_on_dry_multi
+            - input_boolean.available_fan_only_multi
+            - input_boolean.obeys_fan_only_multi
+            - input_boolean.applies_fan_only_multi
+            - input_boolean.offers_fan_only_multi
+            - input_boolean.fan_on_fan_only_multi
+            - input_boolean.available_auto_multi
+            - input_boolean.obeys_auto_multi
+            - input_boolean.applies_auto_multi
+            - input_boolean.offers_auto_multi
+            - input_boolean.fan_on_auto_multi
+            - input_boolean.room_sensor_available_multi
       - action: input_boolean.turn_off
         target:
           entity_id:
-            - input_boolean.inconnu_heat_multi
-            - input_boolean.inconnu_cool_multi
-            - input_boolean.fan_reduit_cool_multi
-            - input_boolean.inconnu_dry_multi
-            - input_boolean.inconnu_fan_only_multi
-            - input_boolean.inconnu_auto_multi
+            - input_boolean.unknown_heat_multi
+            - input_boolean.unknown_cool_multi
+            - input_boolean.fan_reduced_cool_multi
+            - input_boolean.unknown_dry_multi
+            - input_boolean.unknown_fan_only_multi
+            - input_boolean.unknown_auto_multi
       - action: input_select.select_option
         target:
           entity_id:
@@ -794,25 +794,25 @@ script:
             - input_number.temperature_dry_multi
             - input_number.temperature_fan_only_multi
             - input_number.temperature_auto_multi
-            - input_number.temperature_capteur_multi
+            - input_number.room_temperature_multi
         data:
           value: 20
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.consigne_heat_multi
-            - input_number.consigne_cool_multi
-            - input_number.consigne_dry_multi
-            - input_number.consigne_auto_multi
+            - input_number.target_heat_multi
+            - input_number.target_cool_multi
+            - input_number.target_dry_multi
+            - input_number.target_auto_multi
         data:
           value: 20
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.delai_heat_multi
-            - input_number.delai_cool_multi
-            - input_number.delai_dry_multi
-            - input_number.delai_fan_only_multi
-            - input_number.delai_auto_multi
+            - input_number.delay_heat_multi
+            - input_number.delay_cool_multi
+            - input_number.delay_dry_multi
+            - input_number.delay_fan_only_multi
+            - input_number.delay_auto_multi
         data:
           value: 0

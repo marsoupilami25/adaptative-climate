@@ -31,19 +31,19 @@ lovelace:
     tests-unique:
       mode: yaml
       filename: dashboards/unique.yaml
-      title: Tests source unique
+      title: Tests single source
       icon: mdi:checkbox-blank-outline
       show_in_sidebar: true
-    tests-surv:
+    tests-monitor:
       mode: yaml
-      filename: dashboards/surv.yaml
+      filename: dashboards/monitor.yaml
       title: Tests monitoring
       icon: mdi:alert-circle-outline
       show_in_sidebar: true
-    tests-manuel:
+    tests-manual:
       mode: yaml
-      filename: dashboards/manuel.yaml
-      title: Tests manuels
+      filename: dashboards/manual.yaml
+      title: Tests manual
       icon: mdi:hand-back-right-outline
       show_in_sidebar: true
 
@@ -53,81 +53,81 @@ lovelace:
 adaptative_climate:
   # --- Case mono: one entity per mode, each with its own source ----------------------
   - name: Adaptative HEAT
-    heat_entity: climate.heat_virtuel_mono
+    heat_entity: climate.heat_virtual_mono
     max_temp: 25
     request_retry_timer: 60
     monitoring_delay_timer: 60
   - name: Adaptative COOL
-    cool_entity: climate.cool_virtuel_mono
+    cool_entity: climate.cool_virtual_mono
     monitoring_delay_timer: 60
-  - name: Adaptative DESHUM
-    dry_entity: climate.deshum_virtuel_mono
+  - name: Adaptative DEHUM
+    dry_entity: climate.dehum_virtual_mono
   - name: Adaptative FAN_ONLY
-    fan_only_entity: climate.fan_only_virtuel_mono
+    fan_only_entity: climate.fan_only_virtual_mono
   - name: Adaptative AUTO
-    auto_entity: climate.auto_virtuel_mono
+    auto_entity: climate.auto_virtual_mono
   - name: Adaptative HEAT_COOL
-    heat_cool_entity: climate.heat_cool_virtuel_mono
+    heat_cool_entity: climate.heat_cool_virtual_mono
     min_gap: 2
   # The heat pump reads 2 degrees warmer than the room, in both modes (CFG-SENS-4).
   - name: Adaptative OFFSET
-    heat_entity: climate.pac_virtuel_mono
-    dry_entity: climate.pac_virtuel_mono
+    heat_entity: climate.heatpump_virtual_mono
+    dry_entity: climate.heatpump_virtual_mono
     heat_offset: 2
     dry_offset: 2
     max_temp: 26
   # The valve gets the room temperature (its offset is then 0, CFG-SENS-2).
   - name: Adaptative TRV
-    heat_entity: climate.trv_virtuel_mono
-    temperature_sensor: sensor.capteur_piece_mono
-    heat_external_sensor: input_number.temperature_externe_mono
+    heat_entity: climate.trv_virtual_mono
+    temperature_sensor: sensor.room_sensor_mono
+    heat_external_sensor: input_number.external_temperature_mono
     external_sensor_resend_timer: 60
     monitoring_delay_timer: 60
 
   # --- Case bi: heat_cool on two sources -------------------------------------------
   - name: Adaptative BI
-    heat_entity: climate.radiateur_virtuel_bi
-    cool_entity: climate.clim_virtuel_bi
-    temperature_sensor: sensor.capteur_piece_bi
+    heat_entity: climate.radiator_virtual_bi
+    cool_entity: climate.aircon_virtual_bi
+    temperature_sensor: sensor.room_sensor_bi
     min_gap: 2
     monitoring_delay_timer: 60
 
   # --- Case multi: one source per mode ----------------------------------------------
   - name: Adaptative MULTI
-    heat_entity: climate.heat_virtuel_multi
-    cool_entity: climate.cool_virtuel_multi
-    dry_entity: climate.dry_virtuel_multi
-    fan_only_entity: climate.fan_only_virtuel_multi
-    auto_entity: climate.auto_virtuel_multi
-    temperature_sensor: sensor.capteur_piece_multi
+    heat_entity: climate.heat_virtual_multi
+    cool_entity: climate.cool_virtual_multi
+    dry_entity: climate.dry_virtual_multi
+    fan_only_entity: climate.fan_only_virtual_multi
+    auto_entity: climate.auto_virtual_multi
+    temperature_sensor: sensor.room_sensor_multi
     sync_modes: [heat, cool, dry]
     removal_confirmation_timer: 30
     monitoring_delay_timer: 60
 
   # --- Case unique: every mode on one source ------------------------------------------
   - name: Adaptative ALL
-    heat_entity: climate.all_virtuel_unique
-    cool_entity: climate.all_virtuel_unique
-    heat_cool_entity: climate.all_virtuel_unique
-    auto_entity: climate.all_virtuel_unique
-    dry_entity: climate.all_virtuel_unique
-    fan_only_entity: climate.all_virtuel_unique
+    heat_entity: climate.all_virtual_unique
+    cool_entity: climate.all_virtual_unique
+    heat_cool_entity: climate.all_virtual_unique
+    auto_entity: climate.all_virtual_unique
+    dry_entity: climate.all_virtual_unique
+    fan_only_entity: climate.all_virtual_unique
     sync_modes: [heat, cool, dry]
 
-  # --- Case surv: the monitoring -----------------------------------------------------
-  - name: Adaptative SURV
-    heat_entity: climate.radiateur_virtuel_surv
-    cool_entity: climate.clim_virtuel_surv
-    temperature_sensor: sensor.capteur_piece_surv
+  # --- Case monitor: the monitoring --------------------------------------------------
+  - name: Adaptative MONITOR
+    heat_entity: climate.radiator_virtual_monitor
+    cool_entity: climate.aircon_virtual_monitor
+    temperature_sensor: sensor.room_sensor_monitor
     monitoring_delay_timer: 30
     request_confirmation_timer: 10
     request_retry_timer: 30
   # A source that never exists (MON-SRC-5).
-  - name: Adaptative FANTOME
-    heat_entity: climate.fantome_surv
+  - name: Adaptative GHOST
+    heat_entity: climate.ghost_monitor
     monitoring_delay_timer: 30
 
-  # --- Case manuel: created from the UI (dashboard "Tests manuels") ----------------
+  # --- Case manual: created from the UI (dashboard "Tests manual") ------------------
 
 logger:
   default: warning

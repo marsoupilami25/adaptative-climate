@@ -1,89 +1,97 @@
-# Tests manuels
+# Manual tests
 
-Une configuration Home Assistant pour tester l'intégration à la main : des
-sources `climate` virtuelles, et un tableau de bord par cas de test, avec ses
-scénarios. Chaque scénario cite les règles de la spec qu'il montre.
+A Home Assistant configuration to test the integration by hand: virtual
+`climate` sources, and one dashboard per test case, with its scenarios. Each
+scenario cites the rules of the spec it shows.
 
 ```text
 dev/manual/
   config/
-    configuration.yaml            config HA de dev, entités testées en YAML
-    packages/sources_<cas>.yaml   sources virtuelles d'un cas et leurs aides
-    dashboards/<cas>.yaml         un tableau de bord par cas
-  link_config.sh                  relie ces fichiers à un dossier de config HA
+    configuration.yaml             dev HA config, entities under test in YAML
+    packages/sources_<case>.yaml   virtual sources of a case and their helpers
+    dashboards/<case>.yaml         one dashboard per case
+  link_config.sh                   links these files into an HA config folder
 ```
 
-## Installation
+## Setup
 
-1. Relier la config du dépôt :
+1. Link the config of the repo:
 
    ```bash
    dev/manual/link_config.sh ~/ha-dev/config
    ```
 
-   Le script crée des liens vers `configuration.yaml`, `packages/`,
-   `dashboards/` et `custom_components/adaptative_climate`. Un fichier existant
-   est d'abord renommé en `.bak`. Une modification faite dans le dépôt compte au
-   prochain redémarrage (au rafraîchissement de la page pour un tableau de bord).
-2. Vérifier puis démarrer Home Assistant :
+   The script links `configuration.yaml`, `packages/`, `dashboards/` and
+   `custom_components/adaptative_climate`. An existing file is first renamed
+   to `.bak`. A change made in the repo counts at the next restart (at the
+   next refresh of the page for a dashboard).
+2. Check, then start Home Assistant:
 
    ```bash
    cd ~/ha-dev && .venv/bin/hass --script check_config -c config
    ```
 
-## Sources virtuelles
+## Virtual sources
 
-Ce sont des `climate` de l'intégration
-[Template](https://www.home-assistant.io/integrations/template/), pilotées par
-des aides : rien à installer. Chaque cas a ses propres sources (suffixe
-`_<cas>` : `climate.heat_virtuel_mono`, `input_select.mode_heat_mono`...) :
-tester un cas ne touche jamais un autre.
+They are `climate` entities of the
+[Template](https://www.home-assistant.io/integrations/template/) integration,
+driven by helpers: nothing to install. Each case has its own sources (suffix
+`_<case>`: `climate.heat_virtual_mono`, `input_select.mode_heat_mono`...), so
+testing one case never moves another.
 
-La carte d'une source montre son état et ses aides :
+The card of a source, titled after it (*HEAT Virtual*), holds its helpers: they
+play the remote of the device, so a change made there always applies. Below, the
+table *Shown by HEAT Virtual* gives what the source entity shows, as the
+integration reads it: its modes, mode and action, temperature, targets, range
+(min / max / step) and fan / swing with their options. The helpers:
 
-| Aide | Effet |
+| Helper | Effect |
 |---|---|
-| *Mode*, *Consigne* (*basse*, *haute*), *Fan*, *Swing* | ce que la source montre ; les modifier, c'est agir sur l'appareil (télécommande) |
-| *Température* | sa température courante |
-| *Disponible* | coupé : la source est `unavailable` |
-| *Inconnu* | allumé : la source est `unknown` |
-| *Obéit au mode* | coupé : les demandes de mode sont reçues mais pas appliquées |
-| *Délai avant d'obéir* | secondes avant d'appliquer un mode demandé |
-| *Applique les réglages* | coupé : consigne, fan et swing reçus mais pas appliqués |
-| *Offre ...* | coupé : la source n'offre plus que `off` (mode servi perdu) |
-| *Fan actif*, *Swing actif* | coupé : la source n'a plus ce réglage (liste vide) |
-| *Fan sans ...* | allumé : une option de fan disparaît de la liste |
+| *Mode*, *Target* (*low*, *high*), *Fan*, *Swing* | what the source shows; changing them is acting on the device (its remote) |
+| *Temperature* | its current temperature |
+| *Available* | off: the source is `unavailable` |
+| *Unknown* | on: the source is `unknown` |
+| *Obeys the mode* | off: the mode requests are received but not applied |
+| *Delay before obeying* | seconds before a mode asked is applied |
+| *Applies settings* | off: target, fan and swing received but not applied |
+| *Offers ...* | off: the source offers nothing but `off` (a served mode lost) |
+| *Fan on*, *Swing on* | off: the source no longer has that setting (empty list) |
+| *Fan without ...* | on: one fan option leaves the list |
 
-Les booléens reviennent à leur valeur de départ à chaque redémarrage. Les
-consignes, la plage (`min`/`max`) et le pas d'une source sont fixes : un
-changement de plage se teste dans les tests automatiques. **Remettre les
-sources à zéro** (vue *Sources*) remet tout à zéro pour son cas ; elle ne
-touche pas la mémoire des entités testées.
+The switches go back to their initial value at each restart. The range
+(`min`/`max`) and the step of a source are fixed: a change of range is tested
+in the automated tests. **Reset the sources** resets everything for its case;
+it does not touch the memory of the entities under test.
 
-Les cas avec capteur ont un `sensor.capteur_piece_<cas>`, piloté par
-*Température capteur* et *Capteur disponible*.
+The cases with a room sensor have a `sensor.room_sensor_<case>`, driven by
+*Room temperature* and *Room sensor available*.
 
-## Cas de test
+## Test cases
 
-| Tableau de bord | Entités | Sources |
+| Dashboard | Entities under test | Sources |
 |---|---|---|
-| *Tests mono-mode* | une par type de mode : HEAT (avec `max_temp`), COOL (pas de 1, fan, swing), DESHUM (sans consigne), FAN_ONLY, AUTO, HEAT_COOL (basse/haute), OFFSET (offset 2 en heat et dry), TRV (capteur externe) | une source par entité |
-| *Tests bi-source* | BI : `heat_cool` sur un radiateur et une clim, capteur de la pièce | RADIATEUR (offre aussi `fan_only`, mode étranger), CLIM |
-| *Tests multi-sources* | MULTI : un mode par source, `sync_modes` heat/cool/dry, options écrites différemment selon la source | HEAT, COOL, DRY, FAN_ONLY, AUTO, capteur |
-| *Tests source unique* | ALL : tous les modes sur une source | ALL |
-| *Tests monitoring* | SURV (délais courts) et FANTOME (source qui n'existe pas) | RADIATEUR, CLIM, capteur |
-| *Tests manuels* | *Adaptative Manuel*, créée depuis l'interface | HEAT, COOL, DRY, FAN_ONLY, AUTO, ALL, capteur, température externe |
+| *Tests mono-mode* | one per kind of mode: HEAT (with `max_temp`), COOL (step 1, fan, swing), DEHUM (no target), FAN_ONLY, AUTO, HEAT_COOL (low/high), OFFSET (offset 2 in heat and dry), TRV (external sensor) | one source per entity |
+| *Tests bi-source* | BI: `heat_cool` on a radiator and an AC unit, room sensor | RADIATOR (also offers `fan_only`: a foreign mode), AIRCON |
+| *Tests multi-sources* | MULTI: one mode per source, `sync_modes` heat/cool/dry, options written differently per source | HEAT, COOL, DRY, FAN_ONLY, AUTO, room sensor |
+| *Tests single source* | ALL: every mode on one source | ALL |
+| *Tests monitoring* | MONITOR (short delays) and GHOST (a source that does not exist) | RADIATOR, AIRCON, room sensor |
+| *Tests manual* | *Adaptative Manual*, created from the UI | HEAT, COOL, DRY, FAN_ONLY, AUTO, ALL, room sensor, external temperature |
 
-Les délais des entités sont courts pour les tests (monitoring 30 s à 1 min au
-lieu de 15 min) : voir `configuration.yaml`.
+The scenarios name the cards by their titles: *Adaptative HEAT* is the entity
+under test (what the user does), *HEAT Virtual* its source (what happens on the
+device). The delays of the entities are short for the tests (monitoring 30 s to
+1 min instead of 15 min): see `configuration.yaml`.
 
-Partir de **Remettre les sources à zéro** avant un cas. Les scénarios d'une
-vue se suivent : un scénario peut compter sur le précédent (un mode déjà
-découvert, par exemple).
+Each view fits on one screen: the entity (thermostat, then its lights and
+attributes), its sources, then its scenarios, in columns. *Tests multi-sources*
+and *Tests manual* have their sources on a second view.
 
-## Quand le comportement change
+Start from **Reset the sources** before a case. The scenarios of a view follow
+each other: one can rely on the previous ones (a mode already discovered, for
+instance).
 
-Un changement de comportement met à jour les scénarios concernés (et en ajoute
-un pour le nouveau comportement) : chercher dans `dashboards/` le mode, l'option
-ou la règle touchés. Vérifier ensuite que le YAML se charge (`check_config`, et
-un rafraîchissement du tableau de bord).
+## When the behavior changes
+
+A change of behavior updates the scenarios concerned (and adds one for the new
+behavior): search `dashboards/` for the mode, option or rule touched. Then check
+that the YAML loads (`check_config`, and a refresh of the dashboard).

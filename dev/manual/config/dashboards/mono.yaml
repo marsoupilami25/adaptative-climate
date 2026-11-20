@@ -4,1014 +4,939 @@ title: Tests mono-mode
 views:
 - title: HEAT
   path: heat
-  type: sidebar
-  cards:
-  - type: vertical-stack
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
     cards:
-    - type: heading
-      heading: Adaptative HEAT
     - type: thermostat
       entity: climate.adaptative_heat
+      name: Adaptative HEAT
       features:
       - type: climate-hvac-modes
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
     - type: markdown
+      text_only: true
       content: |-
-        {% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_heat_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
-        {{ l.get(states('binary_sensor.adaptative_heat_monitoring_temperatures'), '⚪') }} Températures
+        {% set e = 'climate.adaptative_heat' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_heat_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_heat_monitoring_temperatures'), '⚪') }} Temperatures
         {% for p in (state_attr('binary_sensor.adaptative_heat_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_heat_monitoring_temperatures', 'problems') or []) %}
-        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+  - type: grid
+    cards:
     - type: entities
+      title: HEAT Virtual
       entities:
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: hvac_action
-          name: Action
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: active_entity_id
-          name: Source active
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: phase
-          name: Phase
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: current_temperature
-          name: Température
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: temperature
-          name: Consigne
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: target_temp_low
-          name: Consigne basse
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: target_temp_high
-          name: Consigne haute
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: min_temp
-          name: Min
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: max_temp
-          name: Max
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: target_temp_step
-          name: Pas
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: unavailable_modes
-          name: Modes indisponibles
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: foreign_modes
-          name: Modes étrangers
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: target_gaps
-          name: Écarts de consigne
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: saved_targets
-          name: Consignes gardées
-        - entity: climate.adaptative_heat
-          type: attribute
-          attribute: saved_settings
-          name: Fan/swing mémorisés
-  - type: entities
-    title: HEAT Virtuel
-    state_color: true
-    entities:
-      - entity: climate.heat_virtuel_mono
-        name: HEAT Virtuel
       - entity: input_select.mode_heat_mono
         name: Mode
-      - entity: input_number.consigne_heat_mono
-        name: Consigne
+      - entity: input_number.target_heat_mono
+        name: Target
       - entity: input_number.temperature_heat_mono
-        name: Température
+        name: Temperature
       - entity: input_select.fan_heat_mono
         name: Fan
-      - entity: input_boolean.dispo_heat_mono
-        name: Disponible
-      - entity: input_boolean.inconnu_heat_mono
-        name: Inconnu
-      - entity: input_boolean.obeit_heat_mono
-        name: Obéit au mode
-      - entity: input_number.delai_heat_mono
-        name: Délai avant d'obéir
-      - entity: input_boolean.applique_heat_mono
-        name: Applique les réglages
-      - entity: input_boolean.mode_offert_heat_mono
-        name: Offre heat
-      - entity: input_boolean.fan_actif_heat_mono
-        name: Fan actif
-  - type: markdown
-    view_layout:
-      position: sidebar
-    content: |-
-      ## Adaptative HEAT
+      - entity: input_number.delay_heat_mono
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.heat_virtual_mono' %}
+        | Shown by HEAT Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_heat_mono
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_heat_mono
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_heat_mono
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_heat_mono
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_heat_mono
+        name: Offers heat
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_heat_mono
+        name: Fan on
+        tap_action:
+          action: toggle
+    - type: button
+      entity: script.reset_sources_mono
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
 
-      HEAT Virtuel : *heat*, 8–30 °C, fan *low*/*high*. `max_temp` 25 ; nouvel essai d'un mode
-      au bout d'1 min ; monitoring : 1 min. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+        ## Adaptative HEAT
 
-      1. **Allumer, éteindre** (ENT-STATE-3, SRC-REQ-2) : passer en *heat* : *Mode* de HEAT Virtuel passe à *heat*. Éteindre : *off*.
-      2. **Plage et limite** (ENT-RANGE-1, ENT-RANGE-3) : en *heat*, la carte va de 8 à 25 °C (la source va jusqu'à 30, `max_temp` la réduit).
-      3. **Consigne** (ENT-TGT-7, SRC-SET-2) : en *heat*, consigne 22 : *Consigne* de la source passe à 22.
-      4. **Allumage sur l'appareil** (SRC-STATE-5, SRC-SET-11) : éteint, mettre *Consigne* de la source à 19 puis *Mode* à *heat* : Adaptative HEAT passe en *heat* et affiche 19 ; rien n'est envoyé.
-      5. **Consigne changée sur l'appareil** (SRC-SET-11, ENT-TGT-9) : en *heat*, attendre 12 s, mettre *Consigne* à 23 : la carte affiche 23.
-      6. **Au-delà de la limite** (ENT-TGT-3, ENT-TGT-12, ENT-TGT-13) : en *heat*, attendre 12 s, mettre *Consigne* à 28 : la carte affiche 25 ; *Écarts de consigne* : gardée 28, montrée 25. Régler 22 sur la carte : l'écart disparaît.
-      7. **Valeur propre pendant la stabilisation** (SRC-SET-5, SRC-SET-6, §5.3) : éteint, consigne 21 (éteint, elle règle celle de *heat*). Passer en *heat* puis, dans les 12 s, mettre *Consigne* à 26 : la carte reste à 21 ; au bout des 12 s, *Consigne* revient à 21.
-      8. **Fan** (ENT-FANV-5, ENT-FANV-1, ENT-FANV-6) : la première fois en *heat*, la carte prend le fan de la source. Choisir *high*. Éteindre, mettre *Fan* de la source à *low*, repasser en *heat* : *Fan* revient à *high*.
-      9. **Source indisponible** (ENT-NOSRC-2, SRC-STATE-7, SRC-STATE-10) : en *heat*, couper *Disponible* : Adaptative HEAT est indisponible (sa seule source). Au bout d'1 min, voyant *Sources* rouge. Mettre *Mode* à *off*, rallumer *Disponible* : *Mode* repasse à *heat* (Home Assistant gagne), Adaptative HEAT aussi, voyant vert.
-      10. **Source inconnue** (SRC-STATE-6) : même chose avec *Inconnu*.
-      11. **Appareil qui n'obéit pas** (SRC-REQ-5, SRC-REQ-6, MON-SRC-3) : éteint, couper *Obéit au mode*, passer en *heat* : la carte affiche *heat*, *Mode* reste *off*. Au bout de 30 s, voyant *Sources* rouge (désynchronisée). Rallumer *Obéit au mode* : au nouvel essai (au plus 1 min plus tard), *Mode* passe à *heat*, voyant vert.
-      12. **Mode perdu** (SRC-UNUS-2, ENT-HVAC-5) : éteint, couper *Offre heat* : au bout de 60 s (confirmation du retrait), Adaptative HEAT est indisponible et une réparation apparaît (*Paramètres > Réparations*). Rallumer *Offre heat* : elle disparaît.
-      13. **Redémarrage** (ENT-STATE-1, END-2) : en *heat*, consigne 22 ; redémarrer Home Assistant : *heat* à 22.
+        HEAT Virtual: *heat*, 8–30 °C, fan *low*/*high*. Adaptative HEAT: `max_temp` 25; a mode asked
+        is sent again after 1 min; monitoring delay 1 min. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+
+        1. **On, off** (ENT-STATE-3, SRC-REQ-2): Adaptative HEAT to *heat*: on HEAT Virtual, *Mode* goes to *heat*. Adaptative HEAT to *off*: *Mode* goes back to *off*.
+        2. **Range and limit** (ENT-RANGE-1, ENT-RANGE-3): Adaptative HEAT in *heat* goes from 8 to 25 °C (HEAT Virtual goes up to 30, `max_temp` narrows it).
+        3. **Target** (ENT-TGT-7, SRC-SET-2): Adaptative HEAT in *heat*, target 22: *Target* of HEAT Virtual goes to 22.
+        4. **Turned on on the device** (SRC-STATE-5, SRC-SET-11): Adaptative HEAT *off*. On HEAT Virtual, *Target* 19, then *Mode* *heat*: Adaptative HEAT goes to *heat* and shows 19; nothing is sent to HEAT Virtual.
+        5. **Target changed on the device** (SRC-SET-11, ENT-TGT-9): Adaptative HEAT in *heat*, wait 12 s. On HEAT Virtual, *Target* 23: Adaptative HEAT shows 23.
+        6. **Beyond the limit** (ENT-TGT-3, ENT-TGT-12, ENT-TGT-13): Adaptative HEAT in *heat*, wait 12 s. On HEAT Virtual, *Target* 28: Adaptative HEAT shows 25; *Target gaps*: saved 28, shown 25. Target 22 on Adaptative HEAT: the gap is gone.
+        7. **Own value during the settle time** (SRC-SET-5, SRC-SET-6, §5.3): Adaptative HEAT *off*, target 21 (in *off*, it sets the target of *heat*). Adaptative HEAT to *heat*, then within 12 s, on HEAT Virtual, *Target* 26: Adaptative HEAT stays at 21; after the 12 s, *Target* of HEAT Virtual goes back to 21.
+        8. **Fan** (ENT-FANV-5, ENT-FANV-1, ENT-FANV-6): the first time in *heat*, Adaptative HEAT takes the fan of HEAT Virtual. Fan *high* on Adaptative HEAT. Adaptative HEAT *off*; on HEAT Virtual, *Fan* *low*; Adaptative HEAT to *heat*: *Fan* of HEAT Virtual goes back to *high*.
+        9. **Source unavailable** (ENT-NOSRC-2, SRC-STATE-7, SRC-STATE-10): Adaptative HEAT in *heat*. On HEAT Virtual, turn *Available* off: Adaptative HEAT is unavailable (its only source); after 1 min, light *Sources* red. On HEAT Virtual, *Mode* *off*, then *Available* on: *Mode* goes back to *heat* (Home Assistant wins), Adaptative HEAT too, light green.
+        10. **Source unknown** (SRC-STATE-6): as 9, with *Unknown* (on, then off at the end).
+        11. **Device that does not obey** (SRC-REQ-5, SRC-REQ-6, MON-SRC-3): Adaptative HEAT *off*. On HEAT Virtual, turn *Obeys the mode* off. Adaptative HEAT to *heat*: it shows *heat*, *Mode* of HEAT Virtual stays *off*. After 30 s, light *Sources* red (out of sync). On HEAT Virtual, *Obeys the mode* on: at the next try (1 min at most), *Mode* goes to *heat*, light green.
+        12. **Mode lost** (SRC-UNUS-2, ENT-HVAC-5): Adaptative HEAT *off*. On HEAT Virtual, turn *Offers heat* off: after 60 s (removal confirmation), Adaptative HEAT is unavailable and a repair shows up (*Settings > Repairs*). *Offers heat* on: it is gone.
+        13. **Restart** (ENT-STATE-1, END-2): Adaptative HEAT in *heat*, target 22; restart Home Assistant: Adaptative HEAT resumes *heat* at 22.
+
+        </small>
 - title: COOL
   path: cool
-  type: sidebar
-  cards:
-  - type: vertical-stack
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
     cards:
-    - type: heading
-      heading: Adaptative COOL
     - type: thermostat
       entity: climate.adaptative_cool
+      name: Adaptative COOL
       features:
       - type: climate-hvac-modes
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
     - type: markdown
+      text_only: true
       content: |-
-        {% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_cool_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
-        {{ l.get(states('binary_sensor.adaptative_cool_monitoring_temperatures'), '⚪') }} Températures
+        {% set e = 'climate.adaptative_cool' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_cool_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_cool_monitoring_temperatures'), '⚪') }} Temperatures
         {% for p in (state_attr('binary_sensor.adaptative_cool_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_cool_monitoring_temperatures', 'problems') or []) %}
-        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+  - type: grid
+    cards:
     - type: entities
+      title: COOL Virtual
       entities:
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: hvac_action
-          name: Action
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: active_entity_id
-          name: Source active
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: phase
-          name: Phase
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: current_temperature
-          name: Température
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: temperature
-          name: Consigne
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: target_temp_low
-          name: Consigne basse
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: target_temp_high
-          name: Consigne haute
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: min_temp
-          name: Min
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: max_temp
-          name: Max
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: target_temp_step
-          name: Pas
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: unavailable_modes
-          name: Modes indisponibles
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: foreign_modes
-          name: Modes étrangers
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: target_gaps
-          name: Écarts de consigne
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: saved_targets
-          name: Consignes gardées
-        - entity: climate.adaptative_cool
-          type: attribute
-          attribute: saved_settings
-          name: Fan/swing mémorisés
-  - type: entities
-    title: COOL Virtuel
-    state_color: true
-    entities:
-      - entity: climate.cool_virtuel_mono
-        name: COOL Virtuel
       - entity: input_select.mode_cool_mono
         name: Mode
-      - entity: input_number.consigne_cool_mono
-        name: Consigne
+      - entity: input_number.target_cool_mono
+        name: Target
       - entity: input_number.temperature_cool_mono
-        name: Température
+        name: Temperature
       - entity: input_select.fan_cool_mono
         name: Fan
       - entity: input_select.swing_cool_mono
         name: Swing
-      - entity: input_boolean.dispo_cool_mono
-        name: Disponible
-      - entity: input_boolean.inconnu_cool_mono
-        name: Inconnu
-      - entity: input_boolean.obeit_cool_mono
-        name: Obéit au mode
-      - entity: input_number.delai_cool_mono
-        name: Délai avant d'obéir
-      - entity: input_boolean.applique_cool_mono
-        name: Applique les réglages
-      - entity: input_boolean.mode_offert_cool_mono
-        name: Offre cool
-      - entity: input_boolean.fan_actif_cool_mono
-        name: Fan actif
-      - entity: input_boolean.fan_reduit_cool_mono
-        name: Fan sans high
-      - entity: input_boolean.swing_actif_cool_mono
-        name: Swing actif
-  - type: markdown
-    view_layout:
-      position: sidebar
-    content: |-
-      ## Adaptative COOL
-
-      COOL Virtuel : *cool*, 16–32 °C au pas de 1 °C, fan *auto*/*low*/*high*, swing *off*/*on*. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
-
-      1. **Pas** (ENT-STEP-1) : passer en *cool* : la carte avance par pas de 1 °C.
-      2. **Fan et swing de la source** (ENT-FANV-5, SRC-SET-12) : la première fois, la carte prend le fan (*auto*) et le swing (*off*) de COOL Virtuel.
-      3. **Mémoire** (ENT-FANV-1, ENT-FANV-6) : fan *low*. Éteindre, mettre *Fan* de la source à *high*, repasser en *cool* : *Fan* revient à *low*.
-      4. **Option retirée** (SRC-DATA-10) : en *cool*, fan *low*, activer *Fan sans high* : la carte propose encore *high* pendant 60 s, puis plus.
-      5. **Réglage absent** (ENT-FAN-2, ENT-FAN-4) : couper *Swing actif* : la carte garde le swing, sans option ; un swing choisi depuis *Outils de développement > Actions* est refusé.
-      6. **Réglage non appliqué** (SRC-SET-9, SRC-SET-10, MON-SRC-4) : en *cool*, attendre 12 s, couper *Applique les réglages*, consigne 24 : la carte garde 24, *Consigne* de la source ne bouge pas. Au bout d'1 min, voyant *Sources* rouge (réglage non appliqué). Mettre *Consigne* de la source à 24 : vert.
-- title: DESHUM
-  path: deshum
-  type: sidebar
-  cards:
-  - type: vertical-stack
+      - entity: input_number.delay_cool_mono
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.cool_virtual_mono' %}
+        | Shown by COOL Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+        | Swing | {{ state_attr(e, 'swing_mode') }} ({{ (state_attr(e, 'swing_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_cool_mono
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_cool_mono
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_cool_mono
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_cool_mono
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_cool_mono
+        name: Offers cool
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_cool_mono
+        name: Fan on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_reduced_cool_mono
+        name: Fan without high
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_on_cool_mono
+        name: Swing on
+        tap_action:
+          action: toggle
+    - type: button
+      entity: script.reset_sources_mono
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
     cards:
-    - type: heading
-      heading: Adaptative DESHUM
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative COOL
+
+        COOL Virtual: *cool*, 16–32 °C by steps of 1 °C, fan *auto*/*low*/*high*, swing *off*/*on*. Monitoring delay 1 min. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+
+        1. **Step** (ENT-STEP-1): Adaptative COOL to *cool*: its target moves by steps of 1 °C.
+        2. **Fan and swing of the source** (ENT-FANV-5, SRC-SET-12): the first time in *cool*, Adaptative COOL takes the fan (*auto*) and the swing (*off*) of COOL Virtual.
+        3. **Memory** (ENT-FANV-1, ENT-FANV-6): fan *low* on Adaptative COOL. Adaptative COOL *off*; on COOL Virtual, *Fan* *high*; Adaptative COOL to *cool*: *Fan* of COOL Virtual goes back to *low*.
+        4. **Option removed** (SRC-DATA-10): Adaptative COOL in *cool*, fan *low*. On COOL Virtual, turn *Fan without high* on: Adaptative COOL still offers *high* for 60 s, then no longer.
+        5. **Setting missing** (ENT-FAN-2, ENT-FAN-4): on COOL Virtual, turn *Swing on* off: Adaptative COOL keeps its swing, with no option; a swing asked from *Developer tools > Actions* is refused.
+        6. **Setting not applied** (SRC-SET-9, SRC-SET-10, MON-SRC-4): Adaptative COOL in *cool*, wait 12 s. On COOL Virtual, turn *Applies settings* off. Target 24 on Adaptative COOL: it keeps 24, *Target* of COOL Virtual does not move. After 1 min, light *Sources* red (setting not applied). On COOL Virtual, *Target* 24: green.
+
+        </small>
+- title: DEHUM
+  path: dehum
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
     - type: thermostat
-      entity: climate.adaptative_deshum
+      entity: climate.adaptative_dehum
+      name: Adaptative DEHUM
       features:
       - type: climate-hvac-modes
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
     - type: markdown
+      text_only: true
       content: |-
-        {% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_deshum_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
-        {{ l.get(states('binary_sensor.adaptative_deshum_monitoring_temperatures'), '⚪') }} Températures
-        {% for p in (state_attr('binary_sensor.adaptative_deshum_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_deshum_monitoring_temperatures', 'problems') or []) %}
-        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% set e = 'climate.adaptative_dehum' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_dehum_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_dehum_monitoring_temperatures'), '⚪') }} Temperatures
+        {% for p in (state_attr('binary_sensor.adaptative_dehum_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_dehum_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+  - type: grid
+    cards:
     - type: entities
+      title: DEHUM Virtual
       entities:
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: hvac_action
-          name: Action
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: active_entity_id
-          name: Source active
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: phase
-          name: Phase
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: current_temperature
-          name: Température
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: temperature
-          name: Consigne
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: target_temp_low
-          name: Consigne basse
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: target_temp_high
-          name: Consigne haute
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: min_temp
-          name: Min
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: max_temp
-          name: Max
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: target_temp_step
-          name: Pas
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: unavailable_modes
-          name: Modes indisponibles
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: foreign_modes
-          name: Modes étrangers
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: target_gaps
-          name: Écarts de consigne
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: saved_targets
-          name: Consignes gardées
-        - entity: climate.adaptative_deshum
-          type: attribute
-          attribute: saved_settings
-          name: Fan/swing mémorisés
-  - type: entities
-    title: DESHUM Virtuel
-    state_color: true
-    entities:
-      - entity: climate.deshum_virtuel_mono
-        name: DESHUM Virtuel
-      - entity: input_select.mode_deshum_mono
+      - entity: input_select.mode_dehum_mono
         name: Mode
-      - entity: input_number.temperature_deshum_mono
-        name: Température
-      - entity: input_select.fan_deshum_mono
+      - entity: input_number.temperature_dehum_mono
+        name: Temperature
+      - entity: input_select.fan_dehum_mono
         name: Fan
-      - entity: input_boolean.dispo_deshum_mono
-        name: Disponible
-      - entity: input_boolean.inconnu_deshum_mono
-        name: Inconnu
-      - entity: input_boolean.obeit_deshum_mono
-        name: Obéit au mode
-      - entity: input_number.delai_deshum_mono
-        name: Délai avant d'obéir
-      - entity: input_boolean.applique_deshum_mono
-        name: Applique les réglages
-      - entity: input_boolean.mode_offert_deshum_mono
-        name: Offre dry
-      - entity: input_boolean.fan_actif_deshum_mono
-        name: Fan actif
-  - type: markdown
-    view_layout:
-      position: sidebar
-    content: |-
-      ## Adaptative DESHUM
+      - entity: input_number.delay_dehum_mono
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.dehum_virtual_mono' %}
+        | Shown by DEHUM Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_dehum_mono
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_dehum_mono
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_dehum_mono
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_dehum_mono
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_dehum_mono
+        name: Offers dry
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_dehum_mono
+        name: Fan on
+        tap_action:
+          action: toggle
+    - type: button
+      entity: script.reset_sources_mono
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
 
-      DESHUM Virtuel : *dry*, sans consigne, fan *low*/*high*. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+        ## Adaptative DEHUM
 
-      1. **Sans consigne** (ENT-FEAT-1, §1.3.4.3) : passer en *dry* : pas de consigne sur la carte, aucune n'est envoyée.
-      2. **Fan** (ENT-FANV-5) : le fan de la source est pris ; *high* sur la carte : *Fan* passe à *high*.
+        DEHUM Virtual: *dry*, no target, fan *low*/*high*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+
+        1. **No target** (ENT-FEAT-1, §1.3.4.3): Adaptative DEHUM to *dry*: no target shown, none is sent.
+        2. **Fan** (ENT-FANV-5): Adaptative DEHUM takes the fan of DEHUM Virtual; fan *high* on Adaptative DEHUM: *Fan* of DEHUM Virtual goes to *high*.
+
+        </small>
 - title: FAN_ONLY
   path: fan_only
-  type: sidebar
-  cards:
-  - type: vertical-stack
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
     cards:
-    - type: heading
-      heading: Adaptative FAN_ONLY
     - type: thermostat
       entity: climate.adaptative_fan_only
+      name: Adaptative FAN_ONLY
       features:
       - type: climate-hvac-modes
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
     - type: markdown
+      text_only: true
       content: |-
-        {% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_fan_only_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
-        {{ l.get(states('binary_sensor.adaptative_fan_only_monitoring_temperatures'), '⚪') }} Températures
+        {% set e = 'climate.adaptative_fan_only' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_fan_only_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_fan_only_monitoring_temperatures'), '⚪') }} Temperatures
         {% for p in (state_attr('binary_sensor.adaptative_fan_only_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_fan_only_monitoring_temperatures', 'problems') or []) %}
-        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+  - type: grid
+    cards:
     - type: entities
+      title: FAN_ONLY Virtual
       entities:
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: hvac_action
-          name: Action
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: active_entity_id
-          name: Source active
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: phase
-          name: Phase
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: current_temperature
-          name: Température
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: temperature
-          name: Consigne
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: target_temp_low
-          name: Consigne basse
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: target_temp_high
-          name: Consigne haute
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: min_temp
-          name: Min
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: max_temp
-          name: Max
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: target_temp_step
-          name: Pas
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: unavailable_modes
-          name: Modes indisponibles
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: foreign_modes
-          name: Modes étrangers
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: target_gaps
-          name: Écarts de consigne
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: saved_targets
-          name: Consignes gardées
-        - entity: climate.adaptative_fan_only
-          type: attribute
-          attribute: saved_settings
-          name: Fan/swing mémorisés
-  - type: entities
-    title: FAN_ONLY Virtuel
-    state_color: true
-    entities:
-      - entity: climate.fan_only_virtuel_mono
-        name: FAN_ONLY Virtuel
       - entity: input_select.mode_fan_only_mono
         name: Mode
       - entity: input_number.temperature_fan_only_mono
-        name: Température
+        name: Temperature
       - entity: input_select.fan_fan_only_mono
         name: Fan
-      - entity: input_boolean.dispo_fan_only_mono
-        name: Disponible
-      - entity: input_boolean.inconnu_fan_only_mono
-        name: Inconnu
-      - entity: input_boolean.obeit_fan_only_mono
-        name: Obéit au mode
-      - entity: input_number.delai_fan_only_mono
-        name: Délai avant d'obéir
-      - entity: input_boolean.applique_fan_only_mono
-        name: Applique les réglages
-      - entity: input_boolean.mode_offert_fan_only_mono
-        name: Offre fan_only
-      - entity: input_boolean.fan_actif_fan_only_mono
-        name: Fan actif
-  - type: markdown
-    view_layout:
-      position: sidebar
-    content: |-
-      ## Adaptative FAN_ONLY
+      - entity: input_number.delay_fan_only_mono
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.fan_only_virtual_mono' %}
+        | Shown by FAN_ONLY Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_fan_only_mono
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_fan_only_mono
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_fan_only_mono
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_fan_only_mono
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_fan_only_mono
+        name: Offers fan_only
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_fan_only_mono
+        name: Fan on
+        tap_action:
+          action: toggle
+    - type: button
+      entity: script.reset_sources_mono
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
 
-      FAN_ONLY Virtuel : *fan_only*, fan *low*/*medium*/*high*. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+        ## Adaptative FAN_ONLY
 
-      1. **Ventilation seule** (§1.3.4.3) : passer en *fan_only* : pas de consigne. Fan *medium* : *Fan* passe à *medium* ; éteindre et rallumer : *medium* revient.
+        FAN_ONLY Virtual: *fan_only*, fan *low*/*medium*/*high*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+
+        1. **Fan only** (§1.3.4.3, ENT-FANV-1): Adaptative FAN_ONLY to *fan_only*: no target. Fan *medium* on Adaptative FAN_ONLY: *Fan* of FAN_ONLY Virtual goes to *medium*; Adaptative FAN_ONLY *off*, then *fan_only*: *medium* comes back.
+
+        </small>
 - title: AUTO
   path: auto
-  type: sidebar
-  cards:
-  - type: vertical-stack
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
     cards:
-    - type: heading
-      heading: Adaptative AUTO
     - type: thermostat
       entity: climate.adaptative_auto
+      name: Adaptative AUTO
       features:
       - type: climate-hvac-modes
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
     - type: markdown
+      text_only: true
       content: |-
-        {% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_auto_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
-        {{ l.get(states('binary_sensor.adaptative_auto_monitoring_temperatures'), '⚪') }} Températures
+        {% set e = 'climate.adaptative_auto' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_auto_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_auto_monitoring_temperatures'), '⚪') }} Temperatures
         {% for p in (state_attr('binary_sensor.adaptative_auto_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_auto_monitoring_temperatures', 'problems') or []) %}
-        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+  - type: grid
+    cards:
     - type: entities
+      title: AUTO Virtual
       entities:
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: hvac_action
-          name: Action
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: active_entity_id
-          name: Source active
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: phase
-          name: Phase
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: current_temperature
-          name: Température
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: temperature
-          name: Consigne
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: target_temp_low
-          name: Consigne basse
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: target_temp_high
-          name: Consigne haute
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: min_temp
-          name: Min
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: max_temp
-          name: Max
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: target_temp_step
-          name: Pas
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: unavailable_modes
-          name: Modes indisponibles
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: foreign_modes
-          name: Modes étrangers
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: target_gaps
-          name: Écarts de consigne
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: saved_targets
-          name: Consignes gardées
-        - entity: climate.adaptative_auto
-          type: attribute
-          attribute: saved_settings
-          name: Fan/swing mémorisés
-  - type: entities
-    title: AUTO Virtuel
-    state_color: true
-    entities:
-      - entity: climate.auto_virtuel_mono
-        name: AUTO Virtuel
       - entity: input_select.mode_auto_mono
         name: Mode
-      - entity: input_number.consigne_auto_mono
-        name: Consigne
+      - entity: input_number.target_auto_mono
+        name: Target
       - entity: input_number.temperature_auto_mono
-        name: Température
-      - entity: input_boolean.dispo_auto_mono
-        name: Disponible
-      - entity: input_boolean.inconnu_auto_mono
-        name: Inconnu
-      - entity: input_boolean.obeit_auto_mono
-        name: Obéit au mode
-      - entity: input_number.delai_auto_mono
-        name: Délai avant d'obéir
-      - entity: input_boolean.applique_auto_mono
-        name: Applique les réglages
-      - entity: input_boolean.mode_offert_auto_mono
-        name: Offre auto
-  - type: markdown
-    view_layout:
-      position: sidebar
-    content: |-
-      ## Adaptative AUTO
+        name: Temperature
+      - entity: input_number.delay_auto_mono
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.auto_virtual_mono' %}
+        | Shown by AUTO Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_auto_mono
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_auto_mono
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_auto_mono
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_auto_mono
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_auto_mono
+        name: Offers auto
+        tap_action:
+          action: toggle
+    - type: button
+      entity: script.reset_sources_mono
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
 
-      AUTO Virtuel : *auto*, consigne simple, 10–30 °C. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+        ## Adaptative AUTO
 
-      1. **Consigne simple** (ENT-TGT-7) : en *auto*, consigne 23 : *Consigne* de la source passe à 23.
+        AUTO Virtual: *auto*, single target, 10–30 °C. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+
+        1. **Single target** (ENT-TGT-7): Adaptative AUTO in *auto*, target 23: *Target* of AUTO Virtual goes to 23.
+
+        </small>
 - title: HEAT_COOL
   path: heat_cool
-  type: sidebar
-  cards:
-  - type: vertical-stack
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
     cards:
-    - type: heading
-      heading: Adaptative HEAT_COOL
     - type: thermostat
       entity: climate.adaptative_heat_cool
+      name: Adaptative HEAT_COOL
       features:
       - type: climate-hvac-modes
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
     - type: markdown
+      text_only: true
       content: |-
-        {% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_heat_cool_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
-        {{ l.get(states('binary_sensor.adaptative_heat_cool_monitoring_temperatures'), '⚪') }} Températures
+        {% set e = 'climate.adaptative_heat_cool' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_heat_cool_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_heat_cool_monitoring_temperatures'), '⚪') }} Temperatures
         {% for p in (state_attr('binary_sensor.adaptative_heat_cool_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_heat_cool_monitoring_temperatures', 'problems') or []) %}
-        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+  - type: grid
+    cards:
     - type: entities
+      title: HEAT_COOL Virtual
       entities:
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: hvac_action
-          name: Action
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: active_entity_id
-          name: Source active
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: phase
-          name: Phase
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: current_temperature
-          name: Température
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: temperature
-          name: Consigne
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: target_temp_low
-          name: Consigne basse
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: target_temp_high
-          name: Consigne haute
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: min_temp
-          name: Min
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: max_temp
-          name: Max
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: target_temp_step
-          name: Pas
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: unavailable_modes
-          name: Modes indisponibles
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: foreign_modes
-          name: Modes étrangers
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: target_gaps
-          name: Écarts de consigne
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: saved_targets
-          name: Consignes gardées
-        - entity: climate.adaptative_heat_cool
-          type: attribute
-          attribute: saved_settings
-          name: Fan/swing mémorisés
-  - type: entities
-    title: HEAT_COOL Virtuel
-    state_color: true
-    entities:
-      - entity: climate.heat_cool_virtuel_mono
-        name: HEAT_COOL Virtuel
       - entity: input_select.mode_heat_cool_mono
         name: Mode
-      - entity: input_number.consigne_basse_heat_cool_mono
-        name: Consigne basse
-      - entity: input_number.consigne_haute_heat_cool_mono
-        name: Consigne haute
+      - entity: input_number.target_low_heat_cool_mono
+        name: Target low
+      - entity: input_number.target_high_heat_cool_mono
+        name: Target high
       - entity: input_number.temperature_heat_cool_mono
-        name: Température
-      - entity: input_boolean.dispo_heat_cool_mono
-        name: Disponible
-      - entity: input_boolean.inconnu_heat_cool_mono
-        name: Inconnu
-      - entity: input_boolean.obeit_heat_cool_mono
-        name: Obéit au mode
-      - entity: input_number.delai_heat_cool_mono
-        name: Délai avant d'obéir
-      - entity: input_boolean.applique_heat_cool_mono
-        name: Applique les réglages
-      - entity: input_boolean.mode_offert_heat_cool_mono
-        name: Offre heat_cool
-  - type: markdown
-    view_layout:
-      position: sidebar
-    content: |-
-      ## Adaptative HEAT_COOL
-
-      HEAT_COOL Virtuel : *heat_cool* avec consigne basse/haute, 16–30 °C. `min_gap` 2. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
-
-      1. **Basse et haute** (§1.3.4.3) : passer en *heat_cool* : la carte montre une plage ; régler 19–24 : *Consigne basse* 19, *Consigne haute* 24.
-      2. **Écart minimal** (ENT-TGT-6) : régler 22–23 : la haute passe à 24.
-      3. **Reprise en main** (ENT-TGT-9) : attendre 12 s, mettre *Consigne basse* de la source à 23 : la carte affiche 23–25, *Consigne haute* passe à 25.
-- title: OFFSET
-  path: pac
-  type: sidebar
-  cards:
-  - type: vertical-stack
+        name: Temperature
+      - entity: input_number.delay_heat_cool_mono
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.heat_cool_virtual_mono' %}
+        | Shown by HEAT_COOL Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_heat_cool_mono
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_heat_cool_mono
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_heat_cool_mono
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_heat_cool_mono
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_heat_cool_mono
+        name: Offers heat_cool
+        tap_action:
+          action: toggle
+    - type: button
+      entity: script.reset_sources_mono
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
     cards:
-    - type: heading
-      heading: Adaptative OFFSET
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative HEAT_COOL
+
+        HEAT_COOL Virtual: *heat_cool* with a low/high target, 16–30 °C. Adaptative HEAT_COOL: `min_gap` 2. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+
+        1. **Low and high** (§1.3.4.3): Adaptative HEAT_COOL to *heat_cool*: it shows a range; set 19–24: *Target low* of HEAT_COOL Virtual 19, *Target high* 24.
+        2. **Minimum gap** (ENT-TGT-6): on Adaptative HEAT_COOL, set 22–23: high goes to 24.
+        3. **Takeover** (ENT-TGT-9): wait 12 s. On HEAT_COOL Virtual, *Target low* 23: Adaptative HEAT_COOL shows 23–25, *Target high* of HEAT_COOL Virtual goes to 25.
+
+        </small>
+- title: OFFSET
+  path: heatpump
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
     - type: thermostat
       entity: climate.adaptative_offset
+      name: Adaptative OFFSET
       features:
       - type: climate-hvac-modes
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
     - type: markdown
+      text_only: true
       content: |-
-        {% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_offset_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
-        {{ l.get(states('binary_sensor.adaptative_offset_monitoring_temperatures'), '⚪') }} Températures
+        {% set e = 'climate.adaptative_offset' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_offset_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_offset_monitoring_temperatures'), '⚪') }} Temperatures
         {% for p in (state_attr('binary_sensor.adaptative_offset_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_offset_monitoring_temperatures', 'problems') or []) %}
-        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+  - type: grid
+    cards:
     - type: entities
+      title: HEATPUMP Virtual
       entities:
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: hvac_action
-          name: Action
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: active_entity_id
-          name: Source active
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: phase
-          name: Phase
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: current_temperature
-          name: Température
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: temperature
-          name: Consigne
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: target_temp_low
-          name: Consigne basse
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: target_temp_high
-          name: Consigne haute
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: min_temp
-          name: Min
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: max_temp
-          name: Max
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: target_temp_step
-          name: Pas
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: unavailable_modes
-          name: Modes indisponibles
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: foreign_modes
-          name: Modes étrangers
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: target_gaps
-          name: Écarts de consigne
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: saved_targets
-          name: Consignes gardées
-        - entity: climate.adaptative_offset
-          type: attribute
-          attribute: saved_settings
-          name: Fan/swing mémorisés
-  - type: entities
-    title: PAC Virtuel
-    state_color: true
-    entities:
-      - entity: climate.pac_virtuel_mono
-        name: PAC Virtuel
-      - entity: input_select.mode_pac_mono
+      - entity: input_select.mode_heatpump_mono
         name: Mode
-      - entity: input_number.consigne_pac_mono
-        name: Consigne
-      - entity: input_number.temperature_pac_mono
-        name: Température
-      - entity: input_boolean.dispo_pac_mono
-        name: Disponible
-      - entity: input_boolean.inconnu_pac_mono
-        name: Inconnu
-      - entity: input_boolean.obeit_pac_mono
-        name: Obéit au mode
-      - entity: input_number.delai_pac_mono
-        name: Délai avant d'obéir
-      - entity: input_boolean.applique_pac_mono
-        name: Applique les réglages
-      - entity: input_boolean.mode_offert_pac_mono
-        name: Offre heat, dry
-  - type: markdown
-    view_layout:
-      position: sidebar
-    content: |-
-      ## Adaptative OFFSET
+      - entity: input_number.target_heatpump_mono
+        name: Target
+      - entity: input_number.temperature_heatpump_mono
+        name: Temperature
+      - entity: input_number.delay_heatpump_mono
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.heatpump_virtual_mono' %}
+        | Shown by HEATPUMP Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_heatpump_mono
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_heatpump_mono
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_heatpump_mono
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_heatpump_mono
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_heatpump_mono
+        name: Offers heat/dry
+        tap_action:
+          action: toggle
+    - type: button
+      entity: script.reset_sources_mono
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
 
-      PAC Virtuel : *heat* et *dry*, 10–30 °C, lit 2 °C de plus que la pièce (`heat_offset` = `dry_offset` = 2). `max_temp` 26. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+        ## Adaptative OFFSET
 
-      1. **Lecture** (ENT-REF-5, CFG-SENS-1) : *Température* de la source à 22 : en *heat*, la carte affiche 20.
-      2. **Consigne envoyée** (CFG-SENS-1, ENT-TGT-8) : en *heat*, consigne 21 : *Consigne* de la source passe à 23.
-      3. **Plage** (ENT-RANGE-1, ENT-RANGE-3) : en *heat*, 8–26 °C (10–30 moins 2, réduit à 26).
-      4. **Reprise en main** (ENT-TGT-9) : attendre 12 s, *Consigne* de la source à 25 : la carte affiche 23.
-      5. **Même offset en dry** (CFG-SENS-4) : en *dry*, consigne 20 : la source reçoit 22.
+        HEATPUMP Virtual: *heat* and *dry*, 10–30 °C, reads 2 °C warmer than the room. Adaptative OFFSET: `heat_offset` = `dry_offset` = 2, `max_temp` 26. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+
+        1. **Reading** (ENT-REF-5, CFG-SENS-1): on HEATPUMP Virtual, *Temperature* 22; Adaptative OFFSET to *heat*: it shows 20.
+        2. **Target sent** (CFG-SENS-1, ENT-TGT-8): Adaptative OFFSET in *heat*, target 21: *Target* of HEATPUMP Virtual goes to 23.
+        3. **Range** (ENT-RANGE-1, ENT-RANGE-3): Adaptative OFFSET in *heat*: 8–26 °C (10–30 minus 2, narrowed to 26).
+        4. **Takeover** (ENT-TGT-9): wait 12 s. On HEATPUMP Virtual, *Target* 25: Adaptative OFFSET shows 23.
+        5. **Same offset in dry** (CFG-SENS-4): Adaptative OFFSET to *dry*, target 20: *Target* of HEATPUMP Virtual goes to 22.
+
+        </small>
 - title: TRV
   path: trv
-  type: sidebar
-  cards:
-  - type: vertical-stack
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
     cards:
-    - type: heading
-      heading: Adaptative TRV
     - type: thermostat
       entity: climate.adaptative_trv
+      name: Adaptative TRV
       features:
       - type: climate-hvac-modes
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
     - type: markdown
+      text_only: true
       content: |-
-        {% set l = {'on': '🔴', 'off': '🟢'} %}
-        {{ l.get(states('binary_sensor.adaptative_trv_monitoring_sources'), '⚪') }} Sources &nbsp;&nbsp;&nbsp;
-        {{ l.get(states('binary_sensor.adaptative_trv_monitoring_temperatures'), '⚪') }} Températures
+        {% set e = 'climate.adaptative_trv' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_trv_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_trv_monitoring_temperatures'), '⚪') }} Temperatures
         {% for p in (state_attr('binary_sensor.adaptative_trv_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_trv_monitoring_temperatures', 'problems') or []) %}
-        - {{ p.type }} : {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
         {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+  - type: grid
+    cards:
     - type: entities
+      title: TRV Virtual
       entities:
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: hvac_action
-          name: Action
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: active_entity_id
-          name: Source active
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: phase
-          name: Phase
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: current_temperature
-          name: Température
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: temperature
-          name: Consigne
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: target_temp_low
-          name: Consigne basse
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: target_temp_high
-          name: Consigne haute
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: min_temp
-          name: Min
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: max_temp
-          name: Max
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: target_temp_step
-          name: Pas
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: unavailable_modes
-          name: Modes indisponibles
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: foreign_modes
-          name: Modes étrangers
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: target_gaps
-          name: Écarts de consigne
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: saved_targets
-          name: Consignes gardées
-        - entity: climate.adaptative_trv
-          type: attribute
-          attribute: saved_settings
-          name: Fan/swing mémorisés
-  - type: entities
-    title: TRV Virtuel
-    state_color: true
-    entities:
-      - entity: climate.trv_virtuel_mono
-        name: TRV Virtuel
       - entity: input_select.mode_trv_mono
         name: Mode
-      - entity: input_number.consigne_trv_mono
-        name: Consigne
+      - entity: input_number.target_trv_mono
+        name: Target
       - entity: input_number.temperature_trv_mono
-        name: Température
-      - entity: input_boolean.dispo_trv_mono
-        name: Disponible
-      - entity: input_boolean.inconnu_trv_mono
-        name: Inconnu
-      - entity: input_boolean.obeit_trv_mono
-        name: Obéit au mode
-      - entity: input_number.delai_trv_mono
-        name: Délai avant d'obéir
-      - entity: input_boolean.applique_trv_mono
-        name: Applique les réglages
-      - entity: input_boolean.mode_offert_trv_mono
-        name: Offre heat
-  - type: entities
-    title: Capteurs
-    state_color: true
-    entities:
-    - entity: sensor.capteur_piece_mono
-      name: Capteur pièce
-    - entity: input_number.temperature_capteur_mono
-      name: Température capteur
-    - entity: input_boolean.dispo_capteur_mono
-      name: Capteur disponible
-    - entity: input_number.temperature_externe_mono
-      name: Température externe (écrite)
-  - type: markdown
-    view_layout:
-      position: sidebar
-    content: |-
-      ## Adaptative TRV
+        name: Temperature
+      - entity: input_number.delay_trv_mono
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.trv_virtual_mono' %}
+        | Shown by TRV Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_trv_mono
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_trv_mono
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_trv_mono
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_trv_mono
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_trv_mono
+        name: Offers heat
+        tap_action:
+          action: toggle
+    - type: entities
+      title: Sensors
+      state_color: true
+      entities:
+      - entity: sensor.room_sensor_mono
+        name: Room sensor
+      - entity: input_number.room_temperature_mono
+        name: Room temperature
+      - entity: input_boolean.room_sensor_available_mono
+        name: Room sensor available
+      - entity: input_number.external_temperature_mono
+        name: External temperature (written)
+    - type: button
+      entity: script.reset_sources_mono
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
 
-      TRV Virtuel : vanne en *heat* qui reçoit la température de la pièce (`heat_external_sensor`). Réécriture toutes les 60 s ; monitoring : 1 min. Partir de **Remettre les sources à zéro** (en haut de la vue Sources). Elle ne touche pas la mémoire des entités testées (consignes, fan/swing) : elle leur appartient.
+        ## Adaptative TRV
 
-      1. **Écriture** (ENT-EXT-1, ENT-EXT-2) : *Température capteur* 21,3 : *Température externe* passe à 21,5 (pas de 0,5), même éteint.
-      2. **Référence** (ENT-REF-1) : la carte affiche la température du capteur.
-      3. **Capteur sans valeur** (ENT-EXT-5, MON-TEMP-4, ENT-REF-2) : couper *Capteur disponible* : plus rien n'est écrit ; en *heat*, la carte affiche la température de la vanne. Au bout d'1 min, voyant *Températures* rouge. Rallumer : écrit aussitôt, voyant vert.
-- title: Sources
-  path: sources
-  type: sidebar
-  cards:
-  - type: button
-    entity: script.reset_sources_test_mono
-    name: Remettre les sources à zéro
-    icon: mdi:restore
-    tap_action:
-      action: toggle
+        TRV Virtual: a valve in *heat* that gets the room temperature. Adaptative TRV: `heat_external_sensor`, written again every 60 s; monitoring delay 1 min. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+
+        1. **Write** (ENT-EXT-1, ENT-EXT-2): *Room temperature* 21.3: *External temperature* goes to 21.5 (step 0.5), even with Adaptative TRV *off*.
+        2. **Reference** (ENT-REF-1): Adaptative TRV shows the temperature of the room sensor.
+        3. **Sensor without value** (ENT-EXT-5, MON-TEMP-4, ENT-REF-2): turn *Room sensor available* off: nothing is written any more; Adaptative TRV to *heat*: it shows the temperature of TRV Virtual. After 1 min, light *Temperatures* red. *Room sensor available* on: written at once, light green.
+
+        </small>

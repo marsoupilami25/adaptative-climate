@@ -1,0 +1,440 @@
+# Case manual: an entry created from the UI.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests manual
+views:
+- title: Adaptative
+  path: pilotage
+  type: sections
+  max_columns: 2
+  sections:
+  - type: grid
+    cards:
+    - type: thermostat
+      entity: climate.adaptative_manual
+      name: Adaptative Manual
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.adaptative_manual' %}{% set l = {'on': '🔴', 'off': '🟢'} %}
+        {{ l.get(states('binary_sensor.adaptative_manual_monitoring_sources'), '⚪') }} Sources &nbsp; {{ l.get(states('binary_sensor.adaptative_manual_monitoring_temperatures'), '⚪') }} Temperatures
+        {% for p in (state_attr('binary_sensor.adaptative_manual_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_manual_monitoring_temperatures', 'problems') or []) %}
+        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+    - type: entities
+      title: Sensors
+      state_color: true
+      entities:
+      - entity: sensor.room_sensor_manual
+        name: Room sensor
+      - entity: input_number.room_temperature_manual
+        name: Room temperature
+      - entity: input_boolean.room_sensor_available_manual
+        name: Room sensor available
+      - entity: input_number.external_temperature_manual
+        name: External temperature (written)
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Configuration from the UI
+
+        No entity is declared in the YAML: Adaptative Manual is created from the UI. The sources are on the view *Sources*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them.
+
+        1. **Creation** (§3): *Settings > Devices & services > Helpers > Create helper > Adaptative Climate*, name **Adaptative Manual**, *heat*: HEAT Virtual (manual), *cool*: COOL Virtual (manual). Adaptative Manual lists *off*, *heat*, *cool*, *heat_cool*.
+        2. **Refused** (CFG-CHECK-1): another entry named `adaptative manual`: refused. With *heat*: COOL Virtual: refused (COOL Virtual does not offer *heat*). With an external sensor and no room sensor: refused. With next try 10 s and confirmation 30 s: refused.
+        3. **Options** (CFG-YAML-4, ENT-INIT-4): Adaptative Manual in *heat*; open its options, add the room sensor: the entry reloads, Adaptative Manual is *off*, HEAT Virtual goes to *off*.
+        4. **Remove a mode** (CFG-YAML-4, ENT-HVAC-1): options, clear *cool*: no more *cool* nor *heat_cool*.
+        5. **External sensor** (ENT-EXT-1, CFG-SENS-2): options, *heat_external_sensor*: *External temperature HEAT*, with the room sensor: the value of the room sensor is written to it. With `heat_offset` 1 as well: refused.
+        6. **One source for several modes** (CFG-SENS-4): options, *heat* and *cool* on ALL Virtual with different offsets: refused, the error names both modes.
+        7. **Entries of the YAML** (CFG-YAML-3): the entries declared in the YAML (Adaptative HEAT...) have no options in the UI.
+        8. **Reload without change** (ENT-INIT-4): Adaptative Manual in *heat*, *Reload* the entry: it resumes *heat*.
+        9. **Deletion** (END-3): Adaptative Manual in *heat*, delete the entry: HEAT Virtual stays in *heat*, nothing drives it any more.
+
+        </small>
+- title: Sources
+  path: sources
+  type: sections
+  max_columns: 6
+  sections:
+  - type: grid
+    cards:
+    - type: button
+      entity: script.reset_sources_manual
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+    - type: entities
+      title: HEAT Virtual
+      entities:
+      - entity: input_select.mode_heat_manual
+        name: Mode
+      - entity: input_number.target_heat_manual
+        name: Target
+      - entity: input_number.temperature_heat_manual
+        name: Temperature
+      - entity: input_select.fan_heat_manual
+        name: Fan
+      - entity: input_number.delay_heat_manual
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.heat_virtual_manual' %}
+        | Shown by HEAT Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_heat_manual
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_heat_manual
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_heat_manual
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_heat_manual
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_heat_manual
+        name: Offers heat
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_heat_manual
+        name: Fan on
+        tap_action:
+          action: toggle
+  - type: grid
+    cards:
+    - type: entities
+      title: COOL Virtual
+      entities:
+      - entity: input_select.mode_cool_manual
+        name: Mode
+      - entity: input_number.target_cool_manual
+        name: Target
+      - entity: input_number.temperature_cool_manual
+        name: Temperature
+      - entity: input_select.fan_cool_manual
+        name: Fan
+      - entity: input_select.swing_cool_manual
+        name: Swing
+      - entity: input_number.delay_cool_manual
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.cool_virtual_manual' %}
+        | Shown by COOL Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+        | Swing | {{ state_attr(e, 'swing_mode') }} ({{ (state_attr(e, 'swing_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_cool_manual
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_cool_manual
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_cool_manual
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_cool_manual
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_cool_manual
+        name: Offers cool
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_cool_manual
+        name: Fan on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_on_cool_manual
+        name: Swing on
+        tap_action:
+          action: toggle
+  - type: grid
+    cards:
+    - type: entities
+      title: DRY Virtual
+      entities:
+      - entity: input_select.mode_dry_manual
+        name: Mode
+      - entity: input_number.target_dry_manual
+        name: Target
+      - entity: input_number.temperature_dry_manual
+        name: Temperature
+      - entity: input_select.fan_dry_manual
+        name: Fan
+      - entity: input_number.delay_dry_manual
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.dry_virtual_manual' %}
+        | Shown by DRY Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_dry_manual
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_dry_manual
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_dry_manual
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_dry_manual
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_dry_manual
+        name: Offers dry
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_dry_manual
+        name: Fan on
+        tap_action:
+          action: toggle
+  - type: grid
+    cards:
+    - type: entities
+      title: FAN_ONLY Virtual
+      entities:
+      - entity: input_select.mode_fan_only_manual
+        name: Mode
+      - entity: input_number.temperature_fan_only_manual
+        name: Temperature
+      - entity: input_select.fan_fan_only_manual
+        name: Fan
+      - entity: input_number.delay_fan_only_manual
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.fan_only_virtual_manual' %}
+        | Shown by FAN_ONLY Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_fan_only_manual
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_fan_only_manual
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_fan_only_manual
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_fan_only_manual
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_fan_only_manual
+        name: Offers fan_only
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_fan_only_manual
+        name: Fan on
+        tap_action:
+          action: toggle
+  - type: grid
+    cards:
+    - type: entities
+      title: AUTO Virtual
+      entities:
+      - entity: input_select.mode_auto_manual
+        name: Mode
+      - entity: input_number.target_auto_manual
+        name: Target
+      - entity: input_number.temperature_auto_manual
+        name: Temperature
+      - entity: input_number.delay_auto_manual
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.auto_virtual_manual' %}
+        | Shown by AUTO Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_auto_manual
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_auto_manual
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_auto_manual
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_auto_manual
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_auto_manual
+        name: Offers auto
+        tap_action:
+          action: toggle
+  - type: grid
+    cards:
+    - type: entities
+      title: ALL Virtual
+      entities:
+      - entity: input_select.mode_all_manual
+        name: Mode
+      - entity: input_number.target_all_manual
+        name: Target
+      - entity: input_number.target_low_all_manual
+        name: Target low
+      - entity: input_number.target_high_all_manual
+        name: Target high
+      - entity: input_number.temperature_all_manual
+        name: Temperature
+      - entity: input_select.fan_all_manual
+        name: Fan
+      - entity: input_select.swing_all_manual
+        name: Swing
+      - entity: input_select.swing_horizontal_all_manual
+        name: Horizontal swing
+      - entity: input_number.delay_all_manual
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.all_virtual_manual' %}
+        | Shown by ALL Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+        | Swing | {{ state_attr(e, 'swing_mode') }} ({{ (state_attr(e, 'swing_modes') or []) | join(', ') }}) |
+        | Horizontal swing | {{ state_attr(e, 'swing_horizontal_mode') }} ({{ (state_attr(e, 'swing_horizontal_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_all_manual
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_all_manual
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_all_manual
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_all_manual
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_all_manual
+        name: Offers heat/cool/heat_cool/auto/dry/fan_only
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_all_manual
+        name: Fan on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_on_all_manual
+        name: Swing on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_horizontal_on_all_manual
+        name: Horiz. swing on
+        tap_action:
+          action: toggle

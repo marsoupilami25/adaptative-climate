@@ -6,144 +6,144 @@
 
 template:
   - climate:
-      - name: RADIATEUR Virtuel (bi)
-        unique_id: radiateur_virtuel_bi
-        default_entity_id: climate.radiateur_virtuel_bi
+      - name: RADIATOR Virtual (bi)
+        unique_id: radiator_virtual_bi
+        default_entity_id: climate.radiator_virtual_bi
         # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
         hvac_modes: >-
-          {{ ['off', 'heat', 'fan_only'] if is_state('input_boolean.mode_offert_radiateur_bi', 'on') else ['off'] }}
-        # Inconnu: the state is unknown
+          {{ ['off', 'heat', 'fan_only'] if is_state('input_boolean.offers_radiator_bi', 'on') else ['off'] }}
+        # Unknown: the state is unknown
         hvac_mode: >-
-          {{ none if is_state('input_boolean.inconnu_radiateur_bi', 'on') else states('input_select.mode_radiateur_bi') }}
-        availability: "{{ is_state('input_boolean.dispo_radiateur_bi', 'on') }}"
+          {{ none if is_state('input_boolean.unknown_radiator_bi', 'on') else states('input_select.mode_radiator_bi') }}
+        availability: "{{ is_state('input_boolean.available_radiator_bi', 'on') }}"
         min_temperature: 5
         max_temperature: 30
-        current_temperature: "{{ states('input_number.temperature_radiateur_bi') | float(none) }}"
-        target_temperature: "{{ states('input_number.consigne_radiateur_bi') | float(none) }}"
+        current_temperature: "{{ states('input_number.temperature_radiator_bi') | float(none) }}"
+        target_temperature: "{{ states('input_number.target_radiator_bi') | float(none) }}"
         hvac_action: >-
-          {% set m = states('input_select.mode_radiateur_bi') %}
-          {% set t = states('input_number.temperature_radiateur_bi') | float(20) %}
-          {% set c = states('input_number.consigne_radiateur_bi') | float(20) %}
+          {% set m = states('input_select.mode_radiator_bi') %}
+          {% set t = states('input_number.temperature_radiator_bi') | float(20) %}
+          {% set c = states('input_number.target_radiator_bi') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         set_hvac_mode:
           - condition: state
-            entity_id: input_boolean.obeit_radiateur_bi
+            entity_id: input_boolean.obeys_radiator_bi
             state: "on"
           - delay:
-              seconds: "{{ states('input_number.delai_radiateur_bi') | int(0) }}"
+              seconds: "{{ states('input_number.delay_radiator_bi') | int(0) }}"
           - action: input_select.select_option
             target:
-              entity_id: input_select.mode_radiateur_bi
+              entity_id: input_select.mode_radiator_bi
             data:
               option: "{{ hvac_mode }}"
         set_temperature:
           - condition: state
-            entity_id: input_boolean.applique_radiateur_bi
+            entity_id: input_boolean.applies_radiator_bi
             state: "on"
           - if: "{{ temperature is defined and temperature is not none }}"
             then:
               - action: input_number.set_value
                 target:
-                  entity_id: input_number.consigne_radiateur_bi
+                  entity_id: input_number.target_radiator_bi
                 data:
                   value: "{{ temperature }}"
-      - name: CLIM Virtuel (bi)
-        unique_id: clim_virtuel_bi
-        default_entity_id: climate.clim_virtuel_bi
+      - name: AIRCON Virtual (bi)
+        unique_id: aircon_virtual_bi
+        default_entity_id: climate.aircon_virtual_bi
         # Off: offers no mode but off (a served mode lost, SRC-UNUS-2)
         hvac_modes: >-
-          {{ ['off', 'cool'] if is_state('input_boolean.mode_offert_clim_bi', 'on') else ['off'] }}
-        # Inconnu: the state is unknown
+          {{ ['off', 'cool'] if is_state('input_boolean.offers_aircon_bi', 'on') else ['off'] }}
+        # Unknown: the state is unknown
         hvac_mode: >-
-          {{ none if is_state('input_boolean.inconnu_clim_bi', 'on') else states('input_select.mode_clim_bi') }}
-        availability: "{{ is_state('input_boolean.dispo_clim_bi', 'on') }}"
+          {{ none if is_state('input_boolean.unknown_aircon_bi', 'on') else states('input_select.mode_aircon_bi') }}
+        availability: "{{ is_state('input_boolean.available_aircon_bi', 'on') }}"
         min_temperature: 16
         max_temperature: 30
         target_temperature_step: 1
-        current_temperature: "{{ states('input_number.temperature_clim_bi') | float(none) }}"
-        target_temperature: "{{ states('input_number.consigne_clim_bi') | float(none) }}"
+        current_temperature: "{{ states('input_number.temperature_aircon_bi') | float(none) }}"
+        target_temperature: "{{ states('input_number.target_aircon_bi') | float(none) }}"
         hvac_action: >-
-          {% set m = states('input_select.mode_clim_bi') %}
-          {% set t = states('input_number.temperature_clim_bi') | float(20) %}
-          {% set c = states('input_number.consigne_clim_bi') | float(20) %}
+          {% set m = states('input_select.mode_aircon_bi') %}
+          {% set t = states('input_number.temperature_aircon_bi') | float(20) %}
+          {% set c = states('input_number.target_aircon_bi') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
-          {{ state_attr('input_select.fan_clim_bi', 'options') if is_state('input_boolean.fan_actif_clim_bi', 'on') else [] }}
+          {{ state_attr('input_select.fan_aircon_bi', 'options') if is_state('input_boolean.fan_on_aircon_bi', 'on') else [] }}
         fan_mode: >-
-          {{ states('input_select.fan_clim_bi') if is_state('input_boolean.fan_actif_clim_bi', 'on') else none }}
+          {{ states('input_select.fan_aircon_bi') if is_state('input_boolean.fan_on_aircon_bi', 'on') else none }}
         set_hvac_mode:
           - condition: state
-            entity_id: input_boolean.obeit_clim_bi
+            entity_id: input_boolean.obeys_aircon_bi
             state: "on"
           - delay:
-              seconds: "{{ states('input_number.delai_clim_bi') | int(0) }}"
+              seconds: "{{ states('input_number.delay_aircon_bi') | int(0) }}"
           - action: input_select.select_option
             target:
-              entity_id: input_select.mode_clim_bi
+              entity_id: input_select.mode_aircon_bi
             data:
               option: "{{ hvac_mode }}"
         set_temperature:
           - condition: state
-            entity_id: input_boolean.applique_clim_bi
+            entity_id: input_boolean.applies_aircon_bi
             state: "on"
           - if: "{{ temperature is defined and temperature is not none }}"
             then:
               - action: input_number.set_value
                 target:
-                  entity_id: input_number.consigne_clim_bi
+                  entity_id: input_number.target_aircon_bi
                 data:
                   value: "{{ temperature }}"
         set_fan_mode:
           - condition: state
-            entity_id: input_boolean.applique_clim_bi
+            entity_id: input_boolean.applies_aircon_bi
             state: "on"
           - action: input_select.select_option
             target:
-              entity_id: input_select.fan_clim_bi
+              entity_id: input_select.fan_aircon_bi
             data:
               option: "{{ fan_mode }}"
   - sensor:
-      - name: Capteur pièce (bi)
-        unique_id: capteur_piece_bi
-        default_entity_id: sensor.capteur_piece_bi
+      - name: Room sensor (bi)
+        unique_id: room_sensor_bi
+        default_entity_id: sensor.room_sensor_bi
         device_class: temperature
         unit_of_measurement: "°C"
-        state: "{{ states('input_number.temperature_capteur_bi') }}"
-        availability: "{{ is_state('input_boolean.dispo_capteur_bi', 'on') }}"
+        state: "{{ states('input_number.room_temperature_bi') }}"
+        availability: "{{ is_state('input_boolean.room_sensor_available_bi', 'on') }}"
 
 input_select:
-  mode_radiateur_bi:
-    name: Mode RADIATEUR
+  mode_radiator_bi:
+    name: Mode RADIATOR
     options: ['off', 'heat', 'fan_only']
     icon: mdi:hvac
-  mode_clim_bi:
-    name: Mode CLIM
+  mode_aircon_bi:
+    name: Mode AIRCON
     options: ['off', 'cool']
     icon: mdi:hvac
-  fan_clim_bi:
-    name: Fan CLIM
+  fan_aircon_bi:
+    name: Fan AIRCON
     options: ['auto', 'low', 'high']
     icon: mdi:fan
 
 input_number:
-  consigne_radiateur_bi:
-    name: Consigne RADIATEUR
+  target_radiator_bi:
+    name: Target RADIATOR
     min: 5
     max: 30
-    step: 0.1
+    step: 0.5
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
-  temperature_radiateur_bi:
-    name: Température RADIATEUR
+  temperature_radiator_bi:
+    name: Temperature RADIATOR
     min: 0
     max: 40
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:home-thermometer
-  delai_radiateur_bi:
-    name: Délai RADIATEUR
+  delay_radiator_bi:
+    name: Delay RADIATOR
     min: 0
     max: 120
     step: 1
@@ -151,24 +151,24 @@ input_number:
     mode: box
     icon: mdi:timer-sand
     initial: 0
-  consigne_clim_bi:
-    name: Consigne CLIM
+  target_aircon_bi:
+    name: Target AIRCON
     min: 16
     max: 30
-    step: 0.1
+    step: 1
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
-  temperature_clim_bi:
-    name: Température CLIM
+  temperature_aircon_bi:
+    name: Temperature AIRCON
     min: 0
     max: 40
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:home-thermometer
-  delai_clim_bi:
-    name: Délai CLIM
+  delay_aircon_bi:
+    name: Delay AIRCON
     min: 0
     max: 120
     step: 1
@@ -176,8 +176,8 @@ input_number:
     mode: box
     icon: mdi:timer-sand
     initial: 0
-  temperature_capteur_bi:
-    name: Température capteur pièce
+  room_temperature_bi:
+    name: Room temperature
     min: 0
     max: 40
     step: 0.1
@@ -186,109 +186,109 @@ input_number:
     icon: mdi:thermometer
 
 input_boolean:
-  dispo_radiateur_bi:
-    name: RADIATEUR disponible
+  available_radiator_bi:
+    name: RADIATOR available
     initial: true
     icon: mdi:power-plug
-  inconnu_radiateur_bi:
-    name: RADIATEUR inconnu
+  unknown_radiator_bi:
+    name: RADIATOR unknown
     initial: false
     icon: mdi:help-circle-outline
-  obeit_radiateur_bi:
-    name: RADIATEUR obéit au mode
+  obeys_radiator_bi:
+    name: RADIATOR obeys the mode
     initial: true
     icon: mdi:check-circle-outline
-  applique_radiateur_bi:
-    name: RADIATEUR applique les réglages
+  applies_radiator_bi:
+    name: RADIATOR applies the settings
     initial: true
     icon: mdi:tune-variant
-  mode_offert_radiateur_bi:
-    name: RADIATEUR offre ses modes
+  offers_radiator_bi:
+    name: RADIATOR offers its modes
     initial: true
     icon: mdi:format-list-checks
-  dispo_clim_bi:
-    name: CLIM disponible
+  available_aircon_bi:
+    name: AIRCON available
     initial: true
     icon: mdi:power-plug
-  inconnu_clim_bi:
-    name: CLIM inconnu
+  unknown_aircon_bi:
+    name: AIRCON unknown
     initial: false
     icon: mdi:help-circle-outline
-  obeit_clim_bi:
-    name: CLIM obéit au mode
+  obeys_aircon_bi:
+    name: AIRCON obeys the mode
     initial: true
     icon: mdi:check-circle-outline
-  applique_clim_bi:
-    name: CLIM applique les réglages
+  applies_aircon_bi:
+    name: AIRCON applies the settings
     initial: true
     icon: mdi:tune-variant
-  mode_offert_clim_bi:
-    name: CLIM offre ses modes
+  offers_aircon_bi:
+    name: AIRCON offers its modes
     initial: true
     icon: mdi:format-list-checks
-  fan_actif_clim_bi:
-    name: Fan CLIM actif
+  fan_on_aircon_bi:
+    name: Fan AIRCON on
     initial: true
     icon: mdi:fan
-  dispo_capteur_bi:
-    name: Capteur pièce disponible
+  room_sensor_available_bi:
+    name: Room sensor available
     initial: true
     icon: mdi:power-plug
 
 script:
-  reset_sources_test_bi:
-    alias: Remettre les sources à zéro (bi)
+  reset_sources_bi:
+    alias: Reset the sources (bi)
     icon: mdi:restore
     sequence:
       - action: input_boolean.turn_on
         target:
           entity_id:
-            - input_boolean.dispo_radiateur_bi
-            - input_boolean.obeit_radiateur_bi
-            - input_boolean.applique_radiateur_bi
-            - input_boolean.mode_offert_radiateur_bi
-            - input_boolean.dispo_clim_bi
-            - input_boolean.obeit_clim_bi
-            - input_boolean.applique_clim_bi
-            - input_boolean.mode_offert_clim_bi
-            - input_boolean.fan_actif_clim_bi
-            - input_boolean.dispo_capteur_bi
+            - input_boolean.available_radiator_bi
+            - input_boolean.obeys_radiator_bi
+            - input_boolean.applies_radiator_bi
+            - input_boolean.offers_radiator_bi
+            - input_boolean.available_aircon_bi
+            - input_boolean.obeys_aircon_bi
+            - input_boolean.applies_aircon_bi
+            - input_boolean.offers_aircon_bi
+            - input_boolean.fan_on_aircon_bi
+            - input_boolean.room_sensor_available_bi
       - action: input_boolean.turn_off
         target:
           entity_id:
-            - input_boolean.inconnu_radiateur_bi
-            - input_boolean.inconnu_clim_bi
+            - input_boolean.unknown_radiator_bi
+            - input_boolean.unknown_aircon_bi
       - action: input_select.select_option
         target:
           entity_id:
-            - input_select.mode_radiateur_bi
-            - input_select.mode_clim_bi
+            - input_select.mode_radiator_bi
+            - input_select.mode_aircon_bi
         data:
           option: "off"
       - action: input_select.select_option
         target:
-          entity_id: input_select.fan_clim_bi
+          entity_id: input_select.fan_aircon_bi
         data:
           option: "auto"
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.temperature_radiateur_bi
-            - input_number.temperature_clim_bi
-            - input_number.temperature_capteur_bi
+            - input_number.temperature_radiator_bi
+            - input_number.temperature_aircon_bi
+            - input_number.room_temperature_bi
         data:
           value: 20
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.consigne_radiateur_bi
-            - input_number.consigne_clim_bi
+            - input_number.target_radiator_bi
+            - input_number.target_aircon_bi
         data:
           value: 20
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.delai_radiateur_bi
-            - input_number.delai_clim_bi
+            - input_number.delay_radiator_bi
+            - input_number.delay_aircon_bi
         data:
           value: 0
