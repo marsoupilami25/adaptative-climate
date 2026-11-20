@@ -414,3 +414,106 @@ async def test_ent_phase_7_undiscovered_source_blocks_the_switch(bench: Bench) -
     await sensor.set(28.0)
     assert phase(bench) == "heat"
     assert heater.hvac_mode == "heat"
+
+
+# --- More paths of the phase management --------------------------------------------------------------
+
+
+async def bi_source_with_dryer(
+    bench: Bench, *, heater: dict[str, Any] | None = None, aircon: dict[str, Any] | None = None,
+    sensor: bool = True,
+) -> tuple[Any, Any]:
+    """The bi-source heat_cool, and a dryer so that the entity keeps a source."""
+    h = bench.device(HEATER, ["heat"], **(heater or {}))
+    a = bench.device(AIRCON, ["cool"], **(aircon or {}))
+    bench.device("climate.dryer", ["dry"])
+    options: dict[str, Any] = {}
+    if sensor:
+        bench.sensor(ROOM, 21.0)
+        options["temperature_sensor"] = ROOM
+    await bench.start(
+        [
+            yaml_entry(
+                "Living room",
+                heat_entity=HEATER,
+                cool_entity=AIRCON,
+                dry_entity="climate.dryer",
+                **options,
+            )
+        ]
+    )
+    await ac(bench).set_temperature(target_temp_low=19.0, target_temp_high=24.0)
+    return h, a
+
+
+@spec("ENT-WAIT-1", "ENT-PHASE-6", "ENT-PHASE-2")
+async def test_ent_wait_1_waiting_heat_cool_left_when_a_phase_source_is_discovered(
+    bench: Bench,
+) -> None:
+    """The heater away, the aircon never seen: WAITING(heat_cool) until the aircon shows up."""
+    heater, aircon = await bi_source_with_dryer(bench, aircon={"present": False})
+    await ac(bench).set_hvac_mode("heat_cool")
+    await heater.set(available=False)
+    assert ac(bench).state == "unknown"
+    await aircon.appear()
+    assert ac(bench).state == "heat_cool"
+
+
+@spec("ENT-WANT-1")
+async def test_ent_want_1_without_reference_the_heat_phase_already_running(bench: Bench) -> None:
+    heater, aircon = await bi_source_with_dryer(
+        bench, sensor=False, heater={"current_temperature": None},
+        aircon={"current_temperature": None},
+    )
+    await ac(bench).set_hvac_mode("heat")
+    clear(heater, aircon)
+    await ac(bench).set_hvac_mode("heat_cool")
+    assert phase(bench) == "heat"
+    assert heater.modes_asked() == []
+
+
+@spec("ENT-WANT-1", "ENT-PHASE-5")
+async def test_ent_want_1_an_unusable_source_counts_with_its_stored_state(bench: Bench) -> None:
+    """No reference; the aircon away while it ran cool: the cool phase is chosen, and waits."""
+    heater, aircon = await bi_source_with_dryer(
+        bench, sensor=False, heater={"current_temperature": None},
+        aircon={"current_temperature": None},
+    )
+    await ac(bench).set_hvac_mode("cool")
+    await aircon.set(available=False)
+    await ac(bench).set_hvac_mode("heat_cool")
+    assert ac(bench).state == "heat_cool"
+    assert phase(bench) == "cool"
+
+
+@spec("ENT-WANT-3", "ENT-TGT-9")
+async def test_ent_want_3_low_above_high_keeps_the_phase(bench: Bench) -> None:
+    """Low taken at 26 °C on the heater, high stuck at the maximum 25: the phase is kept."""
+    heater, aircon = await bi_source_with_dryer(
+        bench, heater={"min_temp": 5.0, "max_temp": 30.0},
+        aircon={"min_temp": 16.0, "max_temp": 25.0, "temperature": 24.0},
+    )
+    await aircon.set(hvac_mode="cool")  # cool discovered: high cannot go above 25
+    await ac(bench).set_hvac_mode("heat_cool")
+    await bench.advance(15)
+    assert phase(bench) == "heat"
+    await heater.set(temperature=26.0)
+    saved = list(ac(bench).attr("saved_targets").values())
+    assert 26.0 in saved and 25.0 in saved  # kept: low 26 above high 25
+    await bench.sensors[ROOM].set(30.0)
+    assert phase(bench) == "heat"
+
+
+@spec("ENT-PHASE-1", "ENT-PHASE-6")
+async def test_ent_phase_1_no_phase_after_a_restart_waiting_heat_cool(bench: Bench) -> None:
+    """The `phase` attribute: None until a phase source comes back (§2.2)."""
+    heater, aircon = await bi_source_with_dryer(bench)
+    await ac(bench).set_hvac_mode("heat_cool")
+    assert phase(bench) == "heat"
+    await bench.stop()
+    heater.available = aircon.available = False
+    await bench.start(bench.yaml)
+    assert ac(bench).state == "unknown"  # WAITING(heat_cool)
+    assert phase(bench) is None
+    await heater.set(available=True)
+    assert phase(bench) is not None

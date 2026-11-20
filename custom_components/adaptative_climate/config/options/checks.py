@@ -83,6 +83,7 @@ def _check_name(hass: HomeAssistant, values: Mapping[str, Any], entry_id: str | 
     """CFG-NAME-1: unique among all the entries of the integration."""
     name = str(values.get(CONF_NAME, "")).strip()
     if not name:
+        # Safety net (not reached): the YAML schema and the form both require a name
         return [("name_missing", "")]
     for entry in hass.config_entries.async_entries(DOMAIN):
         if entry.entry_id != entry_id and entry.title.casefold() == name.casefold():
@@ -107,6 +108,7 @@ def _check_modes(hass: HomeAssistant, values: Mapping[str, Any]) -> list[Error]:
             continue
         offered = state.attributes.get("hvac_modes")
         if not isinstance(offered, (list, tuple)):
+            # Safety net (not reached): a climate entity always lists its modes
             continue
         offered = [str(m) for m in offered]
         missing = [m for m in modes if m not in offered]

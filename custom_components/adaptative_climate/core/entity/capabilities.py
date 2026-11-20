@@ -125,6 +125,7 @@ class CapabilitiesManagement:
             return low, max(low, high)
         context = self.mode_context(mode)
         if context is None:
+            # Safety net (not reached): a configured mode always has a source (CFG-MODE-3)
             return self._narrow((entry.default_min_temp, entry.default_max_temp))
         return self.context_range(*context)
 
@@ -132,6 +133,7 @@ class CapabilitiesManagement:
         """The widest range of all the modes: the range shown in OFF (ENT-RANGE-2)."""
         ranges = [self.mode_range(m) for m in self._entity.entry.modes]
         if not ranges:
+            # Safety net (not reached): a configuration without mode is refused (CFG-MODE-4)
             entry = self._entity.entry
             return entry.default_min_temp, entry.default_max_temp
         return min(r[0] for r in ranges), max(r[1] for r in ranges)

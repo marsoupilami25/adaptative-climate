@@ -110,6 +110,7 @@ class ModeManagement:
         elif state.unusable and self.state == PHASE:
             self.state = WAITING_PHASE
         else:
+            # Safety net (not reached): the other combinations change nothing
             return
         self._set_phase(wanted)
         self._entity.stm.apply_phase(wanted)

@@ -39,6 +39,7 @@ class TimerAdapter:
 
     def cancel_all(self) -> None:
         """Every timer cancelled (END-1)."""
+        # Safety net (not reached): the actors have cancelled their timers at the unload
         for handle in self._handles.values():
             handle()
         self._handles.clear()

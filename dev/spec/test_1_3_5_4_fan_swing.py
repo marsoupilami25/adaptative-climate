@@ -261,3 +261,50 @@ async def test_ent_data_1_memory_of_a_mode_no_longer_configured_is_dropped(bench
     await mode(bench, "dry")
     assert dryer.values_asked("fan_mode") == []  # nothing remembered: its value is taken
     assert fan(bench) == "low"
+
+
+@spec("ENT-FANV-3", "ENT-FANV-5", "SRC-DATA-4", "ENT-CAP-7")
+async def test_ent_fanv_3_value_removed_while_the_mode_is_not_current(bench: Bench) -> None:
+    """While Home Assistant was stopped, the dryer lost its high speed. At the start (INIT,
+    no current mode), high is removed from the memory of dry, nothing is sent. Dry resumes
+    with an empty memory: nothing shown until the dryer reports a speed (ENT-FANV-8)."""
+    dryer = bench.device(DRYER, ["dry"], fan_modes=["low", "high"], fan_mode="low")
+    await bench.start(
+        [yaml_entry("Living room", dry_entity=DRYER, removal_confirmation_timer=0)]
+    )
+    await mode(bench, "dry")
+    await ac(bench).set_fan_mode("high")
+    assert dryer.fan_mode == "high"
+    await bench.stop()
+    dryer.fan_modes = ["low", "medium"]
+    dryer.fan_mode = "medium"
+    dryer.clear_calls()
+    await bench.start(bench.yaml)
+    assert ac(bench).state == "dry"
+    assert fan(bench) is None
+    assert dryer.values_asked("fan_mode") == []
+    await dryer.set(fan_mode="low")
+    assert fan(bench) == "low"
+    assert "high" not in str(ac(bench).attr("saved_settings"))
+
+
+@spec("ENT-FANV-3", "ENT-FAN-6", "SRC-DATA-1")
+async def test_ent_fanv_3_value_still_offered_by_the_current_mode(bench: Bench) -> None:
+    """Heat and cool share their fan. The aircon, asked off, keeps running cool and loses
+    its high speed: high is no longer shared, so no longer remembered; heat still offers
+    it: it stays the value shown, nothing is sent."""
+    heater, aircon = await start(
+        bench, sync_modes=["heat", "cool"], removal_confirmation_timer=0
+    )
+    heater.fan_modes = aircon.fan_modes = ["low", "high"]
+    heater.fan_mode = aircon.fan_mode = "low"
+    await mode(bench, "cool")
+    await ac(bench).set_fan_mode("high")
+    aircon.obey = False  # it will not turn off
+    await mode(bench, "heat")
+    assert fan(bench) == "high"
+    heater.clear_calls()
+    await aircon.set(fan_modes=["low"], fan_mode="low")  # still in cool: read
+    assert fan(bench) == "high"
+    assert heater.values_asked("fan_mode") == []
+    assert "high" not in str(ac(bench).attr("saved_settings"))

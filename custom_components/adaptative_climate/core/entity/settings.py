@@ -73,6 +73,7 @@ class SettingsManagement:
             return
         source_id, mode, label, phase = context
         if entity.sending.expected[source_id].state != mode:
+            # Safety net (not reached): the active source is always expected in its mode
             return
         values = self.settings_for(source_id, mode, label, phase)
         entity.sending.expect_settings(source_id, values, keys)
@@ -113,6 +114,7 @@ class SettingsManagement:
                 elif case == CASE_LOW_HIGH and name == TARGET_TEMP_HIGH:
                     taken[HIGH] = value - offset
                 else:
+                    # Safety net (not reached): a source only reports the targets of its case
                     continue
                 sending.reported_setting(source_id, name, value)
             elif name in FAN_SWING_SETTINGS:

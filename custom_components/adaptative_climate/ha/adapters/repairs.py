@@ -35,5 +35,6 @@ class RepairsAdapter:
 
     def clear_all(self) -> None:
         """Every issue of the entry removed (END-1)."""
+        # Safety net (not reached): the entity has removed its issues at HA=>AC_unload
         for issue_id in list(self._raised):
             self.clear_issue(issue_id)

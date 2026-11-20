@@ -54,6 +54,7 @@ class ExternalSensors:
         entity = self._entity
         port = entity.xs_ports.get(entity_id)
         if port is None:
+            # Safety net (not reached): only the configured external sensors are watched
             return
         attributes = port.attributes()
         if attributes is None:

@@ -168,6 +168,7 @@ class Source(Actor):
     def settings(self) -> dict[str, Any]:
         """settings@S, as read; empty when UNDISCOVERED or UNUSABLE."""
         if not self.stm.operating:
+            # Safety net (not reached): the entity reads it on available sources only
             return {}
         return shown_settings(self.snapshot)
 

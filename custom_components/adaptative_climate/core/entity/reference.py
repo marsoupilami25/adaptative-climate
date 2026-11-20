@@ -55,6 +55,7 @@ def reference(entity: ACEntity) -> float | None:
                 for source_id in entry.sources_of(each):
                     if entity.source_state(source_id).available:
                         return reading(entity, source_id)
+            # Safety net (not reached): with no source available, the entity is NO_SOURCE
             return None
     if entry.is_bi(mode):
         values = _phase_readings(entity)

@@ -59,6 +59,7 @@ class StateManagement:
             return OFF
         if self.state == STATE_ON:
             return self.mode
+        # Safety net (not reached): only asked in OFF or ON(m)
         return None
 
     @property
@@ -237,12 +238,14 @@ def _shown(snapshot: Snapshot | None) -> str | None:
 
 def _temperature(snapshot: Snapshot | None) -> float | None:
     if not is_usable(snapshot):
+        # Safety net (not reached): only read from a usable source entity
         return None
     return as_number(snapshot.get("current_temperature"))
 
 
 def _action(snapshot: Snapshot | None) -> str | None:
     if not is_usable(snapshot):
+        # Safety net (not reached): only read from a usable source entity
         return None
     action = snapshot.get("hvac_action")
     return str(action) if action is not None else None

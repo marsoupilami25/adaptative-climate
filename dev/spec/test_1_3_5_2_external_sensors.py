@@ -176,3 +176,11 @@ async def test_ent_ext_5_invalid_at_start(bench: Bench) -> None:
     assert trv.values_written == []
     await sensor.set(21.0)
     assert trv.values_written == [21.0]
+
+
+@spec("ENT-EXT-1")
+async def test_ent_ext_1_a_change_of_the_sensor_without_new_value(bench: Bench) -> None:
+    """Only its attributes change: no new value, nothing written (T=>AC_temperature, §1.1.2)."""
+    _, sensor, trv = await start(bench, 21.0)
+    await sensor.set(device_class=None)
+    assert trv.values_written == [21.0]

@@ -231,10 +231,12 @@ def send_values(entity: ACEntity, source_id: str, mode: str, label: str) -> dict
     if case == CASE_SINGLE:
         value = targets[single_target(label)]
         if value is None:
+            # Safety net (not reached): every target has a value once in OPER (ENT-TGT-10)
             return {}
         return {TEMPERATURE: out(clamp(value, low_range, high_range))}
     low, high = targets[LOW], targets[HIGH]
     if low is None or high is None:
+        # Safety net (not reached): every target has a value once in OPER (ENT-TGT-10)
         return {}
     low = clamp(low, low_range, high_range)
     high = clamp(high, low_range, high_range)
@@ -278,6 +280,7 @@ def shown(entity: ACEntity) -> tuple[dict[str, float | None], list[dict[str, Any
     for attribute, name in mapping.items():
         saved = targets[name]
         if saved is None:
+            # Safety net (not reached): every target has a value once in OPER (ENT-TGT-10)
             continue
         value = clean(clamp(saved, *ranges[name]))
         values[attribute] = value

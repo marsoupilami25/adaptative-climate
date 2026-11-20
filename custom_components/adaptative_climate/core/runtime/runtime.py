@@ -80,6 +80,7 @@ class Runtime:
         try:
             while (current := self._stimuli.take()) is not None:
                 if self._stopped:
+                    # Safety net (not reached): stop() empties the stimulus queue
                     break
                 self._handle(current)
                 if self.on_stimulus_end is not None:

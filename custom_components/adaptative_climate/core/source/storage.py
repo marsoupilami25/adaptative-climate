@@ -306,6 +306,7 @@ class StorageManagement:
     def _confirm_removal(self, key: str) -> None:
         pending = self._pending.pop(key, None)
         if pending is None:
+            # Safety net (not reached): the end of a cancelled timer is filtered before
             return
         lost = self._remove(pending)
         self._source.save()
@@ -321,6 +322,7 @@ class StorageManagement:
             return pending.item in self._source.cfg.served_source_modes
         caps = self.data.modes.get(pending.scope)
         if caps is None:
+            # Safety net (not reached): a removal is only pending for a stored capability
             return False
         if pending.name == FEATURES:
             caps.supported_features &= ~pending.item

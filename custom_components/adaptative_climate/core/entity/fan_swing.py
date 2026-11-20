@@ -143,6 +143,7 @@ class FanSwing:
             return False
         key = self.current_key()
         if key is None:
+            # Safety net (not reached): a value is only set while a setting is shown
             return False
         if self.remember(key, setting, value):
             self.not_shared.pop(setting, None)
@@ -154,6 +155,7 @@ class FanSwing:
         """A value taken from the active source (takeover, empty memory: ENT-FANV-4, 5)."""
         key = self.current_key()
         if key is None:
+            # Safety net (not reached): a value is only adopted from the active source
             return
         if self.remember(key, setting, value):
             self.not_shared.pop(setting, None)

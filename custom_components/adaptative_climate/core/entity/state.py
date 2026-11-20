@@ -51,7 +51,9 @@ class EntityStateManagement:
         """A user mode request: (mode to set or None for nothing, refusal) (ENT-STATE-4, 8)."""
         entity = self._entity
         if self.state not in (STATE_OFF, STATE_ON, WAITING):
-            return None, None  # unavailable: Home Assistant does not call it (ENT-NOSRC-3)
+            # Safety net (not reached): unavailable, Home Assistant does not call it
+            # (ENT-NOSRC-3), and the entity ignores the request before (entity.py)
+            return None, None
         if mode is None:  # turn_on: only acts in OFF
             if self.state != STATE_OFF:
                 return None, None
@@ -155,6 +157,8 @@ class EntityStateManagement:
         elif any(entity.source_state(s).unusable for s in sources):
             self._enter_waiting(mode, apply=True)
         else:
+            # Safety net (not reached): no source of the mode available nor UNUSABLE means
+            # every one UNDISCOVERED, handled above (ENT-INIT-2)
             self._enter_off(apply=True)
 
     def _to_no_source(self) -> None:

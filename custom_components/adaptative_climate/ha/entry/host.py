@@ -136,8 +136,10 @@ class EntryHost:
         self.timers.cancel_all()
         self.repairs.clear_all()
         self.store.flush()
+        # Safety net (not reached): the calls are launched at the end of each stimulus,
+        # so none is waiting at unload; one that were would not be sent (END-1)
         for call in self._calls:
-            call.close()  # never launched: nothing is sent at unload
+            call.close()
         self._calls.clear()
 
     # --- Stimuli (ARCH-3) ---------------------------------------------------------------

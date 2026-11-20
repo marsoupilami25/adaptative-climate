@@ -285,3 +285,17 @@ async def test_src_data_11_not_usable_cancels_the_removal(bench: Bench) -> None:
     assert ac(bench).attr("fan_modes") == ["low", "high"]
     await bench.advance(31)
     assert ac(bench).attr("fan_modes") == ["low"]
+
+
+@spec("SRC-DATA-6", "SRC-DATA-10", "ENT-STEP-1")
+async def test_src_data_10_number_no_longer_shown(bench: Bench) -> None:
+    """The step no longer shown: kept for the removal confirmation, then removed."""
+    heater = bench.device(HEATER, ["heat"], target_temp_step=1.0)
+    await bench.start([yaml_entry("Living room", heat_entity=HEATER)])
+    await ac(bench).set_hvac_mode("heat")
+    assert ac(bench).attr("target_temp_step") == 1.0
+    await heater.set(target_temp_step=None)
+    await bench.advance(59)
+    assert ac(bench).attr("target_temp_step") == 1.0
+    await bench.advance(2)
+    assert ac(bench).attr("target_temp_step") == 0.5
