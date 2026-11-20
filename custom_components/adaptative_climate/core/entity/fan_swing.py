@@ -37,6 +37,14 @@ class FanSwing:
         modes = [m for m in entry.modes if not entry.is_bi(m)]
         return bool(modes) and set(modes) <= set(self.sync_modes())
 
+    def off_key(self) -> str | None:
+        """The memory shown and set in OFF (ENT-FAN-3, ENT-FANV-9): the shared memory when
+        every mode is synchronized, the memory of the mode with a single configured mode."""
+        if self.all_synced():
+            return SYNC
+        modes = self._entity.entry.modes
+        return self.key_of(modes[0], False) if len(modes) == 1 else None
+
     def key_of(self, label: str, phase: bool) -> str:
         """Memory of a mode, or of a phase of the bi-source heat_cool."""
         if phase and self._entity.entry.bi_source_sync:
@@ -117,10 +125,11 @@ class FanSwing:
         """Value and options shown (ENT-FAN-3, ENT-FANV-8)."""
         entity = self._entity
         if entity.stm.operating_mode() is None:
-            if not self.all_synced():
+            key = self.off_key()
+            if key is None:
                 return None, []
-            options = self.shared_options(SYNC, setting) or []
-            value = self.remembered(SYNC, setting)
+            options = self.shared_options(key, setting) or []
+            value = self.remembered(key, setting)
             return (match_option(value, options) or value) if value else None, options
         context = entity.context()
         if context is None:
@@ -138,8 +147,9 @@ class FanSwing:
         """ENT-FANV-4, ENT-FANV-9. True when the active source must get it."""
         entity = self._entity
         if entity.stm.operating_mode() is None:
-            if self.all_synced():
-                self.remember(SYNC, setting, value)
+            key = self.off_key()
+            if key is not None:
+                self.remember(key, setting, value)
             return False
         key = self.current_key()
         if key is None:

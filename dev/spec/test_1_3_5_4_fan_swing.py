@@ -242,6 +242,26 @@ async def test_ent_fanv_9_value_set_in_off_with_every_mode_synchronized(bench: B
     assert heater.values_asked("fan_mode") == ["high"]
 
 
+@spec("ENT-FANV-9", "ENT-FANV-8", "ENT-FAN-3")
+async def test_ent_fanv_9_value_set_in_off_with_a_single_mode(bench: Bench) -> None:
+    """A single configured mode: in OFF, its options and its value. A value set there is
+    remembered for it, and sent when it starts."""
+    heater = bench.device(HEATER, ["heat"], fan_modes=["low", "high"], fan_mode="low")
+    await bench.start([yaml_entry("Living room", heat_entity=HEATER)])
+    assert not ac(bench).attr("fan_modes")  # heat not discovered yet
+    await mode(bench, "heat")
+    assert fan(bench) == "low"  # taken from the heater
+    await ac(bench).set_hvac_mode("off")
+    assert ac(bench).attr("fan_modes") == ["low", "high"]
+    assert fan(bench) == "low"
+    heater.clear_calls()
+    await ac(bench).set_fan_mode("high")
+    assert fan(bench) == "high"
+    assert heater.values_asked("fan_mode") == []  # kept, not sent in OFF
+    await mode(bench, "heat")
+    assert heater.values_asked("fan_mode") == ["high"]
+
+
 # --- ENT-DATA-1 --------------------------------------------------------------------------------------
 
 

@@ -98,7 +98,8 @@ that source, and changes are sent to it. A heat pump used for heating keeps
 its fan; a radiator shows none. When the entity is off, none of them is
 shown, unless every mode is in `sync_modes`: then the options shared by the
 sources are shown, and a value chosen is sent to the source of the next mode
-started. While the entity waits for an unavailable source, the options of
+started. An entity with a single mode shows the options of that mode while
+off, and a value chosen is sent when it starts. While the entity waits for an unavailable source, the options of
 that source are shown (see "Source unavailable").
 
 Each mode remembers its settings and sends them back to its source when the

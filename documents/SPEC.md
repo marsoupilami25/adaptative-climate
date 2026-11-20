@@ -2219,9 +2219,11 @@ remembered for each mode are in §1.3.5.4.
     phase, with or without `bi_source_sync` (ENT-FAN-8);
   - in `OFF`, it shows the options shared by the synchronized modes when
     **every** configured mode is in `sync_modes` (ENT-FAN-6), a bi-source
-    `heat_cool` excepted (it cannot be listed, ENT-FAN-7); otherwise, it
-    shows none (it does not show the options of the mode `turn_on` would
-    start).
+    `heat_cool` excepted (it cannot be listed, ENT-FAN-7). With a single
+    configured mode, it shows the options of that mode, the only one
+    `turn_on` can start, as if it were synchronized with itself.
+    Otherwise, it shows none (it does not show the options of the mode
+    `turn_on` would start).
 - **ENT-FAN-4** A setting is shown and set only from what is discovered.
   The capability (the setting itself) and its options (the values
   offered) are distinct:
@@ -2240,8 +2242,8 @@ remembered for each mode are in §1.3.5.4.
   refused with an error that lists them. The entity checks the same. So
   the user only sees and sets discovered options, written as shown. In
   `OFF`, what is shown is given by ENT-FAN-3 (shared options when every
-  mode is synchronized, otherwise none, so every user request is
-  refused).
+  mode is synchronized, the options of the mode with a single configured
+  mode, otherwise none, so every user request is refused).
 - **ENT-FAN-5** Between the entity and its sources, values are compared
   without taking the case into account: `Low` and `low` are the same
   value (a remembered value and the options of a mode, the shared
@@ -2292,9 +2294,8 @@ remembered for each mode are in §1.3.5.4.
 
 - **ENT-SET-1** `U=>AC_set_settings(s)`: the entity keeps the temperature
   targets (ENT-TGT-7) and remembers the fan/swing values of the current
-  mode (ENT-FANV-4); in `OFF`, the temperature targets of the mode
-  `turn_on` would start, and fan/swing only when shown (ENT-FAN-3,
-  ENT-FANV-9). The fan/swing values asked are checked first (ENT-FAN-4).
+  mode (ENT-FANV-4); in `OFF`, the temperature targets (ENT-TGT-7), and
+  fan/swing only when shown (ENT-FAN-3, ENT-FANV-9). The fan/swing values asked are checked first (ENT-FAN-4).
   - In `ON(m)`, they are sent to the active source (`AC=>S_settings(s)`).
   - In `WAITING(m)` and `WAITING_PHASE(p)`, they are sent too: the source
     is `UNUSABLE` and keeps them (SRC-SET-1), then sends them when it
@@ -2724,7 +2725,7 @@ the entity remembers, shows and sends for `fan_mode`, `swing_mode` and
     SRC-SET-12). The entity adopts it, and remembers it for that mode (a
     shared memory only holds a shared value, ENT-FANV-3);
   - **remembered value** (a synchronized mode whose shared memory has a
-    value, ENT-FANV-2): it is sent (ENT-FANV-6), also at the discovery of
+    value, ENT-FANV-2; a value set in `OFF`, ENT-FANV-9): it is sent (ENT-FANV-6), also at the discovery of
     the mode, once the capability is discovered (ENT-CAP-7). The value the
     source reports before getting it (SRC-SET-12) is not adopted: it only
     tells what the source has (`sent(S)`, ENT-SEND-2), and the
@@ -2762,9 +2763,12 @@ the entity remembers, shows and sends for `fan_mode`, `swing_mode` and
       with an empty memory shows nothing until the source reports its
       value (ENT-FANV-5);
   - in `OFF`: the value of the shared memory when every configured mode
-    is in `sync_modes`; otherwise, none (ENT-FAN-3).
+    is in `sync_modes`, the value remembered for the mode with a single
+    configured mode; otherwise, none (ENT-FAN-3).
 - **ENT-FANV-9** In `OFF` with every mode synchronized, a value set by the
   user is remembered in the shared memory, and sent when a mode starts.
+  With a single configured mode, it is remembered for that mode, and sent
+  when it starts.
 
 #### 1.3.6 Stored data
 
