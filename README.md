@@ -22,6 +22,8 @@ custom_components/
 
 ## Installation
 
+Requires Home Assistant 2025.1 or later.
+
 Copy `custom_components/adaptative_climate` into the `custom_components`
 directory of your Home Assistant configuration, then restart Home Assistant.
 
@@ -488,20 +490,13 @@ card, or a conditional card on `state: "on"`.
 
 ## Development
 
-Tests use [pytest-homeassistant](https://github.com/home-assistant/core/tree/dev/packages/pytest-homeassistant),
-which ships the Home Assistant core test helpers. They need Python 3.14.2 or later.
+The tests are described in [documents/TESTS.md](documents/TESTS.md); how to run
+them is in [dev/README.md](dev/README.md). In short:
 
 ```bash
 python3.14 -m venv .venv
 .venv/bin/pip install -r requirements_test.txt
 .venv/bin/pytest --cov
-```
-
-When the entity state changes on purpose, update the snapshots and review
-the diff in `tests/snapshots/`:
-
-```bash
-.venv/bin/pytest --snapshot-update
 ```
 
 To test against a new Home Assistant release, bump `pytest-homeassistant`
