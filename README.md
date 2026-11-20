@@ -121,33 +121,30 @@ are not matched (`1` is not `low`).
 
 ### Target temperature
 
-The entity keeps two setpoints, like the thermostats of Z-Wave and Matter:
-a heating one (the low target) and a cooling one (the high target). They are
-exposed according to the mode:
+The entity keeps a single target, and a pair of setpoints like the
+thermostats of Z-Wave and Matter: a heating one (the low target) and a cooling
+one (the high target). Each mode uses the targets of its source:
 
 | Mode | `temperature` | `target_temp_low` | `target_temp_high` |
 |---|---|---|---|
-| heat | heating setpoint | none | none |
-| cool | cooling setpoint | none | none |
-| heat/cool | none | heating setpoint | cooling setpoint |
-| auto, source with low/high | none | heating setpoint | cooling setpoint |
-| auto, other source | single target (none if its source has none) | none | none |
-| dry | single target (none if its source has none) | none | none |
+| heat, cool, heat/cool, auto, dry: source with a single target | single target | none | none |
+| heat, cool, heat/cool, auto, dry: source with low/high | none | heating setpoint | cooling setpoint |
+| heat/cool on two sources (a heater and an AC) | none | heating setpoint | cooling setpoint |
+| any mode, source without target | none | none | none |
 | fan only | none | none | none |
 
-So the target of heat is the low target of heat/cool, and the one of cool is
-the high target: going from heat to heat/cool reuses it. Auto works like
-heat/cool when its source has low/high targets (even if it also has a single
-target), with the same heating and cooling setpoints. Otherwise, auto and dry
-share a single target of their own, when their source has a target
-temperature. Fan only has no target, and neither have dry and auto on a
-source without one (a dehumidifier without thermostat): the source gets no
-target, a target changed on it is ignored, and a target set in that mode is
-kept for the next one. While off, the entity shows both setpoints (low and
-high) so they can be set before turning on; a single
-`temperature` set then goes to the mode `turn_on` goes to. When no mode uses
-low/high (only heat, cool, dry...), the entity has no low/high targets, even
-off: it shows the target of the mode `turn_on` goes to.
+So the modes whose sources have a single target share it: a target set in
+heat is the target of cool too. The modes whose sources have low/high share
+the pair. Only heat/cool on two sources splits it: the heater gets the
+heating setpoint, the AC the cooling one (or both, to a source with low/high).
+Fan only has no target, and neither has a mode on a source without one (a
+dehumidifier without thermostat): the source gets no target, a target changed
+on it is ignored, and a target set in that mode is kept for the next one.
+While off, the entity shows both setpoints (low and high) when a mode uses
+them, so they can be set before turning on; a single `temperature` set then
+goes to the single target. When no mode uses low/high (only sources with a
+single target), the entity has no low/high targets, even off: it shows the
+target of the mode `turn_on` goes to.
 
 A source "has low/high targets" when it supports them and uses them. A
 source that also has a single target and no heat/cool mode only counts as
@@ -161,6 +158,8 @@ only drawback: if the device behind an entity is replaced by one that
 supports low/high but does not use them, and the entity id stays the same,
 the entity keeps using low/high. Delete and recreate the Adaptative Climate
 entity to clear that memory. This case seemed too rare to need an option.
+When a mode starts to use low/high this way, it shows the low/high setpoints,
+not its single target: this happens once, the first time the mode runs.
 
 The targets belong to the entity, not to the sources: switching mode keeps
 them, and the source of the new mode gets them. They are sent once the
@@ -175,12 +174,10 @@ another mode, or off then turned on, it was changed meanwhile and gives its
 targets.
 
 The low target stays at least `min_gap` below the high one (1 degree at
-least, also the default). Setting one moves the other: a heating setpoint
-raised near the cooling one pushes it up, a cooling setpoint lowered near
-the heating one pulls it down. In a `target_temp_low`/`target_temp_high`
-call, the high target moves. When the source of the other target cannot
-follow (range), the target just set gives way. A change made on a source has
-the upper hand: it is kept, and only the other target moves.
+least, also the default). Low and high are set together (Home Assistant
+asks for both): when they are too close, the high target moves up; when it
+cannot (the end of its range), the low target moves down. A change made on a
+source has the upper hand: it is kept, and only the other target moves.
 
 The entity has its own step (`target_temp_step`), the same for the single,
 low and high targets: the largest step every source step is a multiple of
@@ -193,22 +190,19 @@ own targets: switching heat/cool, the gap, the monitoring.
 Each source gets the target plus its offset (see "Temperature offset"),
 rounded to its own step and kept in its range (and in the
 `min_temp`/`max_temp` limits): with a heater at 0.5 and an AC at 1, a
-cooling setpoint of 24.5 °C stays 24.5 °C, shown as such, and the AC gets
-25 °C. Each target (single, low, high) is also kept in the widest range of
-all the sources it goes to, in any mode: low goes to the heat source and to
-the heat/cool or auto source with low/high, high to the cool source and to
-those. With a heater at 5-30 °C for heat and a heat pump at 18-30 °C for
-heat/cool, a low target of 14 °C stays 14 °C: the heater gets 14 °C, the
-heat pump 18 °C, and in heat/cool the entity shows 18 °C (what the active
+target of 24.5 °C stays 24.5 °C, shown as such, and the AC gets 25 °C. Each
+target (single, low, high) is also kept in the widest range of all the
+sources it goes to, in any mode. With a heater at 5-30 °C for heat and an AC
+at 16-30 °C for cool, a single target of 14 °C stays 14 °C: the heater gets
+14 °C, the AC 16 °C, and in cool the entity shows 16 °C (what the active
 source gets) while `saved_targets` keeps 14 °C. A high target of 14 °C that
 only goes to an AC whose minimum is 16 °C is 16 °C, also to decide when to
 switch to it.
 
 A target gap sensor (`binary_sensor.<name>_target_gap`) is on while the
-entity shows a target otherwise than it keeps it, like the 18 °C above. Its
+entity shows a target otherwise than it keeps it, like the 16 °C above. Its
 `gaps` attribute lists them, for example
-`[{attribute: target_temp_low, saved: 14, shown: 18}]` (in heat, the
-`temperature` attribute shows the low target). It is not a problem: the
+`[{attribute: temperature, saved: 14, shown: 16}]`. It is not a problem: the
 target comes back when a source that can reach it runs. To warn next to the
 thermostat card, use a conditional card on `state: "on"`.
 A source that refuses the target (error) gets it again once, 5 seconds

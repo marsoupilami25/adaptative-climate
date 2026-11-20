@@ -149,10 +149,7 @@ class CapabilitiesManagement:
         case = self.case(*context) if context else None
         if case is None or case == CASE_NONE:
             return {}
-        if mode == HEAT:
-            return {TEMPERATURE: LOW}
-        if mode == COOL:
-            return {TEMPERATURE: HIGH}
+        # Whatever the mode, the case of its source decides (ENT-FEAT-4).
         if case == CASE_LOW_HIGH:
             return {TARGET_TEMP_LOW: LOW, TARGET_TEMP_HIGH: HIGH}
         return {TEMPERATURE: SINGLE}

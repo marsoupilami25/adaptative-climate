@@ -184,5 +184,6 @@ views:
         10. **Phase source away** (ENT-PHASE-5): Adaptative BI in *heat_cool*, *Phase* `heat`. On AIRCON Virtual, *Available* off; *Room temperature* 26: *Phase* `cool`, RADIATOR Virtual to *off*. AIRCON Virtual *Available* on: it goes to *cool*.
         11. **No source left** (ENT-STATE-6, MON-SRC-1): turn both *Available* off: Adaptative BI is unavailable; after 1 min, light *Sources* red (both). RADIATOR Virtual *Available* on: back to *heat_cool*.
         12. **Minimum gap** (ENT-TGT-6): Adaptative BI *off*, set 22–23: high goes to 24.
+        13. **heat and cool share one target** (ENT-FEAT-4): Adaptative BI in *heat*, target 21; in *cool*: 21, AIRCON Virtual gets 21; in *heat_cool*: the range comes back.
 
         </small>

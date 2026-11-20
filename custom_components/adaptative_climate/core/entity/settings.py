@@ -61,7 +61,7 @@ class SettingsManagement:
         """Settings sent to a source in a source mode; none for a mode not discovered (ENT-CAP-5)."""
         if self._entity.cam.caps(source_id, mode) is None:
             return {}
-        values: dict[str, Any] = targets.send_values(self._entity, source_id, mode, label)
+        values: dict[str, Any] = targets.send_values(self._entity, source_id, mode, label, phase)
         values.update(self.fan.send_values(source_id, mode, label, phase))
         return values
 
@@ -82,8 +82,7 @@ class SettingsManagement:
 
     def _user(self, request: dict[str, Any]) -> None:
         entity = self._entity
-        mode = request.get("hvac_mode") or entity.stm.operating_mode() or entity.turn_on_mode()
-        if targets.user_set(entity, request, mode):
+        if targets.user_set(entity, request):
             entity.post(Event(ACSEM_TARGETS_CHANGED))
             self.refresh_expected(set(TEMPERATURE_SETTINGS))
         changed = set()
@@ -108,7 +107,7 @@ class SettingsManagement:
         for name, value in values.items():
             if name in TEMPERATURE_SETTINGS:
                 if case == CASE_SINGLE and name == TEMPERATURE:
-                    taken[targets.single_target(label)] = value - offset
+                    taken[targets.single_target(label, phase)] = value - offset
                 elif case == CASE_LOW_HIGH and name == TARGET_TEMP_LOW:
                     taken[LOW] = value - offset
                 elif case == CASE_LOW_HIGH and name == TARGET_TEMP_HIGH:

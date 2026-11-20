@@ -33,13 +33,15 @@ if TYPE_CHECKING:
 EPSILON = 1e-6
 
 
-def single_target(mode: str | None) -> str:
-    """The target a single `temperature` sets in a mode: low in heat, high in cool, else T."""
-    if mode == HEAT:
-        return LOW
-    if mode == COOL:
-        return HIGH
-    return SINGLE
+def single_target(label: str, phase: bool) -> str:
+    """The target a source with a single temperature target gets (ENT-FEAT-4).
+
+    T in a mono-source mode; in a phase of the bi-source heat_cool, low in
+    `heat` and high in `cool`.
+    """
+    if not phase:
+        return SINGLE
+    return LOW if label == HEAT else HIGH
 
 
 def _fit(value: float, rng: tuple[float, float], step: float) -> float:
@@ -53,12 +55,12 @@ def _fit(value: float, rng: tuple[float, float], step: float) -> float:
     return clean(value)
 
 
-def apply_gap(entity: ACEntity, moving: str) -> None:
+def apply_gap(entity: ACEntity) -> None:
     """Keep low at least min_gap below high (ENT-TGT-5, ENT-TGT-6).
 
-    `moving` moves first, rounded away from the other; if it cannot (end of
-    its range), the other one gives way; if neither can, low goes to the
-    minimum of its range and high to the maximum.
+    High moves up, rounded away from low; at the end of its range, low moves
+    down instead; if neither can, low goes to the minimum of its range and
+    high to the maximum.
     """
     targets = entity.stored.targets
     low, high = targets[LOW], targets[HIGH]
@@ -69,22 +71,13 @@ def apply_gap(entity: ACEntity, moving: str) -> None:
     step = cam.step()
     low_min = cam.target_range(LOW)[0]
     high_max = cam.target_range(HIGH)[1]
-    if moving == HIGH:
-        new_high = round_to_step(low + gap, step, 1)
-        if new_high <= high_max + EPSILON:
-            targets[HIGH] = new_high
-            return
-        targets[HIGH] = round_to_step(high_max, step, -1)
-        new_low = round_to_step(targets[HIGH] - gap, step, -1)
-        targets[LOW] = max(new_low, round_to_step(low_min, step, 1))
+    new_high = round_to_step(low + gap, step, 1)
+    if new_high <= high_max + EPSILON:
+        targets[HIGH] = new_high
         return
-    new_low = round_to_step(high - gap, step, -1)
-    if new_low >= low_min - EPSILON:
-        targets[LOW] = new_low
-        return
-    targets[LOW] = round_to_step(low_min, step, 1)
-    new_high = round_to_step(targets[LOW] + gap, step, 1)
-    targets[HIGH] = min(new_high, round_to_step(high_max, step, -1))
+    targets[HIGH] = round_to_step(high_max, step, -1)
+    new_low = round_to_step(targets[HIGH] - gap, step, -1)
+    targets[LOW] = max(new_low, round_to_step(low_min, step, 1))
 
 
 def bring_in_line(entity: ACEntity) -> None:
@@ -96,17 +89,20 @@ def bring_in_line(entity: ACEntity) -> None:
         if targets[name] is not None:
             targets[name] = _fit(targets[name], cam.target_range(name), step)
     if cam.has_low_high():
-        apply_gap(entity, HIGH)
+        apply_gap(entity)
     entity.save()
 
 
-def user_set(entity: ACEntity, request: dict[str, Any], mode: str | None) -> bool:
-    """ENT-TGT-7: targets set by the user for `mode`. True when a target was set."""
+def user_set(entity: ACEntity, request: dict[str, Any]) -> bool:
+    """ENT-TGT-7: targets set by the user. True when a target was set.
+
+    A single `temperature` sets T, in every state.
+    """
     cam = entity.cam
     step = cam.step()
     values: dict[str, float] = {}
     if TEMPERATURE in request:
-        values[single_target(mode)] = request[TEMPERATURE]
+        values[SINGLE] = request[TEMPERATURE]
     if TARGET_TEMP_LOW in request:
         values[LOW] = request[TARGET_TEMP_LOW]
     if TARGET_TEMP_HIGH in request:
@@ -117,7 +113,7 @@ def user_set(entity: ACEntity, request: dict[str, Any], mode: str | None) -> boo
     for name, value in values.items():
         targets[name] = _fit(float(value), cam.target_range(name), step)
     if cam.has_low_high() and (LOW in values or HIGH in values):
-        apply_gap(entity, LOW if HIGH in values and LOW not in values else HIGH)
+        apply_gap(entity)
     entity.save()
     return True
 
@@ -177,25 +173,21 @@ def first_targets(entity: ACEntity) -> None:
             value = (rng[0] + rng[1]) / 2
         found[SINGLE] = value
     if targets[LOW] is None or targets[HIGH] is None:
-        low = high = None
-        heat_cool = entry.source_of(HEAT_COOL) if HEAT_COOL in entry.modes else None
-        settings = shown(heat_cool)
-        if TARGET_TEMP_LOW in settings and TARGET_TEMP_HIGH in settings:
-            offset = entry.offset_of(heat_cool)
-            low = settings[TARGET_TEMP_LOW] - offset
-            high = settings[TARGET_TEMP_HIGH] - offset
-        if low is None and (heat := entry.mode_sources.get(HEAT)):
-            settings = shown(heat)
-            if TEMPERATURE in settings:
-                low = settings[TEMPERATURE] - entry.offset_of(heat)
-        if high is None and (cool := entry.mode_sources.get(COOL)):
-            settings = shown(cool)
-            if TEMPERATURE in settings:
-                high = settings[TEMPERATURE] - entry.offset_of(cool)
-        if low is None:
-            low = first(TARGET_TEMP_LOW)
-        if high is None:
-            high = first(TARGET_TEMP_HIGH)
+        low = first(TARGET_TEMP_LOW)
+        high = first(TARGET_TEMP_HIGH)
+        if entry.is_bi(HEAT_COOL):
+            # The single targets of the phase sources (ENT-FEAT-4).
+            for phase in (HEAT, COOL):
+                if (low if phase == HEAT else high) is not None:
+                    continue
+                source_id = entry.phase_source(phase)
+                settings = shown(source_id)
+                if TEMPERATURE in settings:
+                    value = settings[TEMPERATURE] - entry.offset_of(source_id)
+                    if phase == HEAT:
+                        low = value
+                    else:
+                        high = value
         single = targets[SINGLE] if targets[SINGLE] is not None else found[SINGLE]
         degree = 1.0 if entry.unit == CELSIUS else 2.0
         found[LOW] = low if low is not None else single - degree
@@ -204,11 +196,13 @@ def first_targets(entity: ACEntity) -> None:
         if targets[name] is None and value is not None:
             targets[name] = _fit(value, cam.target_range(name), step)
     if cam.has_low_high():
-        apply_gap(entity, HIGH)
+        apply_gap(entity)
     entity.save()
 
 
-def send_values(entity: ACEntity, source_id: str, mode: str, label: str) -> dict[str, float]:
+def send_values(
+    entity: ACEntity, source_id: str, mode: str, label: str, phase: bool
+) -> dict[str, float]:
     """ENT-TGT-8: the targets sent to a source in a source mode, on its scale."""
     cam = entity.cam
     case = cam.case(source_id, mode)
@@ -229,7 +223,7 @@ def send_values(entity: ACEntity, source_id: str, mode: str, label: str) -> dict
         return clean(result)
 
     if case == CASE_SINGLE:
-        value = targets[single_target(label)]
+        value = targets[single_target(label, phase)]
         if value is None:
             # Safety net (not reached): every target has a value once in OPER (ENT-TGT-10)
             return {}
@@ -245,7 +239,8 @@ def send_values(entity: ACEntity, source_id: str, mode: str, label: str) -> dict
     if high - low < gap - EPSILON:
         if high_range - low_range < gap:
             low, high = low_range, high_range
-        elif label == COOL:
+        elif phase and label == COOL:
+            # Phase cool of the bi-source heat_cool: high, the target of the phase, is kept
             low, moved = high - gap, LOW
             if low < low_range:
                 low, high, moved = low_range, low_range + gap, HIGH

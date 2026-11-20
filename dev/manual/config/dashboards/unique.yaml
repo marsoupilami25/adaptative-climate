@@ -135,7 +135,7 @@ views:
 
         1. **One device** (ENT-TYPE-2): Adaptative ALL to *heat*, then *cool*: *Mode* of ALL Virtual follows; nothing else is turned off.
         2. **Mode discovered** (ENT-CAP-5, ENT-CAP-6, §5.4): the first time in *dry*, only the mode is sent; target and fan follow once ALL Virtual shows *dry*.
-        3. **Targets per mode** (§1.3.4.3): Adaptative ALL in *heat*, target 20; in *cool*, 26: in *heat_cool* and *auto*, Adaptative ALL shows 20–26 and ALL Virtual gets 20 / 26; *dry* keeps its single target.
+        3. **Targets per mode** (§1.3.4.3, ENT-FEAT-4): Adaptative ALL in *heat*, target 20; in *cool*: it shows 20 too (*heat*, *cool*, *dry* share one target); target 26: back in *heat*, 26. In *heat_cool*, set 19–24: in *auto*, Adaptative ALL shows 19–24 and ALL Virtual gets 19 / 24; in *dry*: 26.
         4. **Mode taken over on the device** (§5.2): Adaptative ALL in *cool*. On ALL Virtual, *Mode* *dry* and *Target* 22: Adaptative ALL goes to *dry* and shows 22.
         5. **Shared memory** (ENT-FANV-2): Adaptative ALL in *cool*, fan *high*; in *heat*: *high*; in *fan_only*: its own memory.
         6. **Off, everything synchronized?** (ENT-FAN-3): no (*fan_only*, *auto*, *heat_cool* are not): no fan shown in *off*.

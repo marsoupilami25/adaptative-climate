@@ -76,6 +76,7 @@ views:
         11. **Temperature gap** (MON-TEMP-1): *Temperature* of HEAT Virtual 25, *Room temperature* 21: after 1 min, light *Temperatures* red; HEAT Virtual back to 21: green.
         12. **heat_cool** (ENT-TYPE-3): range 19–24, *Room temperature* 21, Adaptative MULTI to *heat_cool*: HEAT Virtual in *heat*; *Room temperature* 26: COOL Virtual in *cool*, HEAT Virtual *off*.
         13. **Restart** (ENT-FANV-1, END-2): Adaptative MULTI in *cool*, fan *low*, then *off*; on HEAT Virtual, *Fan* *Auto*; restart; Adaptative MULTI to *heat*: *Fan* of HEAT Virtual goes to *Low*.
+        14. **One target for the single-target modes** (ENT-FEAT-4): Adaptative MULTI in *heat*, target 21; in *cool*, *dry*, *auto*: 21, and their source gets it. *heat_cool* keeps its range.
 
         </small>
 - title: Sources

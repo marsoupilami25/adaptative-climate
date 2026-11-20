@@ -146,7 +146,7 @@ per notion. The rules are in the sections cited.
 | Term | Meaning |
 |---|---|
 | **Settings** | The temperature targets and the fan/swing values (`s` in `U=>AC_set_settings(s)`, `AC=>S_settings(s)`, `S=>AC_settings(s)`). |
-| **Temperature target** | A target the entity keeps: **low** (to heat), **high** (to cool), **T** (single target). Each mode uses some of them (§1.3.4.3). "Target" alone is a temperature target. |
+| **Temperature target** | A target the entity keeps: **low** and **high** (a pair: low to heat, high to cool), **T** (single target). Each mode uses some of them (§1.3.4.3). "Target" alone is a temperature target. |
 | **Fan/swing** | The three settings `fan_mode`, `swing_mode` and `swing_horizontal_mode`, handled the same way (§1.3.4.6, §1.3.5.4). Their **options** are the values a source offers for one of them in a mode (`fan_modes`, `swing_modes`, `swing_horizontal_modes`). |
 | **Capability** | A capability attribute of a source entity (Home Assistant `capability_attributes` of `climate`), or `supported_features`, stored by the source (§1.2.2). Managed: `hvac_modes` (per source); `supported_features`, `min_temp`, `max_temp`, `target_temp_step`, `fan_modes`, `swing_modes`, `swing_horizontal_modes` (per source and mode). Not managed for now: `min_humidity`, `max_humidity`, `target_humidity_step`, `preset_modes`. |
 | **Reference temperature** | The temperature the entity regulates on: the temperature sensor (`temperature_sensor`) when it has a valid value, else the readings of the sources (§1.3.5.1). |
@@ -2053,24 +2053,21 @@ a mode, or later):
 
 The entity keeps three temperature targets:
 
-- **low**: the temperature target to heat;
-- **high**: the temperature target to cool;
+- **low** and **high**: a pair, the temperature target to heat and the
+  one to cool, always used together;
 - **T**: the single temperature target.
 
 Each mode uses some of them. It shows them either in the single target
 attribute (`temperature`), or in the low/high attributes
-(`target_temp_low`, `target_temp_high`). Which ones depends on the mode
-and on the case of its source in that mode (ENT-FEAT-1).
+(`target_temp_low`, `target_temp_high`). Which ones depends on the case
+of its source in that mode (ENT-FEAT-1), and, for `heat_cool`, on its
+number of sources (ENT-FEAT-4).
 
 | Mode | Source in that mode | Temperature targets used | Shown as | Sent as |
 |---|---|---|---|---|
-| `heat` | with a single temperature target | low | `temperature` | `temperature` |
-| `heat` | with low/high | low | `temperature` | `target_temp_low`, `target_temp_high`: low, with the high of the entity (ENT-FEAT-4) |
-| `cool` | with a single temperature target | high | `temperature` | `temperature` |
-| `cool` | with low/high | high | `temperature` | `target_temp_low`, `target_temp_high`: high, with the low of the entity (ENT-FEAT-4) |
-| `heat_cool` bi-source | two sources | low, high | `target_temp_low`, `target_temp_high` | in each phase, as `heat` or `cool` to the source of that phase (ENT-TGT-8) |
-| `heat_cool` mono-source, `auto`, `dry` | with low/high | low, high | `target_temp_low`, `target_temp_high` | `target_temp_low`, `target_temp_high` |
-| `heat_cool` mono-source, `auto`, `dry` | with a single temperature target | T | `temperature` | `temperature` |
+| `heat`, `cool`, `heat_cool` mono-source, `auto`, `dry` | with a single temperature target | T | `temperature` | `temperature` |
+| `heat`, `cool`, `heat_cool` mono-source, `auto`, `dry` | with low/high | low, high | `target_temp_low`, `target_temp_high` | `target_temp_low`, `target_temp_high` |
+| `heat_cool` bi-source | two sources | low, high | `target_temp_low`, `target_temp_high` | in each phase, to the source of that phase: low in `heat`, high in `cool`, or both to a source with low/high (ENT-FEAT-4, ENT-TGT-8) |
 | `heat`, `cool`, `heat_cool` mono-source, `auto`, `dry` | without temperature target | none | nothing | nothing |
 | `fan_only` | any | none | nothing | nothing |
 | a mono-source mode not discovered yet | not known yet | none | nothing | nothing (ENT-FEAT-5) |
@@ -2118,23 +2115,28 @@ and on the case of its source in that mode (ENT-FEAT-1).
     (`low_high_seen` set, ENT-FEAT-2) is judged again (ENT-CAP-7);
   - the other features of the sources (presets, humidity) are not
     exposed.
-- **ENT-FEAT-4** `heat` and `cool` use one temperature target, whatever
-  the source: low in `heat`, high in `cool`. The entity shows only that
-  one, as `temperature`.
-  - A source with low/high in that mode gets it as a pair, since low and
-    high go together (SRC-SET-2): the target of the mode, with the other
-    target of the entity. The gap is applied on the other one, so that
-    the target of the mode is kept (ENT-TGT-8).
-  - A change of the other target on that source is still a takeover
-    (ENT-TGT-9): it is kept for the modes that use it.
+- **ENT-FEAT-4** A mono-source mode uses the temperature targets of its
+  source, whatever the mode (`heat` and `cool` included): T with a
+  single temperature target, low and high with low/high.
+  - The modes whose sources have a single temperature target therefore
+    share T: a target set in `heat` is the target of `cool` too.
+  - Only a bi-source `heat_cool` splits the pair between its two
+    sources: the heat source gets low, the cool source gets high. A
+    phase source with low/high in the mode of its phase gets both
+    (ENT-TGT-8).
+  - When a mode starts to show low/high (its discovery, ENT-CAP-6, or
+    `low_high_seen` set, ENT-FEAT-2), it shows low and high as kept,
+    brought back in line (ENT-TGT-4): they do not take the value of T.
+    This happens once per mode, at its first use (SRC-DATA-8).
 - **ENT-FEAT-5** A mono-source mode not discovered yet (ENT-CAP-4) uses
   no temperature target, since the case of its source is not known yet:
   nothing is shown, nothing is sent (ENT-CAP-5).
   - The temperature targets the user sets meanwhile go through the
     service, which does not depend on what this mode shows, only on the
     features of the entity (ENT-FEAT-3, ENT-TGT-7): a single
-    `temperature` sets low in `heat`, high in `cool`, T in the other
-    modes. They are kept, and sent at the discovery (ENT-CAP-6).
+    `temperature` sets T, `target_temp_low` / `target_temp_high` set low
+    / high. They are kept, and the ones the mode uses are sent at the
+    discovery (ENT-CAP-6).
   - A bi-source `heat_cool` always shows low and high: they choose the
     phase (§1.3.3.2.2). The source of a phase whose mode is not
     discovered yet gets only the mode (ENT-CAP-5).
@@ -2179,17 +2181,17 @@ and on the case of its source in that mode (ENT-FEAT-1).
   value kept by the entity does not change.
 - **ENT-RANGE-5** A temperature target set by the user is kept within the
   widest range of all the modes that use it (§1.3.4.3). A value taken
-  from a source can be outside (takeover: ENT-TGT-9). For example, the
-  low target is used by `heat`, and by `heat_cool` and `auto` when their
-  source has low/high: the low target can take any value that at least
-  one of these modes accepts. A temperature target that no mode uses yet
+  from a source can be outside (takeover: ENT-TGT-9). For example, T is
+  used by `heat` and `cool` when their sources have a single temperature
+  target: T can take any value that at least one of these modes accepts.
+  A temperature target that no mode uses yet
   (its modes not discovered, ENT-FEAT-5, or not configured) is kept
   within the widest range of all the modes (the range shown in `OFF`,
   ENT-RANGE-2).
 - **ENT-RANGE-6** This way, a value is not lost because one mode cannot
-  reach it. For example, with a radiator at 5–30 °C for `heat` and a heat
-  pump at 18–30 °C for `heat_cool`, a low target of 14 °C is kept at
-  14 °C. The radiator gets 14 °C, and the heat pump gets 18 °C.
+  reach it. For example, with a radiator at 5–30 °C for `heat` and an AC
+  unit at 16–30 °C for `cool`, a target T of 14 °C is kept at 14 °C. The
+  radiator gets 14 °C, and the AC unit gets 16 °C.
 
 ##### 1.3.4.6 Fan and swing
 
@@ -2465,9 +2467,9 @@ The temperature targets used and shown by each mode are listed in
     (ENT-TGT-9): the takeover does not survive a change of the
     capabilities;
   - the gap is applied again (ENT-TGT-5), also when a takeover broke it
-    (ENT-TGT-9): the high target moves, as when both are set in the same
-    user request (ENT-TGT-6); if it cannot (the end of its range is reached),
-    the low target moves instead;
+    (ENT-TGT-9): the high target moves, as when the user sets them
+    (ENT-TGT-6); if it cannot (the end of its range is reached), the low
+    target moves instead;
   - what is sent to the active source follows ENT-CAP-7: the settings
     expected from it are computed again, and the ones that differ from
     what it has are sent (ENT-SEND-3). A target the mode uses and that
@@ -2483,10 +2485,8 @@ The temperature targets used and shown by each mode are listed in
 - **ENT-TGT-5** The low target stays at least `min_gap` (§3.1.6) below the
   high target, when the entity has low/high (a configured mode shows
   them, ENT-FEAT-3).
-  - Without, low and high are only the targets of `heat` and `cool`,
-    never shown together: one never moves the other (setting `cool` to
-    21 °C leaves the `heat` target at 22 °C). A source with low/high in
-    `heat` or `cool` still gets a pair with the gap (ENT-TGT-8).
+  - Without, no mode uses low and high: they are only kept, and one
+    never moves the other.
   - When a mode starts to show low/high (its discovery, `low_high_seen`
     set), the gap is applied on the change of capabilities (ENT-TGT-4).
   - When the ranges leave no room for it (the low target cannot go
@@ -2494,15 +2494,12 @@ The temperature targets used and shown by each mode are listed in
     ranges of the sources can cause, CFG-LIM-1), the low target goes to
     the minimum of its range and the high target to the maximum of its
     range: the gap is as large as they allow.
-- **ENT-TGT-6** When one temperature target is set, the other one moves if
-  needed to keep the gap (ENT-TGT-5):
-  - a low target raised close to the high one pushes the high one up;
-  - a high target lowered close to the low one pulls the low one down;
-  - the temperature target that moves is rounded away from the other one, on the
-    step of the entity, so that the gap is kept;
-  - if it cannot move (the end of its range is reached), the temperature target just
-    set gives way instead;
-  - when both are set in the same user request, the high target moves.
+- **ENT-TGT-6** The user sets low and high together (Home Assistant asks
+  for both). When they are closer than the gap (ENT-TGT-5):
+  - the high target moves up, rounded away from the low one, on the step
+    of the entity, so that the gap is kept;
+  - if it cannot move (the end of its range is reached), the low target
+    moves down instead.
 
 **Set by the user**
 
@@ -2528,13 +2525,12 @@ The temperature targets used and shown by each mode are listed in
     that shows `temperature` (`target_temp_low` in `cool`), in a mode not
     discovered yet (shown 7–35 °C, ENT-CAP-4), and with an `hvac_mode`
     (the range checked is the one of the current state);
-  - a single `temperature` sets low in `heat`, high in `cool`, T in the
-    other modes: the temperature target the current mode shows as
-    `temperature` (§1.3.4.3). This holds too when the mode shows none (a
-    mode not discovered yet, ENT-FEAT-5; a source without temperature
-    target), as long as the entity declares `TARGET_TEMPERATURE` (another
-    mode shows one): the target is kept, not sent. In `OFF`, it sets the
-    temperature target of the mode `turn_on` would start;
+  - a single `temperature` sets T, the temperature target every mode
+    shows as `temperature` (§1.3.4.3). This holds too in `OFF`, and when
+    the current mode does not use T (a mode not discovered yet,
+    ENT-FEAT-5; a source without temperature target, or with low/high),
+    as long as the entity declares `TARGET_TEMPERATURE` (another mode
+    shows it): T is kept, not sent;
   - `target_temp_low` / `target_temp_high` set low / high;
   - with an `hvac_mode` in the same user request, the mode and the temperature
     targets are handled together: the entity switches to the new mode
@@ -2552,9 +2548,10 @@ The temperature targets used and shown by each mode are listed in
     the entity (CFG-SENS-1);
   - for low and high, the gap is applied again (`min_gap`, ENT-TGT-5) on
     the values sent: the high target moves up; if it is at the maximum
-    of the range, the low target moves down instead. In `cool` to a
-    source with low/high (ENT-FEAT-4), the low target moves first, so
-    that high, the target of the mode, is kept. A range of the mode
+    of the range, the low target moves down instead. In the phase `cool`
+    of a bi-source `heat_cool`, to a source with low/high (ENT-FEAT-4),
+    the low target moves first, so that high, the target of the phase,
+    is kept. A range of the mode
     narrower than `min_gap` cannot hold the gap: the two ends of the
     range are sent;
   - converted for the source, last: plus the offset of the mode
@@ -2569,8 +2566,7 @@ The temperature targets used and shown by each mode are listed in
 
   The values kept by the entity do not change. Low and high are sent
   together. Example: with a radiator at step 0.5 and an AC at step 1, a
-  high target of 24.5 °C stays 24.5 °C in the entity, and the AC gets
-  25 °C.
+  target of 24.5 °C stays 24.5 °C in the entity, and the AC gets 25 °C.
 
   Why the gap again: each target is brought into the range of the mode
   on its own, so the pair sent can lose its gap, even when the values
@@ -2601,8 +2597,9 @@ The temperature targets used and shown by each mode are listed in
     temperature target taken never gives way. If the other one cannot move (the end
     of its range is reached), the gap is broken: ENT-TGT-5 does not hold
     until the next change of a target by the user (ENT-TGT-6) or of the
-    capabilities (ENT-TGT-4). Example: low taken at 30 °C from a
-    radiator, high at the maximum of its range (30 °C): low 30, high 30;
+    capabilities (ENT-TGT-4). Example: low taken at 30 °C from the
+    radiator of a bi-source `heat_cool`, high at the maximum of its range
+    (30 °C): low 30, high 30;
   - when the source changes both low and high, both are taken as they
     are, gap included;
   - in a bi-source `heat_cool`, the phase is checked on the targets
@@ -2625,11 +2622,10 @@ The temperature targets used and shown by each mode are listed in
     one; else the middle of the range shown in `OFF` (ENT-RANGE-2: the
     widest range of all the modes, 21 °C with the Home Assistant
     default range 7–35 °C).
-  - low and high: the low/high targets of the `heat_cool` source
-    (mono-source) if it shows them; else low from the single target of
-    the heat source, and high from the single target of the cool source;
-    for the missing ones, the low / high of the first source that shows
-    them; else T − 1 °C and T + 1 °C (2 °F, CFG-UNIT-1).
+  - low and high: the low/high targets of the first source that shows
+    them; else, in a bi-source `heat_cool`, low from the single target of
+    its heat source and high from the single target of its cool source;
+    for the missing ones, T − 1 °C and T + 1 °C (2 °F, CFG-UNIT-1).
   - The targets restored are kept as they are: only the missing ones are
     taken. The gap is then applied (ENT-TGT-5, ENT-TGT-6).
 
@@ -3403,7 +3399,7 @@ Notation:
 ### 5.1 Mode change by the user
 
 A source `S` (an AC unit) is off; `cool` is already discovered. The entity
-is `OFF`; its memory for `cool`: target 24, fan `low`.
+is `OFF`; its target T is 24, its memory for `cool`: fan `low`.
 
 ```mermaid
 sequenceDiagram
@@ -3758,9 +3754,8 @@ sequenceDiagram
 
 ### 5.8 One update changes a capability and a target
 
-The AC unit runs `cool`, the entity is `ON(cool)`; its high target (shown
-as `temperature` in `cool`) is 27. The range of the AC unit in `cool` is
-16–30. The device switches to a profile that limits its range to 26 and
+The AC unit runs `cool`, the entity is `ON(cool)`; its target T is 27.
+The range of the AC unit in `cool` is 16–30. The device switches to a profile that limits its range to 26 and
 lowers its temperature target to 25: a single change of state of the source entity
 brings both. No offset.
 
@@ -3774,7 +3769,7 @@ sequenceDiagram
     end
     participant SE as Source entity
 
-    Note over AC: ON(cool), high 27
+    Note over AC: ON(cool), T 27
     Note over Ssrm: ACTIVE, kept: 27
     Note over SE: profile of the device<br/>max_temp 30 → 26, target 27 → 25
     rect rgba(127, 127, 127, 0.12)
@@ -3785,9 +3780,9 @@ sequenceDiagram
         Note over Ssrm: ACTIVE: the target changed, takeover<br/>keeps 25, sends S=>AC_settings
     end
     Sdsm-)AC: S=>AC_capabilities
-    Note over AC: reads capabilities@S, range of cool: 16–26<br/>ENT-TGT-4: high 27 → 26, expected, not sent yet
+    Note over AC: reads capabilities@S, range of cool: 16–26<br/>ENT-TGT-4: T 27 → 26, expected, not sent yet
     Ssrm-)AC: S=>AC_settings(temperature 25)
-    Note over AC: active source: adopts high 25 (ENT-TGT-9)<br/>queues empty: 25 comes from the source, nothing to send
+    Note over AC: active source: adopts T 25 (ENT-TGT-9)<br/>queues empty: 25 comes from the source, nothing to send
     Note over AC,SE: 25 everywhere
 ```
 

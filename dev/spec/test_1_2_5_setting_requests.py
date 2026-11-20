@@ -44,7 +44,7 @@ async def active_at(bench: Bench, temperature: float, **start_options: Any) -> A
     """The entity in heat at `temperature`, the heater ACTIVE and showing it."""
     heater = await start(bench, **start_options)
     await discover_heat(heater)
-    await ac(bench).set_temperature(temperature=temperature)  # in OFF: the target of heat
+    await ac(bench).set_temperature(temperature=temperature)  # in OFF: T, the target of heat
     await ac(bench).set_hvac_mode("heat")
     await bench.advance(SETTLE + 1)
     heater.clear_calls()
@@ -77,19 +77,30 @@ async def test_src_set_1_kept_settings_survive_a_restart(bench: Bench) -> None:
 
 @spec("SRC-SET-1", "ENT-TGT-1")
 async def test_src_set_1_settings_follow_the_mode(bench: Bench) -> None:
-    """One device for heat and cool: each mode gets its own target."""
-    pump = bench.device(PUMP, ["heat", "cool"])
-    await bench.start([yaml_entry("Living room", heat_entity=PUMP, cool_entity=PUMP)])
+    """One device for heat (a single target) and heat_cool (low/high): each mode gets
+    its own targets (ENT-FEAT-4)."""
+    pump = bench.device(
+        PUMP,
+        ["heat", "heat_cool"],
+        profiles={
+            "heat": {"single_target": True, "range_target": False},
+            "heat_cool": {
+                "single_target": False, "range_target": True,
+                "target_temp_low": 18.0, "target_temp_high": 25.0,
+            },
+        },
+    )
+    await bench.start([yaml_entry("Living room", heat_entity=PUMP, heat_cool_entity=PUMP)])
     await pump.set(hvac_mode="heat")
-    await pump.set(hvac_mode="cool")
-    await ac(bench).set_temperature(temperature=25.0)  # high, in cool
+    await pump.set(hvac_mode="heat_cool")
+    await ac(bench).set_temperature(target_temp_low=19.0, target_temp_high=24.0)
     await ac(bench).set_hvac_mode("heat")
-    await ac(bench).set_temperature(temperature=19.0)  # low, in heat
+    await ac(bench).set_temperature(temperature=21.0)  # T, in heat
     await bench.advance(SETTLE + 1)
-    assert pump.temperature == 19.0
-    await ac(bench).set_hvac_mode("cool")
+    assert pump.temperature == 21.0
+    await ac(bench).set_hvac_mode("heat_cool")
     await bench.advance(SETTLE + 1)
-    assert pump.temperature == 25.0
+    assert (pump.target_temp_low, pump.target_temp_high) == (19.0, 24.0)
 
 
 # --- SRC-SET-2, SRC-SET-3: sending --------------------------------------------------------------

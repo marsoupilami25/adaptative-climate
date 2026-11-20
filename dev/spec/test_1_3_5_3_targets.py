@@ -3,6 +3,9 @@
 Two setups:
 - with low/high: heater for heat, aircon for cool (bi-source heat_cool shows low/high);
 - without: the same, plus a heat pump with a single target for heat_cool (mono-source).
+
+heat and cool on sources with a single target use T, the bi-source heat_cool low and
+high (ENT-FEAT-4).
 """
 
 from __future__ import annotations
@@ -91,19 +94,25 @@ async def without_low_high(
 # --- ENT-TGT-1, ENT-TGT-2: kept by the entity ------------------------------------------------------------
 
 
-@spec("ENT-TGT-1", "ENT-TGT-2")
+@spec("ENT-TGT-1", "ENT-TGT-2", "ENT-FEAT-4")
 async def test_ent_tgt_1_targets_kept_across_modes(bench: Bench) -> None:
+    """The source of the new mode gets the target: heat and cool share T. Low and high,
+    used by the bi-source heat_cool, are kept apart."""
     heater, aircon = await with_low_high(bench)
     await ac(bench).set_hvac_mode("heat")
     await ac(bench).set_temperature(temperature=21.0)
     await ac(bench).set_hvac_mode("cool")
-    await ac(bench).set_temperature(temperature=26.0)
-    await ac(bench).set_hvac_mode("heat")
     assert ac(bench).attr("temperature") == 21.0
     await bench.advance(15)
-    assert heater.temperature == 21.0
-    saved = numbers_in(ac(bench).attr("saved_targets"))
-    assert 21.0 in saved and 26.0 in saved
+    assert aircon.temperature == 21.0
+    await ac(bench).set_temperature(temperature=26.0)
+    await ac(bench).set_hvac_mode("heat")
+    assert ac(bench).attr("temperature") == 26.0
+    await bench.advance(15)
+    assert heater.temperature == 26.0
+    await ac(bench).set_hvac_mode("off")
+    assert low_high(bench) == (19.0, 25.0)
+    assert 26.0 in numbers_in(ac(bench).attr("saved_targets"))
 
 
 @spec("ENT-TGT-2", "ENT-DATA-1")
@@ -138,6 +147,7 @@ async def test_ent_tgt_3_value_taken_from_the_source_kept_beyond_the_limits(
     heater, _ = await with_low_high(bench, heater={"min_temp": 10.0, "max_temp": 30.0}, max_temp=25)
     await ac(bench).set_hvac_mode("heat")
     await bench.advance(15)
+    heater.clear_calls()
     await heater.set(temperature=28.0)
     assert ac(bench).attr("temperature") == 25.0
     assert ac(bench).attr("target_gaps") == [
@@ -150,9 +160,10 @@ async def test_ent_tgt_3_value_taken_from_the_source_kept_beyond_the_limits(
 async def test_ent_tgt_4_takeover_does_not_survive_a_change_of_capabilities(
     bench: Bench,
 ) -> None:
-    """Only heat uses low (heat_cool has a single target here). 28 °C taken from the
-    heater; heat then narrows to 10–26: low is brought to 26, and sent."""
-    heater, _, _ = await without_low_high(bench, heater={"min_temp": 10.0, "max_temp": 30.0})
+    """Only heat uses T here. 28 °C taken from the heater; heat then narrows to 10–26:
+    T is brought to 26, and sent."""
+    heater = bench.device(HEATER, ["heat"], temperature=19.0, min_temp=10.0, max_temp=30.0)
+    await bench.start([yaml_entry("Living room", heat_entity=HEATER)])
     await ac(bench).set_hvac_mode("heat")
     await bench.advance(15)
     await heater.set(temperature=28.0)
@@ -168,7 +179,7 @@ async def test_ent_tgt_4_takeover_does_not_survive_a_change_of_capabilities(
 async def test_ent_tgt_4_range_change_hidden_by_the_limits_still_counts(bench: Bench) -> None:
     """Heat at 10–30, max_temp 25: 28 °C taken from the heater is kept. The heater
     goes to 10–29: the range shown stays 10–25, but the range read on the source
-    changed: low is brought to 25, and sent."""
+    changed: T is brought to 25, and sent."""
     heater = bench.device(HEATER, ["heat"], temperature=19.0, min_temp=10.0, max_temp=30.0)
     aircon = bench.device(AIRCON, ["cool"], temperature=25.0)
     pump = bench.device(PUMP, ["heat_cool"], temperature=21.0)
@@ -199,8 +210,7 @@ async def test_ent_tgt_4_range_change_hidden_by_the_limits_still_counts(bench: B
 
 @spec("ENT-TGT-4", "ENT-RANGE-6", "ENT-TGT-12")
 async def test_ent_tgt_4_kept_when_another_mode_still_reaches_it(bench: Bench) -> None:
-    """With a bi-source heat_cool, low is used by heat_cool too (10–35): 28 °C is kept,
-    shown 26 in heat."""
+    """T is used by cool too (7–35): 28 °C is kept, shown 26 in heat."""
     heater, _ = await with_low_high(bench, heater={"min_temp": 10.0, "max_temp": 30.0})
     await ac(bench).set_hvac_mode("heat")
     await bench.advance(15)
@@ -231,20 +241,18 @@ async def test_ent_tgt_6_both_set_high_moves(
     assert low_high(bench) == kept
 
 
-@spec("ENT-TGT-5", "ENT-TGT-6")
-async def test_ent_tgt_6_one_target_moves_the_other(bench: Bench) -> None:
-    """In heat, the low raised near the high pushes it; in cool, the high pulls the low."""
+@spec("ENT-FEAT-4", "ENT-TGT-5")
+async def test_ent_feat_4_t_never_moves_low_and_high(bench: Bench) -> None:
+    """heat and cool set T: low and high stay as they are."""
     await with_low_high(bench)
     await ac(bench).set_temperature(target_temp_low=19.0, target_temp_high=24.0)
     await ac(bench).set_hvac_mode("heat")
     await ac(bench).set_temperature(temperature=23.5)
-    assert low_high(bench) == (None, None)  # heat shows only its target
-    await ac(bench).set_hvac_mode("off")
-    assert low_high(bench) == (23.5, 24.5)
+    assert low_high(bench) == (None, None)  # heat shows T
     await ac(bench).set_hvac_mode("cool")
-    await ac(bench).set_temperature(temperature=21.0)
+    await ac(bench).set_temperature(temperature=18.0)
     await ac(bench).set_hvac_mode("off")
-    assert low_high(bench) == (20.0, 21.0)
+    assert low_high(bench) == (19.0, 24.0)
 
 
 @spec("ENT-TGT-5", "ENT-TGT-6")
@@ -256,51 +264,65 @@ async def test_ent_tgt_6_min_gap(bench: Bench) -> None:
 
 @spec("ENT-TGT-6")
 async def test_ent_tgt_6_the_target_set_gives_way_at_the_end_of_the_range(bench: Bench) -> None:
+    """High cannot go up to 30.5 (the end of its range, 5–30): low gives way."""
     await with_low_high(bench, aircon={"min_temp": 16.0, "max_temp": 30.0},
                         heater={"min_temp": 5.0, "max_temp": 30.0})
-    await ac(bench).set_temperature(target_temp_low=19.0, target_temp_high=30.0)
-    await ac(bench).set_hvac_mode("heat")
-    await ac(bench).set_temperature(temperature=29.5)  # high cannot go to 30.5
-    await ac(bench).set_hvac_mode("off")
+    await ac(bench).set_temperature(target_temp_low=29.5, target_temp_high=30.0)
     assert low_high(bench) == (29.0, 30.0)
 
 
-@spec("ENT-TGT-5")
-async def test_ent_tgt_5_without_low_high_targets_are_independent(bench: Bench) -> None:
-    await without_low_high(bench)
+@spec("ENT-FEAT-4", "ENT-TGT-1")
+async def test_ent_feat_4_modes_with_a_single_target_share_t(bench: Bench) -> None:
+    heater, aircon, pump = await without_low_high(bench)
     await ac(bench).set_hvac_mode("heat")
     await ac(bench).set_temperature(temperature=22.0)
     await ac(bench).set_hvac_mode("cool")
-    await ac(bench).set_temperature(temperature=21.0)
-    await ac(bench).set_hvac_mode("heat")
     assert ac(bench).attr("temperature") == 22.0
+    await ac(bench).set_temperature(temperature=21.0)
+    await ac(bench).set_hvac_mode("heat_cool")
+    assert ac(bench).attr("temperature") == 21.0
+    await bench.advance(15)
+    assert pump.temperature == 21.0
+    await ac(bench).set_hvac_mode("heat")
+    assert ac(bench).attr("temperature") == 21.0
 
 
 # --- ENT-TGT-7: set by the user ----------------------------------------------------------------------
 
 
 @spec("ENT-TGT-7")
-async def test_ent_tgt_7_single_target_sets_the_target_of_the_mode(bench: Bench) -> None:
-    heater, aircon, pump = await without_low_high(bench)
+async def test_ent_tgt_7_single_target_sets_t(bench: Bench) -> None:
+    await without_low_high(bench)
     await ac(bench).set_hvac_mode("heat_cool")
-    await ac(bench).set_temperature(temperature=20.5)  # T
+    await ac(bench).set_temperature(temperature=20.5)
     await ac(bench).set_hvac_mode("heat")
-    assert ac(bench).attr("temperature") == 19.0  # low untouched
-    await ac(bench).set_hvac_mode("heat_cool")
     assert ac(bench).attr("temperature") == 20.5
 
 
+@spec("ENT-TGT-7", "ENT-FEAT-4")
+async def test_ent_tgt_7_single_target_in_a_mode_with_low_high_sets_t(bench: Bench) -> None:
+    """The bi-source heat_cool shows low/high: a `temperature` sets T, kept, not sent."""
+    heater, aircon = await with_low_high(bench)
+    await ac(bench).set_hvac_mode("heat_cool")
+    await bench.advance(15)
+    await ac(bench).set_temperature(temperature=22.0)
+    assert low_high(bench) == (19.0, 25.0)
+    assert {"temperature": 22.0} not in heater.temperatures_asked() + aircon.temperatures_asked()
+    await ac(bench).set_hvac_mode("heat")
+    assert ac(bench).attr("temperature") == 22.0
+
+
 @spec("ENT-TGT-7", "ENT-TGT-11", "ENT-STATE-2")
-async def test_ent_tgt_7_in_off_the_target_of_the_mode_turn_on_starts(bench: Bench) -> None:
+async def test_ent_tgt_7_in_off_sets_t(bench: Bench) -> None:
     await without_low_high(bench)  # heat_cool used last (discovered by a takeover)
     await ac(bench).set_hvac_mode("off")
-    await ac(bench).set_temperature(temperature=18.0)  # T, the target of heat_cool
+    await ac(bench).set_temperature(temperature=18.0)
     assert ac(bench).attr("temperature") == 18.0
     await ac(bench).turn_on()
     assert ac(bench).state == "heat_cool"
     assert ac(bench).attr("temperature") == 18.0
     await ac(bench).set_hvac_mode("heat")
-    assert ac(bench).attr("temperature") == 19.0  # low untouched
+    assert ac(bench).attr("temperature") == 18.0
 
 
 @spec("ENT-TGT-7")
@@ -342,7 +364,7 @@ async def test_ent_tgt_7_mode_refused_refuses_the_targets(bench: Bench) -> None:
             {"entity_id": ac(bench).entity_id, "hvac_mode": "cool", "temperature": 27.0},
             blocking=True,
         )
-    assert ac(bench).attr("target_temp_high") == 25.0
+    assert 27.0 not in numbers_in(ac(bench).attr("saved_targets"))
 
 
 # --- ENT-TGT-8: sent to the source -----------------------------------------------------------------------
@@ -350,7 +372,7 @@ async def test_ent_tgt_7_mode_refused_refuses_the_targets(bench: Bench) -> None:
 
 @spec("ENT-TGT-8")
 async def test_ent_tgt_8_rounded_to_the_step_of_the_source(bench: Bench) -> None:
-    """A high target of 24.5 °C stays 24.5 in the entity; an AC at step 1 gets 25."""
+    """A target of 24.5 °C stays 24.5 in the entity; an AC at step 1 gets 25."""
     _, aircon = await with_low_high(bench, aircon={"target_temp_step": 1.0})
     await ac(bench).set_hvac_mode("cool")
     await ac(bench).set_temperature(temperature=24.5)
@@ -421,10 +443,12 @@ async def test_ent_tgt_9_low_taken_pushes_high(bench: Bench) -> None:
 
 @spec("ENT-TGT-10", "ENT-TGT-11", "ENT-DATA-1")
 async def test_ent_tgt_10_first_targets_taken_from_the_sources(bench: Bench) -> None:
-    heater = bench.device(HEATER, ["heat"], temperature=19.0)
-    aircon = bench.device(AIRCON, ["cool"], temperature=25.0)
+    """T from the first source; low and high from the phase sources of heat_cool."""
+    bench.device(HEATER, ["heat"], temperature=19.0)
+    bench.device(AIRCON, ["cool"], temperature=25.0)
     await bench.start([yaml_entry("Living room", heat_entity=HEATER, cool_entity=AIRCON)])
     assert low_high(bench) == (19.0, 25.0)
+    assert sorted(numbers_in(ac(bench).attr("saved_targets"))) == [19.0, 19.0, 25.0]
 
 
 @spec("ENT-TGT-10")
@@ -454,8 +478,9 @@ async def test_ent_tgt_10_nothing_shown_middle_of_the_range(bench: Bench) -> Non
 async def test_ent_tgt_11_without_low_high_off_shows_the_target_of_turn_on(bench: Bench) -> None:
     await without_low_high(bench)
     await ac(bench).set_hvac_mode("cool")
+    await ac(bench).set_temperature(temperature=24.0)
     await ac(bench).set_hvac_mode("off")
-    assert ac(bench).attr("temperature") == 25.0
+    assert ac(bench).attr("temperature") == 24.0
     assert low_high(bench) == (None, None)
 
 
@@ -467,6 +492,7 @@ async def test_ent_set_2_settings_of_a_source_not_active_are_ignored(bench: Benc
     heater, aircon = await with_low_high(bench)
     await ac(bench).set_hvac_mode("heat")
     await aircon.set(temperature=18.0)
+    assert ac(bench).attr("temperature") == 25.0
     await ac(bench).set_hvac_mode("off")
     assert low_high(bench) == (19.0, 25.0)
 
@@ -474,22 +500,22 @@ async def test_ent_set_2_settings_of_a_source_not_active_are_ignored(bench: Benc
 # --- More paths of the sending and the gap -----------------------------------------------------------
 
 
-@spec("ENT-TGT-4", "ENT-TGT-9", "ENT-TGT-5")
+@spec("ENT-TGT-4", "ENT-TGT-9", "ENT-TGT-5", "ENT-FEAT-4")
 async def test_ent_tgt_4_low_moves_when_high_is_at_the_end_of_its_range(bench: Bench) -> None:
-    """Low taken at 30 °C, high at its maximum 30: the gap is broken. A change of the
-    capabilities applies it again: high cannot move, low goes down to 29."""
+    """Phase heat of the bi-source heat_cool: low taken at 30 °C from the heater, high
+    at its maximum 30: the gap is broken. A change of the capabilities applies it
+    again: high cannot move, low goes down to 29."""
     heater, aircon = await with_low_high(
         bench, heater={"min_temp": 5.0, "max_temp": 30.0},
         aircon={"min_temp": 16.0, "max_temp": 30.0},
     )
     await ac(bench).set_temperature(target_temp_low=19.0, target_temp_high=30.0)
-    await ac(bench).set_hvac_mode("heat")
+    await ac(bench).set_hvac_mode("heat_cool")
+    assert ac(bench).attr("phase") == "heat"
     await bench.advance(15)
     await heater.set(temperature=30.0)
-    saved = list(ac(bench).attr("saved_targets").values())
-    assert saved.count(30.0) >= 2  # low 30, high 30
+    assert low_high(bench) == (30.0, 30.0)
     await heater.set(min_temp=6.0)
-    await ac(bench).set_hvac_mode("off")
     assert low_high(bench) == (29.0, 30.0)
 
 
@@ -538,9 +564,9 @@ async def test_ent_tgt_8_range_narrower_than_the_gap(bench: Bench) -> None:
     assert (pump.target_temp_low, pump.target_temp_high) == (20.0, 21.0)
 
 
-@spec("ENT-FEAT-4", "ENT-TGT-8")
-async def test_ent_feat_4_cool_on_a_low_high_source_moves_low_first(bench: Bench) -> None:
-    """High is the target of cool: it is kept, low moves for the gap."""
+@spec("ENT-FEAT-4", "ENT-TGT-8", "ENT-TGT-6")
+async def test_ent_feat_4_cool_on_a_low_high_source_uses_low_and_high(bench: Bench) -> None:
+    """cool shows the low/high of its source; the gap moves high (ENT-TGT-6)."""
     aircon = bench.device(
         AIRCON, ["cool"], min_temp=16.0, max_temp=30.0, single_target=False,
         range_target=True, target_temp_low=19.0, target_temp_high=25.0,
@@ -548,23 +574,9 @@ async def test_ent_feat_4_cool_on_a_low_high_source_moves_low_first(bench: Bench
     await bench.start([yaml_entry("Living room", cool_entity=AIRCON)])
     await ac(bench).set_hvac_mode("cool")
     await bench.advance(15)
+    assert low_high(bench) == (19.0, 25.0)
+    assert ac(bench).attr("temperature") is None
     aircon.clear_calls()
-    await ac(bench).set_temperature(temperature=19.5)
-    assert aircon.temperatures_asked()[-1] == {"target_temp_low": 18.5, "target_temp_high": 19.5}
-    await ac(bench).set_temperature(temperature=16.5)  # low cannot go below 16: high moves
-    assert aircon.temperatures_asked()[-1] == {"target_temp_low": 16.0, "target_temp_high": 17.0}
-
-
-@spec("ENT-TGT-6", "ENT-TGT-5")
-async def test_ent_tgt_6_high_set_gives_way_when_low_is_at_its_minimum(bench: Bench) -> None:
-    """In cool, high lowered to 10.5 near low 10, the minimum of low: low cannot move,
-    so high, the target just set, gives way: 11."""
-    await with_low_high(
-        bench, heater={"min_temp": 10.0, "max_temp": 30.0},
-        aircon={"min_temp": 5.0, "max_temp": 35.0},
-    )
-    await ac(bench).set_temperature(target_temp_low=10.0, target_temp_high=24.0)
-    await ac(bench).set_hvac_mode("cool")
-    await ac(bench).set_temperature(temperature=10.5)
-    await ac(bench).set_hvac_mode("off")
-    assert low_high(bench) == (10.0, 11.0)
+    await ac(bench).set_temperature(target_temp_low=19.5, target_temp_high=19.5)
+    assert low_high(bench) == (19.5, 20.5)
+    assert aircon.temperatures_asked()[-1] == {"target_temp_low": 19.5, "target_temp_high": 20.5}

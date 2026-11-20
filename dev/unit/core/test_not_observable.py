@@ -110,9 +110,9 @@ def test_src_data_5_invalid_part_dropped() -> None:
 
 def test_ent_data_2_invalid_target_taken_from_the_sources() -> None:
     stored = stored_after_heating()
-    stored["entity"]["targets"]["low"] = "warm"
+    stored["entity"]["targets"]["T"] = "warm"
     view = restart(stored, heater_now=heater("heat", temperature=19.0)).entity.view()
-    assert view.temperature == 19.0  # taken again from the heater (ENT-TGT-10)
+    assert view.temperature == 19.0  # T taken again from the heater (ENT-TGT-10)
 
 
 def test_ent_data_2_invalid_fan_value_dropped() -> None:
@@ -134,7 +134,7 @@ def test_ent_data_2_invalid_mode_is_off() -> None:
     core = restart(stored, heater_now=heater("heat"))
     view = core.entity.view()
     assert view.hvac_mode == "off"
-    assert view.attributes["saved_targets"]["low"] == 22.0  # the other data restored
+    assert view.attributes["saved_targets"]["single"] == 22.0  # the other data restored
     assert view.attributes["saved_settings"] == {"heat": {"fan_mode": "high"}}
 
 
