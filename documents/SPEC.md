@@ -1981,8 +1981,10 @@ a mode, or later):
   changing it), the entity reads the capabilities of that source again (`capabilities@S`) and rebuilds its own (§1.3.4: modes
   available, features, step, range, fan/swing options). Then (the first three through the settings
   management, `ACcam=>ACsem_capabilities_changed(m)`, §1.3.1):
-  - the step or the range of a mode changed: the kept targets are
-    brought back in line (ENT-TGT-4);
+  - the step or the range of a mode changed, as read on its source
+    (ENT-RANGE-1), even when the limits `min_temp` / `max_temp` hide the
+    change (ENT-RANGE-3): the kept targets are brought back in line
+    (ENT-TGT-4);
   - the options of a mode changed: the fan/swing memory is checked
     (ENT-FANV-3);
   - the settings expected from the active source (`expected(S)`,
@@ -2449,7 +2451,8 @@ The temperature targets used and shown by each mode are listed in
 - **ENT-TGT-4** When the capabilities of a mode change (`S=>AC_capabilities`,
   ENT-CAP-7: discovery of the source, SRC-DATA-12, or of the mode,
   ENT-CAP-6, or later update of the step or the
-  range, SRC-DATA-6, SRC-DATA-10), and when it leaves `INIT` (the step
+  range read on the source, SRC-DATA-6, SRC-DATA-10, even when the limits
+  `min_temp` / `max_temp` hide it, ENT-RANGE-3), and when it leaves `INIT` (the step
   or the range may have changed since the targets were saved: a source
   added or removed by a configuration change, ENT-INIT-4), the entity
   takes back control of its kept targets:

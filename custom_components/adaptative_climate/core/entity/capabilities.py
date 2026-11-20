@@ -215,10 +215,19 @@ class CapabilitiesManagement:
         return features
 
     def geometry(self) -> Any:
-        """What brings the targets back in line when it changes (ENT-TGT-4)."""
+        """What brings the targets back in line when it changes (ENT-TGT-4).
+
+        The ranges of the sources are taken as read, before the limits: a change
+        of the range of a source counts even when `min_temp` / `max_temp` hide it.
+        """
         return (
             self.step(),
             self.has_low_high(),
+            tuple(
+                (self.raw_range(s, m), self.source_step(s, m))
+                for s, m in self.contexts()
+                if self.caps(s, m) is not None
+            ),
             tuple(self.mode_range(m) for m in self._entity.entry.modes),
             tuple(self.target_range(t) for t in TARGETS),
         )

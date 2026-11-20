@@ -11,3 +11,4 @@ column.
 | SRC-DATA-5 | A stored value that is not valid is dropped: testing it means writing invalid stored data, whose format belongs to the architecture (`ARCHITECTURE.md` §7). | unit tests of `core/source/storage.py` |
 | ENT-INIT-2 | A stored mode whose source is `UNDISCOVERED` only happens with the stored data of the source lost or corrupted (the rule says so): testing it means writing stored data, whose format belongs to the architecture. | unit tests of `core/entity/state.py` |
 | ENT-INIT-5 | What the state management ignores in `INIT`: the start is one stimulus (EXEC-4), so no event can reach the entity in `INIT` from outside. | unit tests of `core/entity/state.py` |
+| ENT-DATA-2 | A stored value of the entity that is not valid is dropped: testing it means writing invalid stored data, whose format belongs to the architecture (`ARCHITECTURE.md` §7). | unit tests of `core/entity/stored.py` |
