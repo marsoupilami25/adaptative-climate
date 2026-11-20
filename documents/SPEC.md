@@ -2009,11 +2009,13 @@ a mode, or later):
       (EXEC-2) and wins (ENT-SEND-3). The fan/swing value a source
       reports for a capability just discovered is not one when the entity
       has a remembered value: that value is sent (ENT-FANV-5). This decides who wins when the mode
-      changes to low/high (`low_high_seen` set): during `SETTLE` (the
-      discovery of the mode, the usual case), the source does not report the
-      low/high it shows, and the ones of the entity are sent; outside
-      `SETTLE`, the source reports them (`S=>AC_settings`): they are
-      adopted (ENT-TGT-9) and not sent back;
+      changes to low/high (`low_high_seen` set), and when
+      `TARGET_TEMPERATURE` appears in a mode already discovered: during
+      `SETTLE` (the discovery of the mode, the usual case), the source does
+      not report the temperature targets it shows, and the ones of the
+      entity are sent; outside `SETTLE`, the source reports them
+      (`S=>AC_settings`, a value shown for the first time is a change,
+      SRC-SET-11): they are adopted (ENT-TGT-9) and not sent back;
   - the entity writes its state in Home Assistant, so that the card and
     the attributes show the new capabilities (except in `INIT` and
     `NO_SOURCE`, where the entity is `unavailable`).
