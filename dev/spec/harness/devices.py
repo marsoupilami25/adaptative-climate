@@ -12,7 +12,8 @@ The test plays the device:
   `unknown` (`hvac_mode=None`);
 - the service calls of Home Assistant (`climate.set_hvac_mode`...) are
   recorded in `device.calls`, then obeyed at once (default), after
-  `delay` seconds, never (`obey=False`), or fail (`fail`).
+  `delay` seconds, never (`obey=False`), accepted without effect for some
+  services (`ignore`), or fail for some services (`fail`).
 
 Nothing here knows the integration under test.
 """
@@ -30,6 +31,7 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.const import UnitOfTemperature
+from homeassistant.core import HassJob, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_call_later
 
@@ -120,6 +122,7 @@ class Device:
     obey: bool = True
     delay: float = 0.0
     fail: set[str] = field(default_factory=set)
+    ignore: set[str] = field(default_factory=set)
     calls: list[Call] = field(default_factory=list)
     # Bound to the current Home Assistant instance by the bench
     hass: HomeAssistant | None = field(default=None, repr=False)
@@ -142,6 +145,14 @@ class Device:
         """The modes asked by `set_hvac_mode`, in order."""
         return [call.data["hvac_mode"] for call in self.calls_of("set_hvac_mode")]
 
+    def temperatures_asked(self) -> list[dict[str, Any]]:
+        """The targets asked by `set_temperature`, in order."""
+        return [call.data for call in self.calls_of("set_temperature")]
+
+    def values_asked(self, setting: str) -> list[Any]:
+        """The values asked for a fan/swing setting (`fan_mode`...), in order."""
+        return [call.data[setting] for call in self.calls_of(f"set_{setting}")]
+
     def clear_calls(self) -> None:
         """Forget the calls received so far."""
         self.calls.clear()
@@ -151,17 +162,18 @@ class Device:
         self.calls.append(Call(service, dict(data)))
         if service in self.fail:
             raise HomeAssistantError(f"{self.entity_id}: {service} failed (test)")
-        if not self.obey:
+        if not self.obey or service in self.ignore:
             return
         if self.delay <= 0:
             self._obey(service, data)
             return
         assert self.hass is not None
 
+        @callback
         def later(_now: Any) -> None:
             self._obey(service, data)
 
-        async_call_later(self.hass, self.delay, later)
+        async_call_later(self.hass, self.delay, HassJob(later, cancel_on_shutdown=True))
 
     def _obey(self, service: str, data: dict[str, Any]) -> None:
         if service == "set_hvac_mode":
@@ -371,7 +383,11 @@ class DeviceEntity(ClimateEntity):
         await self.device._receive("set_hvac_mode", {"hvac_mode": str(hvac_mode)})
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        data = {k: (str(v) if k == "hvac_mode" else v) for k, v in kwargs.items()}
+        data = {
+            key: (str(value) if key == "hvac_mode" else value)
+            for key, value in kwargs.items()
+            if key in ("temperature", "target_temp_low", "target_temp_high", "hvac_mode")
+        }
         await self.device._receive("set_temperature", data)
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
