@@ -43,6 +43,7 @@ views:
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min gap | {{ state_attr(e, 'min_gap') }} |
         | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
         | Phase | {{ state_attr(e, 'phase') }} |
         | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
