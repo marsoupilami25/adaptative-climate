@@ -39,7 +39,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -51,15 +51,15 @@ views:
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
     - type: entities
-      title: Sensors
+      title: Room sensor
       state_color: true
       entities:
-      - entity: sensor.room_sensor_multi
-        name: Room sensor
       - entity: input_number.room_temperature_multi
         name: Room temperature
       - entity: input_boolean.room_sensor_available_multi
         name: Room sensor available
+      - entity: sensor.room_sensor_multi
+        name: Read by Adaptative MULTI
   - type: grid
     cards:
     - type: markdown
@@ -69,7 +69,11 @@ views:
 
         ## Multi-sources
 
-        Adaptative MULTI: one source per mode, the room sensor. *heat*, *cool* and *dry* share fan and swing; *heat_cool* switches between HEAT Virtual and COOL Virtual. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        - **Adaptative MULTI**: one source per mode. *heat*, *cool* and *dry* share fan and swing; *heat_cool* switches between HEAT Virtual and COOL Virtual, on its *Reference temperature*.
+        - **The sources** (view *Sources*): HEAT, COOL, DRY, FAN_ONLY and AUTO Virtual. *Temperature (measured by the source)*: the own reading of each one.
+        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative MULTI, its reference temperature. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable (the reference is then the temperature measured by the active source); *Read by Adaptative MULTI* is what the entity sees.
+
+        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
         The options are written differently: HEAT Virtual in *Capitals* with *Turbo* on top, DRY Virtual in *UPPERCASE* without *medium*, the others in lowercase. The sources are on the view *Sources*.
 
         1. **Mode change** (ENT-STATE-3): Adaptative MULTI to *heat*, then *cool*: COOL Virtual goes to *cool*, HEAT Virtual back to *off*.
@@ -109,7 +113,7 @@ views:
       - entity: input_number.target_heat_multi
         name: Target
       - entity: input_number.temperature_heat_multi
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_select.fan_heat_multi
         name: Fan
       - entity: input_select.swing_heat_multi
@@ -179,7 +183,7 @@ views:
       - entity: input_number.target_cool_multi
         name: Target
       - entity: input_number.temperature_cool_multi
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_select.fan_cool_multi
         name: Fan
       - entity: input_select.swing_cool_multi
@@ -253,7 +257,7 @@ views:
       - entity: input_number.target_dry_multi
         name: Target
       - entity: input_number.temperature_dry_multi
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_select.fan_dry_multi
         name: Fan
       - entity: input_select.swing_dry_multi
@@ -314,7 +318,7 @@ views:
       - entity: input_select.mode_fan_only_multi
         name: Mode
       - entity: input_number.temperature_fan_only_multi
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_select.fan_fan_only_multi
         name: Fan
       - entity: input_number.delay_fan_only_multi
@@ -369,7 +373,7 @@ views:
       - entity: input_number.target_auto_multi
         name: Target
       - entity: input_number.temperature_auto_multi
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_select.fan_auto_multi
         name: Fan
       - entity: input_number.delay_auto_multi

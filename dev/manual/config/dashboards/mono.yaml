@@ -39,7 +39,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -176,7 +176,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -316,7 +316,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -438,7 +438,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -559,7 +559,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -676,7 +676,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -800,7 +800,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -921,7 +921,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -942,7 +942,9 @@ views:
       - entity: input_number.target_trv_mono
         name: Target
       - entity: input_number.temperature_trv_mono
-        name: Temperature
+        name: Temperature (measured by the valve)
+      - entity: input_number.external_temperature_mono
+        name: External temperature (written by Adaptative TRV)
       - entity: input_number.delay_trv_mono
         name: Delay before obeying
     - type: markdown
@@ -982,17 +984,15 @@ views:
         tap_action:
           action: toggle
     - type: entities
-      title: Sensors
+      title: Room sensor
       state_color: true
       entities:
-      - entity: sensor.room_sensor_mono
-        name: Room sensor
       - entity: input_number.room_temperature_mono
         name: Room temperature
       - entity: input_boolean.room_sensor_available_mono
         name: Room sensor available
-      - entity: input_number.external_temperature_mono
-        name: External temperature (written)
+      - entity: sensor.room_sensor_mono
+        name: Read by Adaptative TRV
     - type: button
       entity: script.reset_sources_mono
       name: Reset the sources
@@ -1008,10 +1008,15 @@ views:
 
         ## Adaptative TRV
 
-        TRV Virtual: a valve in *heat* that gets the room temperature. Adaptative TRV: `heat_external_sensor`, written again every 60 s. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        A radiator valve measures the temperature next to the radiator, too warm; it can take the room temperature instead, written into it from outside.
 
-        1. **Write** (ENT-EXT-1, ENT-EXT-2): *Room temperature* 21.3: *External temperature* goes to 21.5 (step 0.5), even with Adaptative TRV *off*.
-        2. **Reference** (ENT-REF-1): Adaptative TRV shows the temperature of the room sensor.
-        3. **Sensor without value** (ENT-EXT-5, MON-TEMP-4, ENT-REF-2): turn *Room sensor available* off: nothing is written any more; Adaptative TRV to *heat*: it shows the temperature of TRV Virtual. After 15 s, *Monitoring temperatures* goes to *Problem*. *Room sensor available* on: written at once, back to *OK*.
+        - **TRV Virtual**: the valve, `heat_entity` of Adaptative TRV. *Temperature (measured by the valve)*: its own reading. *External temperature (written by Adaptative TRV)*: the room temperature it gets (`heat_external_sensor`, step 0.5, written again every 60 s).
+        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative TRV. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable; *Read by Adaptative TRV* is what the entity sees.
+
+        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+
+        1. **Write** (ENT-EXT-1, ENT-EXT-2): on Room sensor, *Room temperature* 21.3: on TRV Virtual, *External temperature* goes to 21.5 (the step of the valve), even with Adaptative TRV *off*.
+        2. **Reference** (ENT-REF-1): Adaptative TRV shows 21.3, the room temperature, not the *Temperature* measured by TRV Virtual.
+        3. **Sensor without value** (ENT-EXT-5, MON-TEMP-4, ENT-REF-2): on Room sensor, turn *Room sensor available* off: *External temperature* no longer changes; Adaptative TRV to *heat*: it shows the *Temperature* measured by TRV Virtual. After 15 s, *Monitoring temperatures* goes to *Problem*. *Room sensor available* on: *External temperature* is written at once, back to *OK*.
 
         </small>

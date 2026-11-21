@@ -39,7 +39,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |

@@ -39,7 +39,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -52,15 +52,15 @@ views:
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
     - type: entities
-      title: Sensors
+      title: Room sensor
       state_color: true
       entities:
-      - entity: sensor.room_sensor_bi
-        name: Room sensor
       - entity: input_number.room_temperature_bi
         name: Room temperature
       - entity: input_boolean.room_sensor_available_bi
         name: Room sensor available
+      - entity: sensor.room_sensor_bi
+        name: Read by Adaptative BI
   - type: grid
     cards:
     - type: entities
@@ -71,7 +71,7 @@ views:
       - entity: input_number.target_radiator_bi
         name: Target
       - entity: input_number.temperature_radiator_bi
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_number.delay_radiator_bi
         name: Delay before obeying
     - type: markdown
@@ -118,7 +118,7 @@ views:
       - entity: input_number.target_aircon_bi
         name: Target
       - entity: input_number.temperature_aircon_bi
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_select.fan_aircon_bi
         name: Fan
       - entity: input_number.delay_aircon_bi
@@ -179,7 +179,12 @@ views:
 
         ## Bi-source
 
-        Adaptative BI: *heat_cool* with no source of its own: RADIATOR Virtual (*heat*, 5–30 °C; it also offers *fan_only*, which Adaptative BI does not serve) and AIRCON Virtual (*cool*, 16–30 °C by steps of 1). `min_gap` 2, hysteresis 1 °C. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        - **Adaptative BI**: *heat_cool* with no source of its own: phase `heat` on RADIATOR Virtual, phase `cool` on AIRCON Virtual. `min_gap` 2, hysteresis 1 °C. Its *Reference temperature* chooses the phase.
+        - **RADIATOR Virtual**: `heat_entity`, *heat*, 5–30 °C; it also offers *fan_only*, which Adaptative BI does not serve. *Temperature (measured by the source)*: its own reading.
+        - **AIRCON Virtual**: `cool_entity`, *cool*, 16–30 °C by steps of 1. *Temperature (measured by the source)*: its own reading.
+        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative BI, its reference temperature. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable (the reference is then the mean of the two sources); *Read by Adaptative BI* is what the entity sees.
+
+        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
         Adaptative BI *off*: set the range to 19–24 and *Room temperature* to 21.
 
         1. **Entering heat_cool** (ENT-WANT-1, ENT-TYPE-3): Adaptative BI to *heat_cool*: *Phase* `heat`, RADIATOR Virtual goes to *heat* at 19, AIRCON Virtual stays *off*.

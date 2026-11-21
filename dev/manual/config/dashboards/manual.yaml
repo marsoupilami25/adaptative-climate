@@ -39,7 +39,7 @@ views:
         |:--|:--|
         | Action | {{ state_attr(e, 'hvac_action') }} |
         | Active source | {{ state_attr(e, 'active_entity_id') }} |
-        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
@@ -51,17 +51,15 @@ views:
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
     - type: entities
-      title: Sensors
+      title: Room sensor
       state_color: true
       entities:
-      - entity: sensor.room_sensor_manual
-        name: Room sensor
       - entity: input_number.room_temperature_manual
         name: Room temperature
       - entity: input_boolean.room_sensor_available_manual
         name: Room sensor available
-      - entity: input_number.external_temperature_manual
-        name: External temperature (written)
+      - entity: sensor.room_sensor_manual
+        name: Read by Adaptative Manual
   - type: grid
     cards:
     - type: markdown
@@ -71,13 +69,18 @@ views:
 
         ## Configuration from the UI
 
-        No entity is declared in the YAML: Adaptative Manual is created from the UI. The sources are on the view *Sources*. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        No entity is declared in the YAML: Adaptative Manual is created from the UI.
+
+        - **The sources** (view *Sources*): *Temperature (measured by the source)*: the own reading of each one. HEAT Virtual also shows *External temperature (written by Adaptative Manual)*, the entity *External temperature HEAT*, once it is the `heat_external_sensor` (step 5).
+        - **Room sensor**: the room thermometer, the entity *Room sensor (manual)*, added as `temperature_sensor` in step 3. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable; *Read by Adaptative Manual* is what the entity sees.
+
+        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **Creation** (§3): *Settings > Devices & services > Helpers > Create helper > Adaptative Climate*, name **Adaptative Manual**, *heat*: HEAT Virtual (manual), *cool*: COOL Virtual (manual), and the delays of the tests above. Adaptative Manual lists *off*, *heat*, *cool*, *heat_cool*.
         2. **Refused** (CFG-CHECK-1): another entry named `adaptative manual`: refused. With *heat*: COOL Virtual: refused (COOL Virtual does not offer *heat*). With an external sensor and no room sensor: refused. With next try 10 s and confirmation 30 s: refused.
         3. **Options** (CFG-YAML-4, ENT-INIT-4): Adaptative Manual in *heat*; open its options, add the room sensor: the entry reloads, Adaptative Manual is *off*, HEAT Virtual goes to *off*.
         4. **Remove a mode** (CFG-YAML-4, ENT-HVAC-1): options, clear *cool*: no more *cool* nor *heat_cool*.
-        5. **External sensor** (ENT-EXT-1, CFG-SENS-2): options, *heat_external_sensor*: *External temperature HEAT*, with the room sensor: the value of the room sensor is written to it. With `heat_offset` 1 as well: refused.
+        5. **External sensor** (ENT-EXT-1, CFG-SENS-2): options, *heat_external_sensor*: *External temperature HEAT*, with the room sensor: the *Room temperature* is written to *External temperature* of HEAT Virtual. With `heat_offset` 1 as well: refused.
         6. **One source for several modes** (CFG-SENS-4): options, *heat* and *cool* on ALL Virtual with different offsets: refused, the error names both modes.
         7. **Entries of the YAML** (CFG-YAML-3): the entries declared in the YAML (Adaptative HEAT...) have no options in the UI.
         8. **Reload without change** (ENT-INIT-4): Adaptative Manual in *heat*, *Reload* the entry: it resumes *heat*.
@@ -105,7 +108,9 @@ views:
       - entity: input_number.target_heat_manual
         name: Target
       - entity: input_number.temperature_heat_manual
-        name: Temperature
+        name: Temperature (measured by the source)
+      - entity: input_number.external_temperature_manual
+        name: External temperature (written by Adaptative Manual)
       - entity: input_select.fan_heat_manual
         name: Fan
       - entity: input_number.delay_heat_manual
@@ -161,7 +166,7 @@ views:
       - entity: input_number.target_cool_manual
         name: Target
       - entity: input_number.temperature_cool_manual
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_select.fan_cool_manual
         name: Fan
       - entity: input_select.swing_cool_manual
@@ -224,7 +229,7 @@ views:
       - entity: input_number.target_dry_manual
         name: Target
       - entity: input_number.temperature_dry_manual
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_select.fan_dry_manual
         name: Fan
       - entity: input_number.delay_dry_manual
@@ -278,7 +283,7 @@ views:
       - entity: input_select.mode_fan_only_manual
         name: Mode
       - entity: input_number.temperature_fan_only_manual
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_select.fan_fan_only_manual
         name: Fan
       - entity: input_number.delay_fan_only_manual
@@ -333,7 +338,7 @@ views:
       - entity: input_number.target_auto_manual
         name: Target
       - entity: input_number.temperature_auto_manual
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_number.delay_auto_manual
         name: Delay before obeying
     - type: markdown
@@ -386,7 +391,7 @@ views:
       - entity: input_number.target_high_all_manual
         name: Target high
       - entity: input_number.temperature_all_manual
-        name: Temperature
+        name: Temperature (measured by the source)
       - entity: input_select.fan_all_manual
         name: Fan
       - entity: input_select.swing_all_manual
