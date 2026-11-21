@@ -65,6 +65,16 @@ views:
     cards:
     - type: entities
       title: RADIATOR Virtual
+      uix:
+        style: |
+          {% set m = states('climate.radiator_virtual_bi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_radiator_bi
         name: Mode
@@ -112,6 +122,16 @@ views:
           action: toggle
     - type: entities
       title: AIRCON Virtual
+      uix:
+        style: |
+          {% set m = states('climate.aircon_virtual_bi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_aircon_bi
         name: Mode

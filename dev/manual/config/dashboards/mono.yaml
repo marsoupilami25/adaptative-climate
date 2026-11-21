@@ -54,6 +54,16 @@ views:
     cards:
     - type: entities
       title: HEAT Virtual
+      uix:
+        style: |
+          {% set m = states('climate.heat_virtual_mono') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_heat_mono
         name: Mode
@@ -193,6 +203,16 @@ views:
     cards:
     - type: entities
       title: COOL Virtual
+      uix:
+        style: |
+          {% set m = states('climate.cool_virtual_mono') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_cool_mono
         name: Mode
@@ -335,6 +355,16 @@ views:
     cards:
     - type: entities
       title: DEHUM Virtual
+      uix:
+        style: |
+          {% set m = states('climate.dehum_virtual_mono') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_dehum_mono
         name: Mode
@@ -459,6 +489,16 @@ views:
     cards:
     - type: entities
       title: FAN_ONLY Virtual
+      uix:
+        style: |
+          {% set m = states('climate.fan_only_virtual_mono') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_fan_only_mono
         name: Mode
@@ -582,6 +622,16 @@ views:
     cards:
     - type: entities
       title: AUTO Virtual
+      uix:
+        style: |
+          {% set m = states('climate.auto_virtual_mono') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_auto_mono
         name: Mode
@@ -702,6 +752,16 @@ views:
     cards:
     - type: entities
       title: HEAT_COOL Virtual
+      uix:
+        style: |
+          {% set m = states('climate.heat_cool_virtual_mono') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_heat_cool_mono
         name: Mode
@@ -827,6 +887,16 @@ views:
     cards:
     - type: entities
       title: HEATPUMP Virtual
+      uix:
+        style: |
+          {% set m = states('climate.heatpump_virtual_mono') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_heatpump_mono
         name: Mode
@@ -950,6 +1020,16 @@ views:
     cards:
     - type: entities
       title: TRV Virtual
+      uix:
+        style: |
+          {% set m = states('climate.trv_virtual_mono') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_trv_mono
         name: Mode

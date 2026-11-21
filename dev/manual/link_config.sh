@@ -32,3 +32,18 @@ link "$repo/custom_components/adaptative_climate" "$target/custom_components/ada
 for f in automations.yaml scripts.yaml scenes.yaml; do
   [ -e "$target/$f" ] || echo "[]" > "$target/$f"
 done
+
+# UIX (UI eXtension, the maintained successor of card-mod): colors the card of a source
+# while it runs. A custom integration: downloaded once here, then added once from the UI
+# (Settings > Devices & services > UI eXtension). To update, change the version here and
+# delete custom_components/uix.
+uix_version="9.1.0"
+if [ ! -e "$target/custom_components/uix" ]; then
+  download="$(mktemp -d)"
+  curl -fsSL -o "$download/uix.tar.gz" \
+    "https://github.com/Lint-Free-Technology/uix/archive/refs/tags/v$uix_version.tar.gz"
+  tar -xzf "$download/uix.tar.gz" -C "$download" "uix-$uix_version/custom_components/uix"
+  mv "$download/uix-$uix_version/custom_components/uix" "$target/custom_components/uix"
+  rm -rf "$download"
+  echo "$target/custom_components/uix: UIX $uix_version"
+fi

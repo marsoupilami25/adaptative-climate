@@ -17,6 +17,17 @@ views:
       - type: climate-fan-modes
       - type: climate-swing-modes
       - type: climate-swing-horizontal-modes
+    - type: entities
+      entities:
+      - type: button
+        name: Turn on (last used mode)
+        icon: mdi:power
+        action_name: Turn on
+        tap_action:
+          action: perform-action
+          perform_action: climate.turn_on
+          target:
+            entity_id: climate.adaptative_multi
     - type: glance
       title: Adaptative MULTI monitoring
       show_state: true
@@ -79,7 +90,7 @@ views:
 
         1. **Mode change** (ENT-STATE-3): from **Start**. Adaptative MULTI to *heat*, then *cool*: COOL Virtual goes to *cool*, HEAT Virtual back to *off*.
         2. **Turned on on a device** (ENT-STATE-5, ENT-STATE-3): from **Start**. On HEAT Virtual, *Mode* *heat*: Adaptative MULTI goes to *heat*. Then on COOL Virtual, *Mode* *cool*: Adaptative MULTI goes to *cool*, HEAT Virtual is turned off (the last one wins).
-        3. **Turn on** (ENT-STATE-2, ENT-STATE-8): after 2 (*cool*). Adaptative MULTI *off*, then its on button: *cool*, the last used mode, comes back.
+        3. **Turn on** (ENT-STATE-2, ENT-STATE-8): after 2 (*cool*). Adaptative MULTI *off*, then the button **Turn on (last used mode)** (`climate.turn_on`, without mode): *cool*, the last used mode, comes back.
         4. **Mode unavailable** (ENT-HVAC-4, ENT-STATE-4): from **Start**. On DRY Virtual, *Available* off: *dry* is in *Unavailable modes*; Adaptative MULTI to *dry* is refused.
         5. **Waiting for the source** (ENT-WAIT-1, ENT-WAIT-2, MON-SRC-1): from **Start**. Adaptative MULTI to *cool*. On COOL Virtual, *Available* off: Adaptative MULTI goes to *Unknown*, keeps its targets and range; after 15 s, *Monitoring sources* goes to *Problem*. Target 23 on Adaptative MULTI (24 if it already shows 23): nothing is sent. *Available* on: COOL Virtual goes back to *cool* at that target, *Monitoring sources* back to *OK*.
         6. **Range per mode** (ENT-RANGE-2): from **Start**, every mode run once. *Min / max* in *heat* 5–30, *cool* 16–32, *dry* 18–30, *auto* 10–30; in *off*: the widest, 5–32.
@@ -108,6 +119,16 @@ views:
         action: toggle
     - type: entities
       title: HEAT Virtual
+      uix:
+        style: |
+          {% set m = states('climate.heat_virtual_multi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_heat_multi
         name: Mode
@@ -178,6 +199,16 @@ views:
     cards:
     - type: entities
       title: COOL Virtual
+      uix:
+        style: |
+          {% set m = states('climate.cool_virtual_multi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_cool_multi
         name: Mode
@@ -252,6 +283,16 @@ views:
     cards:
     - type: entities
       title: DRY Virtual
+      uix:
+        style: |
+          {% set m = states('climate.dry_virtual_multi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_dry_multi
         name: Mode
@@ -315,6 +356,16 @@ views:
     cards:
     - type: entities
       title: FAN_ONLY Virtual
+      uix:
+        style: |
+          {% set m = states('climate.fan_only_virtual_multi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_fan_only_multi
         name: Mode
@@ -368,6 +419,16 @@ views:
     cards:
     - type: entities
       title: AUTO Virtual
+      uix:
+        style: |
+          {% set m = states('climate.auto_virtual_multi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_auto_multi
         name: Mode

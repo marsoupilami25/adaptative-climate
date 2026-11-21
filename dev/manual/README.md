@@ -24,9 +24,14 @@ dev/manual/
 
    The script links `configuration.yaml`, `packages/`, `dashboards/` and
    `custom_components/adaptative_climate`. An existing file is first renamed
-   to `.bak`. A change made in the repo counts at the next restart (at the
+   to `.bak`. It also downloads [UIX](https://github.com/Lint-Free-Technology/uix)
+   (UI eXtension, the maintained successor of card-mod; version pinned in
+   the script) into `custom_components/uix`: it colors the card of a source
+   while it runs (below). A change made in the repo counts at the next restart (at the
    next refresh of the page for a dashboard).
-2. Check, then start Home Assistant:
+2. Check, then start Home Assistant (the first time, add the UIX service:
+   *Settings > Devices & services > Add integration > UI eXtension*, then
+   refresh the page):
 
    ```bash
    cd ~/ha-dev && .venv/bin/hass --script check_config -c config
@@ -47,7 +52,9 @@ driven by helpers: nothing to install. Each case has its own sources (suffix
 testing one case never moves another.
 
 The card of a source, titled after it (*HEAT Virtual*), holds its helpers: they
-play the remote of the device, so a change made there always applies. Below, the
+play the remote of the device, so a change made there always applies. While
+the source runs, its card takes the color of its mode (the colors of Home
+Assistant: orange in heat, blue in cool...), with UIX; off, it is plain. Below, the
 table *Shown by HEAT Virtual* gives what the source entity shows, as the
 integration reads it: its modes, mode and action, temperature, targets, range
 (min / max / step) and fan / swing with their options. The helpers:

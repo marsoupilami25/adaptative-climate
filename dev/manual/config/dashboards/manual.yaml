@@ -102,6 +102,16 @@ views:
         action: toggle
     - type: entities
       title: HEAT Virtual
+      uix:
+        style: |
+          {% set m = states('climate.heat_virtual_manual') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_heat_manual
         name: Mode
@@ -160,6 +170,16 @@ views:
     cards:
     - type: entities
       title: COOL Virtual
+      uix:
+        style: |
+          {% set m = states('climate.cool_virtual_manual') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_cool_manual
         name: Mode
@@ -223,6 +243,16 @@ views:
     cards:
     - type: entities
       title: DRY Virtual
+      uix:
+        style: |
+          {% set m = states('climate.dry_virtual_manual') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_dry_manual
         name: Mode
@@ -279,6 +309,16 @@ views:
     cards:
     - type: entities
       title: FAN_ONLY Virtual
+      uix:
+        style: |
+          {% set m = states('climate.fan_only_virtual_manual') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_fan_only_manual
         name: Mode
@@ -332,6 +372,16 @@ views:
     cards:
     - type: entities
       title: AUTO Virtual
+      uix:
+        style: |
+          {% set m = states('climate.auto_virtual_manual') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_auto_manual
         name: Mode
@@ -381,6 +431,16 @@ views:
     cards:
     - type: entities
       title: ALL Virtual
+      uix:
+        style: |
+          {% set m = states('climate.all_virtual_manual') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
       entities:
       - entity: input_select.mode_all_manual
         name: Mode
