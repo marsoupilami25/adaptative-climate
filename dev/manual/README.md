@@ -31,6 +31,12 @@ dev/manual/
    ```bash
    cd ~/ha-dev && .venv/bin/hass --script check_config -c config
    ```
+3. First start of a new config folder: the helpers start at their minimum
+   (temperatures 0 °C, offsets −10), and the entities under test take their
+   first targets from those sources (ENT-TGT-10). Press **Reset the sources**
+   on every dashboard, stop Home Assistant, forget the memory of every entity
+   (`dev/manual/reset_memory.sh --all`), and start it again: the first targets
+   are then taken from sources at 20 °C.
 
 ## Virtual sources
 
@@ -49,7 +55,8 @@ integration reads it: its modes, mode and action, temperature, targets, range
 | Helper | Effect |
 |---|---|
 | *Mode*, *Target* (*low*, *high*), *Fan*, *Swing* | what the source shows; changing them is acting on the device (its remote) |
-| *Temperature* | its current temperature |
+| *Temperature* | its current temperature, in the cases without room sensor (mono, unique) |
+| *Offset* | in the cases with a room sensor (bi, multi, monitor, manual): the source measures *Room temperature* plus its offset, so it heats or cools with the room; an offset makes a gap with the room sensor or between sources |
 | *Available* | off: the source is `unavailable` |
 | *Unknown* | on: the source is `unknown` |
 | *Obeys the mode* | off: the mode requests are received but not applied |
@@ -85,7 +92,13 @@ discovered and keep (one file, `.storage/adaptative_climate.<entry_id>`).
    ```
 
 The cases with a room sensor have a `sensor.room_sensor_<case>`, driven by
-*Room temperature* and *Room sensor available*.
+*Room temperature* and *Room sensor available*. Their sources measure the
+room (*Room temperature* + *Offset*), even while the sensor is unavailable:
+the room keeps its temperature, only the thermometer is gone.
+
+The action of a source follows what it measures: in *heat*, `heating` below
+its target, else `idle`; in *cool*, `cooling` above it; with low/high (in
+*heat_cool* or *auto*), `heating` below low, `cooling` above high.
 
 ## Test cases
 

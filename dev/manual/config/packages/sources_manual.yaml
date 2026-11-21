@@ -18,11 +18,11 @@ template:
         availability: "{{ is_state('input_boolean.available_heat_manual', 'on') }}"
         min_temperature: 5
         max_temperature: 30
-        current_temperature: "{{ states('input_number.temperature_heat_manual') | float(none) }}"
+        current_temperature: "{% set r = states('input_number.room_temperature_manual') | float(none) %}{{ none if r is none else (r + states('input_number.offset_heat_manual') | float(0)) | round(1) }}"
         target_temperature: "{{ states('input_number.target_heat_manual') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_heat_manual') %}
-          {% set t = states('input_number.temperature_heat_manual') | float(20) %}
+          {% set t = states('input_number.room_temperature_manual') | float(20) + states('input_number.offset_heat_manual') | float(0) %}
           {% set c = states('input_number.target_heat_manual') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
@@ -73,11 +73,11 @@ template:
         min_temperature: 16
         max_temperature: 32
         target_temperature_step: 1
-        current_temperature: "{{ states('input_number.temperature_cool_manual') | float(none) }}"
+        current_temperature: "{% set r = states('input_number.room_temperature_manual') | float(none) %}{{ none if r is none else (r + states('input_number.offset_cool_manual') | float(0)) | round(1) }}"
         target_temperature: "{{ states('input_number.target_cool_manual') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_cool_manual') %}
-          {% set t = states('input_number.temperature_cool_manual') | float(20) %}
+          {% set t = states('input_number.room_temperature_manual') | float(20) + states('input_number.offset_cool_manual') | float(0) %}
           {% set c = states('input_number.target_cool_manual') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
@@ -140,11 +140,11 @@ template:
         availability: "{{ is_state('input_boolean.available_dry_manual', 'on') }}"
         min_temperature: 18
         max_temperature: 30
-        current_temperature: "{{ states('input_number.temperature_dry_manual') | float(none) }}"
+        current_temperature: "{% set r = states('input_number.room_temperature_manual') | float(none) %}{{ none if r is none else (r + states('input_number.offset_dry_manual') | float(0)) | round(1) }}"
         target_temperature: "{{ states('input_number.target_dry_manual') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_dry_manual') %}
-          {% set t = states('input_number.temperature_dry_manual') | float(20) %}
+          {% set t = states('input_number.room_temperature_manual') | float(20) + states('input_number.offset_dry_manual') | float(0) %}
           {% set c = states('input_number.target_dry_manual') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
@@ -194,10 +194,10 @@ template:
         availability: "{{ is_state('input_boolean.available_fan_only_manual', 'on') }}"
         min_temperature: 7
         max_temperature: 35
-        current_temperature: "{{ states('input_number.temperature_fan_only_manual') | float(none) }}"
+        current_temperature: "{% set r = states('input_number.room_temperature_manual') | float(none) %}{{ none if r is none else (r + states('input_number.offset_fan_only_manual') | float(0)) | round(1) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_fan_only_manual') %}
-          {% set t = states('input_number.temperature_fan_only_manual') | float(20) %}
+          {% set t = states('input_number.room_temperature_manual') | float(20) + states('input_number.offset_fan_only_manual') | float(0) %}
           {% set c = states('input_number.target_fan_only_manual') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
@@ -236,11 +236,11 @@ template:
         availability: "{{ is_state('input_boolean.available_auto_manual', 'on') }}"
         min_temperature: 10
         max_temperature: 30
-        current_temperature: "{{ states('input_number.temperature_auto_manual') | float(none) }}"
+        current_temperature: "{% set r = states('input_number.room_temperature_manual') | float(none) %}{{ none if r is none else (r + states('input_number.offset_auto_manual') | float(0)) | round(1) }}"
         target_temperature: "{{ states('input_number.target_auto_manual') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_auto_manual') %}
-          {% set t = states('input_number.temperature_auto_manual') | float(20) %}
+          {% set t = states('input_number.room_temperature_manual') | float(20) + states('input_number.offset_auto_manual') | float(0) %}
           {% set c = states('input_number.target_auto_manual') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         set_hvac_mode:
@@ -277,7 +277,7 @@ template:
         availability: "{{ is_state('input_boolean.available_all_manual', 'on') }}"
         min_temperature: 8
         max_temperature: 32
-        current_temperature: "{{ states('input_number.temperature_all_manual') | float(none) }}"
+        current_temperature: "{% set r = states('input_number.room_temperature_manual') | float(none) %}{{ none if r is none else (r + states('input_number.offset_all_manual') | float(0)) | round(1) }}"
         target_temperature: "{{ states('input_number.target_all_manual') | float(none) }}"
         # Low/high only shown in these modes (low_high_seen, ENT-FEAT-2)
         target_temperature_low: >-
@@ -286,9 +286,9 @@ template:
           {{ states('input_number.target_high_all_manual') | float(none) if states('input_select.mode_all_manual') in ['heat_cool', 'auto'] else none }}
         hvac_action: >-
           {% set m = states('input_select.mode_all_manual') %}
-          {% set t = states('input_number.temperature_all_manual') | float(20) %}
+          {% set t = states('input_number.room_temperature_manual') | float(20) + states('input_number.offset_all_manual') | float(0) %}
           {% set c = states('input_number.target_all_manual') | float(20) %}
-          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% elif m in ['heat_cool', 'auto'] %}{% set lo = states('input_number.target_low_all_manual') | float(20) %}{% set hi = states('input_number.target_high_all_manual') | float(20) %}{{ 'heating' if t < lo else 'cooling' if t > hi else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
           {{ state_attr('input_select.fan_all_manual', 'options') if is_state('input_boolean.fan_on_all_manual', 'on') else [] }}
         fan_mode: >-
@@ -440,14 +440,14 @@ input_number:
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
-  temperature_heat_manual:
-    name: Temperature HEAT
-    min: 0
-    max: 40
+  offset_heat_manual:
+    name: Offset HEAT
+    min: -10
+    max: 10
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
-    icon: mdi:home-thermometer
+    icon: mdi:thermometer-plus
   delay_heat_manual:
     name: Delay HEAT
     min: 0
@@ -465,14 +465,14 @@ input_number:
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
-  temperature_cool_manual:
-    name: Temperature COOL
-    min: 0
-    max: 40
+  offset_cool_manual:
+    name: Offset COOL
+    min: -10
+    max: 10
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
-    icon: mdi:home-thermometer
+    icon: mdi:thermometer-plus
   delay_cool_manual:
     name: Delay COOL
     min: 0
@@ -490,14 +490,14 @@ input_number:
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
-  temperature_dry_manual:
-    name: Temperature DRY
-    min: 0
-    max: 40
+  offset_dry_manual:
+    name: Offset DRY
+    min: -10
+    max: 10
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
-    icon: mdi:home-thermometer
+    icon: mdi:thermometer-plus
   delay_dry_manual:
     name: Delay DRY
     min: 0
@@ -507,14 +507,14 @@ input_number:
     mode: box
     icon: mdi:timer-sand
     initial: 0
-  temperature_fan_only_manual:
-    name: Temperature FAN_ONLY
-    min: 0
-    max: 40
+  offset_fan_only_manual:
+    name: Offset FAN_ONLY
+    min: -10
+    max: 10
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
-    icon: mdi:home-thermometer
+    icon: mdi:thermometer-plus
   delay_fan_only_manual:
     name: Delay FAN_ONLY
     min: 0
@@ -532,14 +532,14 @@ input_number:
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
-  temperature_auto_manual:
-    name: Temperature AUTO
-    min: 0
-    max: 40
+  offset_auto_manual:
+    name: Offset AUTO
+    min: -10
+    max: 10
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
-    icon: mdi:home-thermometer
+    icon: mdi:thermometer-plus
   delay_auto_manual:
     name: Delay AUTO
     min: 0
@@ -573,14 +573,14 @@ input_number:
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-high
-  temperature_all_manual:
-    name: Temperature ALL
-    min: 0
-    max: 40
+  offset_all_manual:
+    name: Offset ALL
+    min: -10
+    max: 10
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
-    icon: mdi:home-thermometer
+    icon: mdi:thermometer-plus
   delay_all_manual:
     name: Delay ALL
     min: 0
@@ -869,15 +869,20 @@ script:
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.temperature_heat_manual
-            - input_number.temperature_cool_manual
-            - input_number.temperature_dry_manual
-            - input_number.temperature_fan_only_manual
-            - input_number.temperature_auto_manual
-            - input_number.temperature_all_manual
             - input_number.room_temperature_manual
         data:
           value: 20
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.offset_heat_manual
+            - input_number.offset_cool_manual
+            - input_number.offset_dry_manual
+            - input_number.offset_fan_only_manual
+            - input_number.offset_auto_manual
+            - input_number.offset_all_manual
+        data:
+          value: 0
       - action: input_number.set_value
         target:
           entity_id:

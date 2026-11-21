@@ -18,11 +18,11 @@ template:
         availability: "{{ is_state('input_boolean.available_radiator_bi', 'on') }}"
         min_temperature: 5
         max_temperature: 30
-        current_temperature: "{{ states('input_number.temperature_radiator_bi') | float(none) }}"
+        current_temperature: "{% set r = states('input_number.room_temperature_bi') | float(none) %}{{ none if r is none else (r + states('input_number.offset_radiator_bi') | float(0)) | round(1) }}"
         target_temperature: "{{ states('input_number.target_radiator_bi') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_radiator_bi') %}
-          {% set t = states('input_number.temperature_radiator_bi') | float(20) %}
+          {% set t = states('input_number.room_temperature_bi') | float(20) + states('input_number.offset_radiator_bi') | float(0) %}
           {% set c = states('input_number.target_radiator_bi') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         set_hvac_mode:
@@ -60,11 +60,11 @@ template:
         min_temperature: 16
         max_temperature: 30
         target_temperature_step: 1
-        current_temperature: "{{ states('input_number.temperature_aircon_bi') | float(none) }}"
+        current_temperature: "{% set r = states('input_number.room_temperature_bi') | float(none) %}{{ none if r is none else (r + states('input_number.offset_aircon_bi') | float(0)) | round(1) }}"
         target_temperature: "{{ states('input_number.target_aircon_bi') | float(none) }}"
         hvac_action: >-
           {% set m = states('input_select.mode_aircon_bi') %}
-          {% set t = states('input_number.temperature_aircon_bi') | float(20) %}
+          {% set t = states('input_number.room_temperature_bi') | float(20) + states('input_number.offset_aircon_bi') | float(0) %}
           {% set c = states('input_number.target_aircon_bi') | float(20) %}
           {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
@@ -134,14 +134,14 @@ input_number:
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
-  temperature_radiator_bi:
-    name: Temperature RADIATOR
-    min: 0
-    max: 40
+  offset_radiator_bi:
+    name: Offset RADIATOR
+    min: -10
+    max: 10
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
-    icon: mdi:home-thermometer
+    icon: mdi:thermometer-plus
   delay_radiator_bi:
     name: Delay RADIATOR
     min: 0
@@ -159,14 +159,14 @@ input_number:
     unit_of_measurement: "°C"
     mode: box
     icon: mdi:thermometer-check
-  temperature_aircon_bi:
-    name: Temperature AIRCON
-    min: 0
-    max: 40
+  offset_aircon_bi:
+    name: Offset AIRCON
+    min: -10
+    max: 10
     step: 0.1
     unit_of_measurement: "°C"
     mode: box
-    icon: mdi:home-thermometer
+    icon: mdi:thermometer-plus
   delay_aircon_bi:
     name: Delay AIRCON
     min: 0
@@ -273,11 +273,16 @@ script:
       - action: input_number.set_value
         target:
           entity_id:
-            - input_number.temperature_radiator_bi
-            - input_number.temperature_aircon_bi
             - input_number.room_temperature_bi
         data:
           value: 20
+      - action: input_number.set_value
+        target:
+          entity_id:
+            - input_number.offset_radiator_bi
+            - input_number.offset_aircon_bi
+        data:
+          value: 0
       - action: input_number.set_value
         target:
           entity_id:

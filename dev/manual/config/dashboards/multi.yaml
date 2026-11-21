@@ -32,7 +32,7 @@ views:
         {% set e = 'climate.adaptative_multi' %}{% set problems = (state_attr('binary_sensor.adaptative_multi_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_multi_monitoring_temperatures', 'problems') or []) %}
         **Problems**: {{ 'none' if not problems else '' }}
         {% for p in problems %}
-        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.get('source') or p.get('sources') or p.get('sensor') or '' }}{{ (' ' ~ p.get('setting')) if p.get('setting') else '' }}
         {% endfor %}
 
         | | |
@@ -70,7 +70,7 @@ views:
         ## Multi-sources
 
         - **Adaptative MULTI**: one source per mode. *heat*, *cool* and *dry* share fan and swing; *heat_cool* switches between HEAT Virtual and COOL Virtual, on its *Reference temperature*.
-        - **The sources** (view *Sources*): HEAT, COOL, DRY, FAN_ONLY and AUTO Virtual. *Temperature (measured by the source)*: the own reading of each one.
+        - **The sources** (view *Sources*): HEAT, COOL, DRY, FAN_ONLY and AUTO Virtual. *Offset*: each one measures the room plus its offset (0 after the reset); a source in *heat* is *heating* while it measures less than its target, in *cool* *cooling* while it measures more.
         - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative MULTI, its reference temperature. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable (the reference is then the temperature measured by the active source); *Read by Adaptative MULTI* is what the entity sees.
 
         Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
@@ -85,9 +85,9 @@ views:
         7. **Shared memory and case** (ENT-FANV-2, ENT-FAN-5, ENT-FAN-6): Adaptative MULTI in *cool*, fan *high*; in *heat*: *Fan* of HEAT Virtual goes to *High*; in *dry*: *HIGH*.
         8. **Option of one source only** (ENT-FANV-3, ENT-FAN-3): Adaptative MULTI in *heat* offers *Turbo*; choose it: HEAT Virtual goes to *Turbo*. Adaptative MULTI to *cool*: the fan goes back to *high* (Turbo is not remembered).
         9. **Off** (ENT-FAN-3): *fan_only* and *auto* are not synchronized: in *off*, Adaptative MULTI shows no fan.
-        10. **Room sensor** (ENT-REF-1, ENT-REF-2): *Room temperature* 21: Adaptative MULTI shows 21; *Room sensor available* off: it shows the temperature of the active source.
-        11. **Temperature gap** (MON-TEMP-1): *Temperature* of HEAT Virtual 25, *Room temperature* 21: after 15 s, *Monitoring temperatures* goes to *Problem*; HEAT Virtual back to 21: back to *OK*.
-        12. **heat_cool** (ENT-TYPE-3): range 19–24, *Room temperature* 21, Adaptative MULTI to *heat_cool*: HEAT Virtual in *heat*; *Room temperature* 26: COOL Virtual in *cool*, HEAT Virtual *off*.
+        10. **Room sensor** (ENT-REF-1, ENT-REF-2): Adaptative MULTI in *heat*; *Offset* of HEAT Virtual 1. *Room temperature* 21: *Reference temperature* 21; *Room sensor available* off: 22, what the active source, HEAT Virtual, measures. *Room sensor available* on, *Offset* of HEAT Virtual 0.
+        11. **Temperature gap** (MON-TEMP-1): *Room temperature* 21, *Offset* of HEAT Virtual 4 (it measures 25): after 15 s, *Monitoring temperatures* goes to *Problem* (HEAT Virtual is 4 from the room sensor and from the other sources); *Offset* 0: back to *OK*.
+        12. **heat_cool** (ENT-TYPE-3): range 19–24, *Room temperature* 21, Adaptative MULTI to *heat_cool*: HEAT Virtual in *heat*; *Room temperature* 26: COOL Virtual in *cool*, HEAT Virtual *off*; *Action* `cooling`.
         13. **Restart** (ENT-FANV-1, END-2): Adaptative MULTI in *cool*, fan *low*, then *off*; on HEAT Virtual, *Fan* *Auto*; restart; Adaptative MULTI to *heat*: *Fan* of HEAT Virtual goes to *Low*.
         14. **One target for the single-target modes** (ENT-FEAT-4): Adaptative MULTI in *heat*, target 21; in *cool*, *dry*, *auto*: 21, and their source gets it. *heat_cool* keeps its range.
 
@@ -112,8 +112,8 @@ views:
         name: Mode
       - entity: input_number.target_heat_multi
         name: Target
-      - entity: input_number.temperature_heat_multi
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_heat_multi
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_heat_multi
         name: Fan
       - entity: input_select.swing_heat_multi
@@ -182,8 +182,8 @@ views:
         name: Mode
       - entity: input_number.target_cool_multi
         name: Target
-      - entity: input_number.temperature_cool_multi
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_cool_multi
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_cool_multi
         name: Fan
       - entity: input_select.swing_cool_multi
@@ -256,8 +256,8 @@ views:
         name: Mode
       - entity: input_number.target_dry_multi
         name: Target
-      - entity: input_number.temperature_dry_multi
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_dry_multi
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_dry_multi
         name: Fan
       - entity: input_select.swing_dry_multi
@@ -317,8 +317,8 @@ views:
       entities:
       - entity: input_select.mode_fan_only_multi
         name: Mode
-      - entity: input_number.temperature_fan_only_multi
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_fan_only_multi
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_fan_only_multi
         name: Fan
       - entity: input_number.delay_fan_only_multi
@@ -372,8 +372,8 @@ views:
         name: Mode
       - entity: input_number.target_auto_multi
         name: Target
-      - entity: input_number.temperature_auto_multi
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_auto_multi
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_auto_multi
         name: Fan
       - entity: input_number.delay_auto_multi

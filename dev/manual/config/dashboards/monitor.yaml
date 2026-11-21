@@ -32,7 +32,7 @@ views:
         {% set e = 'climate.adaptative_monitor' %}{% set problems = (state_attr('binary_sensor.adaptative_monitor_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_monitor_monitoring_temperatures', 'problems') or []) %}
         **Problems**: {{ 'none' if not problems else '' }}
         {% for p in problems %}
-        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.get('source') or p.get('sources') or p.get('sensor') or '' }}{{ (' ' ~ p.get('setting')) if p.get('setting') else '' }}
         {% endfor %}
 
         | | |
@@ -73,7 +73,7 @@ views:
         {% set e = 'climate.adaptative_ghost' %}{% set problems = (state_attr('binary_sensor.adaptative_ghost_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_ghost_monitoring_temperatures', 'problems') or []) %}
         **Problems**: {{ 'none' if not problems else '' }}
         {% for p in problems %}
-        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.get('source') or p.get('sources') or p.get('sensor') or '' }}{{ (' ' ~ p.get('setting')) if p.get('setting') else '' }}
         {% endfor %}
 
         | | |
@@ -100,8 +100,8 @@ views:
         name: Mode
       - entity: input_number.target_radiator_monitor
         name: Target
-      - entity: input_number.temperature_radiator_monitor
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_radiator_monitor
+        name: Offset (measured = room + offset)
       - entity: input_number.delay_radiator_monitor
         name: Delay before obeying
     - type: markdown
@@ -147,8 +147,8 @@ views:
         name: Mode
       - entity: input_number.target_aircon_monitor
         name: Target
-      - entity: input_number.temperature_aircon_monitor
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_aircon_monitor
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_aircon_monitor
         name: Fan
       - entity: input_number.delay_aircon_monitor
@@ -221,7 +221,7 @@ views:
 
         - **Adaptative MONITOR**: RADIATOR Virtual for *heat*, AIRCON Virtual for *cool*, the room sensor. Largest gap between temperatures 2 °C.
         - **Adaptative GHOST**: a source that does not exist (`climate.ghost_monitor`).
-        - **RADIATOR Virtual**, **AIRCON Virtual**: *Temperature (measured by the source)*: the own reading of each one, compared with the room sensor and with each other.
+        - **RADIATOR Virtual**, **AIRCON Virtual**: *Offset*: each one measures the room plus its offset (0 after the reset), compared with the room sensor and with each other.
         - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative MONITOR. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable; *Read by Adaptative MONITOR* is what the entity sees.
 
         Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
@@ -231,10 +231,10 @@ views:
         2. **Source out of sync** (MON-SRC-3, SRC-REQ-5, SRC-REQ-6): on RADIATOR Virtual, *Obeys the mode* off; Adaptative MONITOR to *heat*: after 10 s, *Monitoring sources* goes to *Problem* (no extra delay). *Obeys the mode* on: at the next try, RADIATOR Virtual goes to *heat*, back to *OK*, event `ended`.
         3. **Setting not applied** (MON-SRC-4): Adaptative MONITOR in *heat*, wait 12 s. On RADIATOR Virtual, *Applies settings* off; target 23 on Adaptative MONITOR: after 30 s (the shortest delay for a setting), *Monitoring sources* goes to *Problem*. On RADIATOR Virtual, *Target* 23: back to *OK*.
         4. **Source unusable** (MON-SRC-1, MON-SRC-2): Adaptative MONITOR in *heat*. On RADIATOR Virtual, *Available* off: Adaptative MONITOR *Unknown*; after 15 s, *Monitoring sources* goes to *Problem*. Adaptative MONITOR *off*, on AIRCON Virtual *Available* off: never reported.
-        5. **Gap sensor–source** (MON-TEMP-1, MON-TEMP-3): Adaptative MONITOR *off*. *Temperature* of RADIATOR Virtual 24, *Room temperature* 21: after 15 s, *Monitoring temperatures* goes to *Problem*; RADIATOR Virtual to 22: back to *OK*.
-        6. **Gap between sources** (MON-TEMP-1): *Temperature* of RADIATOR Virtual 19, of AIRCON Virtual 23: after 15 s, a problem between the two sources.
+        5. **Gap sensor–source** (MON-TEMP-1, MON-TEMP-3): from **Reset the sources** (room 20, offsets 0), Adaptative MONITOR *off*. *Offset* of RADIATOR Virtual 2.5, of AIRCON Virtual 1 (they measure 22.5 and 21): after 15 s, *Monitoring temperatures* goes to *Problem*, RADIATOR Virtual only (2.5 from the room sensor; the two sources are 1.5 apart). *Offset* of RADIATOR Virtual 1: back to *OK*.
+        6. **Gap between sources** (MON-TEMP-1): from **Reset the sources**. *Offset* of RADIATOR Virtual −2, of AIRCON Virtual 2 (they measure 18 and 22): after 15 s, a problem between the two sources only (each one is 2 from the room sensor, not more).
         7. **Sensor without value** (MON-TEMP-4): *Room sensor available* off: after 15 s, *Monitoring temperatures* goes to *Problem*; on: back to *OK*.
-        8. **A delay per problem** (MON-SENS-3): *Room sensor available* off; 10 s later, *Temperature* of RADIATOR Virtual 19 and of AIRCON Virtual 23: both problems are reported 10 s apart.
+        8. **A delay per problem** (MON-SENS-3): from **Reset the sources**. *Room sensor available* off; 10 s later, *Offset* of RADIATOR Virtual −2 and of AIRCON Virtual 2: both problems (sensor without value, gap between sources) are reported 10 s apart.
         9. **After a restart** (END-2, MON-SEND-3, MON-LIFE-1): with a problem reported, restart: *OK*, then *Problem* 15 s later.
         10. **Log** (MON-LIFE-2, MON-LIFE-3): each problem reported: a warning in the log, the same text as the `message` of the event; its end: an info.
 

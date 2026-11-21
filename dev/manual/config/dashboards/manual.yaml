@@ -32,7 +32,7 @@ views:
         {% set e = 'climate.adaptative_manual' %}{% set problems = (state_attr('binary_sensor.adaptative_manual_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_manual_monitoring_temperatures', 'problems') or []) %}
         **Problems**: {{ 'none' if not problems else '' }}
         {% for p in problems %}
-        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.get('source') or p.get('sources') or p.get('sensor') or '' }}{{ (' ' ~ p.get('setting')) if p.get('setting') else '' }}
         {% endfor %}
 
         | | |
@@ -71,7 +71,7 @@ views:
 
         No entity is declared in the YAML: Adaptative Manual is created from the UI.
 
-        - **The sources** (view *Sources*): *Temperature (measured by the source)*: the own reading of each one. HEAT Virtual also shows *External temperature (written by Adaptative Manual)*, the entity *External temperature HEAT*, once it is the `heat_external_sensor` (step 5).
+        - **The sources** (view *Sources*): *Offset*: each one measures the room (*Room temperature*) plus its offset. HEAT Virtual also shows *External temperature (written by Adaptative Manual)*, the entity *External temperature HEAT*, once it is the `heat_external_sensor` (step 5).
         - **Room sensor**: the room thermometer, the entity *Room sensor (manual)*, added as `temperature_sensor` in step 3. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable; *Read by Adaptative Manual* is what the entity sees.
 
         Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
@@ -107,8 +107,8 @@ views:
         name: Mode
       - entity: input_number.target_heat_manual
         name: Target
-      - entity: input_number.temperature_heat_manual
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_heat_manual
+        name: Offset (measured = room + offset)
       - entity: input_number.external_temperature_manual
         name: External temperature (written by Adaptative Manual)
       - entity: input_select.fan_heat_manual
@@ -165,8 +165,8 @@ views:
         name: Mode
       - entity: input_number.target_cool_manual
         name: Target
-      - entity: input_number.temperature_cool_manual
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_cool_manual
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_cool_manual
         name: Fan
       - entity: input_select.swing_cool_manual
@@ -228,8 +228,8 @@ views:
         name: Mode
       - entity: input_number.target_dry_manual
         name: Target
-      - entity: input_number.temperature_dry_manual
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_dry_manual
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_dry_manual
         name: Fan
       - entity: input_number.delay_dry_manual
@@ -282,8 +282,8 @@ views:
       entities:
       - entity: input_select.mode_fan_only_manual
         name: Mode
-      - entity: input_number.temperature_fan_only_manual
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_fan_only_manual
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_fan_only_manual
         name: Fan
       - entity: input_number.delay_fan_only_manual
@@ -337,8 +337,8 @@ views:
         name: Mode
       - entity: input_number.target_auto_manual
         name: Target
-      - entity: input_number.temperature_auto_manual
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_auto_manual
+        name: Offset (measured = room + offset)
       - entity: input_number.delay_auto_manual
         name: Delay before obeying
     - type: markdown
@@ -390,8 +390,8 @@ views:
         name: Target low
       - entity: input_number.target_high_all_manual
         name: Target high
-      - entity: input_number.temperature_all_manual
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_all_manual
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_all_manual
         name: Fan
       - entity: input_select.swing_all_manual

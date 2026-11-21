@@ -32,7 +32,7 @@ views:
         {% set e = 'climate.adaptative_all' %}{% set problems = (state_attr('binary_sensor.adaptative_all_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_all_monitoring_temperatures', 'problems') or []) %}
         **Problems**: {{ 'none' if not problems else '' }}
         {% for p in problems %}
-        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.get('source') or p.get('sources') or p.get('sensor') or '' }}{{ (' ' ~ p.get('setting')) if p.get('setting') else '' }}
         {% endfor %}
 
         | | |

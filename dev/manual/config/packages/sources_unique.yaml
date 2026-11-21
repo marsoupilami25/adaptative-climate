@@ -29,7 +29,7 @@ template:
           {% set m = states('input_select.mode_all_unique') %}
           {% set t = states('input_number.temperature_all_unique') | float(20) %}
           {% set c = states('input_number.target_all_unique') | float(20) %}
-          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
+          {% if m == 'off' %}off{% elif m == 'dry' %}drying{% elif m == 'fan_only' %}fan{% elif m == 'heat' %}{{ 'heating' if t < c else 'idle' }}{% elif m == 'cool' %}{{ 'cooling' if t > c else 'idle' }}{% elif m in ['heat_cool', 'auto'] %}{% set lo = states('input_number.target_low_all_unique') | float(20) %}{% set hi = states('input_number.target_high_all_unique') | float(20) %}{{ 'heating' if t < lo else 'cooling' if t > hi else 'idle' }}{% else %}{{ 'heating' if t < c else 'cooling' if t > c else 'idle' }}{% endif %}
         fan_modes: >-
           {{ state_attr('input_select.fan_all_unique', 'options') if is_state('input_boolean.fan_on_all_unique', 'on') else [] }}
         fan_mode: >-

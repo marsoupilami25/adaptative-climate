@@ -32,7 +32,7 @@ views:
         {% set e = 'climate.adaptative_bi' %}{% set problems = (state_attr('binary_sensor.adaptative_bi_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_bi_monitoring_temperatures', 'problems') or []) %}
         **Problems**: {{ 'none' if not problems else '' }}
         {% for p in problems %}
-        - {{ p.type }}: {{ p.source or p.sources or p.sensor or '' }}{{ (' ' ~ p.setting) if p.setting else '' }}
+        - {{ p.type }}: {{ p.get('source') or p.get('sources') or p.get('sensor') or '' }}{{ (' ' ~ p.get('setting')) if p.get('setting') else '' }}
         {% endfor %}
 
         | | |
@@ -70,8 +70,8 @@ views:
         name: Mode
       - entity: input_number.target_radiator_bi
         name: Target
-      - entity: input_number.temperature_radiator_bi
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_radiator_bi
+        name: Offset (measured = room + offset)
       - entity: input_number.delay_radiator_bi
         name: Delay before obeying
     - type: markdown
@@ -117,8 +117,8 @@ views:
         name: Mode
       - entity: input_number.target_aircon_bi
         name: Target
-      - entity: input_number.temperature_aircon_bi
-        name: Temperature (measured by the source)
+      - entity: input_number.offset_aircon_bi
+        name: Offset (measured = room + offset)
       - entity: input_select.fan_aircon_bi
         name: Fan
       - entity: input_number.delay_aircon_bi
@@ -179,21 +179,21 @@ views:
 
         ## Bi-source
 
-        - **Adaptative BI**: *heat_cool* with no source of its own: phase `heat` on RADIATOR Virtual, phase `cool` on AIRCON Virtual. `min_gap` 2, hysteresis 1 °C. Its *Reference temperature* chooses the phase.
-        - **RADIATOR Virtual**: `heat_entity`, *heat*, 5–30 °C; it also offers *fan_only*, which Adaptative BI does not serve. *Temperature (measured by the source)*: its own reading.
-        - **AIRCON Virtual**: `cool_entity`, *cool*, 16–30 °C by steps of 1. *Temperature (measured by the source)*: its own reading.
+        - **Adaptative BI**: *heat_cool* with no source of its own: phase `heat` on RADIATOR Virtual, phase `cool` on AIRCON Virtual. `min_gap` 2, hysteresis 1 °C. Its *Reference temperature* chooses the phase; its *Action* is the one of the active source.
+        - **RADIATOR Virtual**: `heat_entity`, *heat*, 5–30 °C; it also offers *fan_only*, which Adaptative BI does not serve. *Offset*: it measures the room plus its offset.
+        - **AIRCON Virtual**: `cool_entity`, *cool*, 16–30 °C by steps of 1. *Offset*: it measures the room plus its offset.
         - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative BI, its reference temperature. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable (the reference is then the mean of the two sources); *Read by Adaptative BI* is what the entity sees.
 
-        **Start**: **Reset the sources**, then Adaptative BI *off*, and its range 19–24 (*Low / high* 19 / 24; on the card, raise high before low if needed). *Room temperature* is then 20 (*Reference temperature* 20), the *Temperature* of both sources 20. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**: **Reset the sources**, then Adaptative BI *off*, and its range 19–24 (*Low / high* 19 / 24; on the card, raise high before low if needed). *Room temperature* is then 20 (*Reference temperature* 20), both offsets 0: the sources measure 20 too. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
-        Entering *heat_cool*, the phase is the one of the target closest to the *Reference temperature* (ENT-WANT-1). Then it switches only beyond a target plus the hysteresis: to `cool` above 24 + 1, to `heat` below 19 − 1 (ENT-WANT-3).
+        Entering *heat_cool*, the phase is the one of the target closest to the *Reference temperature* (ENT-WANT-1). Then it switches only beyond a target plus the hysteresis: to `cool` above 24 + 1, to `heat` below 19 − 1 (ENT-WANT-3). A source in *heat* is *heating* while it measures less than its target, in *cool* *cooling* while it measures more.
 
-        1. **Entering heat_cool** (ENT-WANT-1, ENT-TYPE-3): from **Start**. Adaptative BI to *heat_cool*: 20 is closer to 19, *Phase* `heat`; RADIATOR Virtual goes to *heat* at 19, AIRCON Virtual stays *off*.
-        2. **Switch with hysteresis** (ENT-WANT-3, ENT-PHASE-3): after 1 (*Phase* `heat`). *Room temperature* 25: nothing. 25.5: *Phase* `cool`, AIRCON Virtual goes to *cool* at 24, RADIATOR Virtual to *off*.
-        3. **Back** (ENT-WANT-3): after 2 (*Phase* `cool`). *Room temperature* 18: nothing. 17.5: *Phase* `heat`, RADIATOR Virtual goes to *heat* at 19, AIRCON Virtual to *off*.
-        4. **Targets changed: no hysteresis** (ENT-PHASE-2, §5.5): after 3 (*Phase* `heat`). *Room temperature* 22: nothing. On Adaptative BI, lower high to 20: low goes to 18 (gap), and *Phase* `cool` at once (22 is above 20, no hysteresis); RADIATOR Virtual only gets *off* (its *Target* does not go to 18), AIRCON Virtual goes to *cool* at 20.
+        1. **Entering heat_cool** (ENT-WANT-1, ENT-TYPE-3): from **Start**. Adaptative BI to *heat_cool*: 20 is closer to 19, *Phase* `heat`; RADIATOR Virtual goes to *heat* at 19, AIRCON Virtual stays *off*. *Action* `idle` (20 is above 19).
+        2. **Switch with hysteresis** (ENT-WANT-3, ENT-PHASE-3): after 1 (*Phase* `heat`). *Room temperature* 25: nothing. 25.5: *Phase* `cool`, AIRCON Virtual goes to *cool* at 24, RADIATOR Virtual to *off*; *Action* `cooling`.
+        3. **Back** (ENT-WANT-3): after 2 (*Phase* `cool`). *Room temperature* 18: nothing. 17.5: *Phase* `heat`, RADIATOR Virtual goes to *heat* at 19, AIRCON Virtual to *off*; *Action* `heating`.
+        4. **Targets changed: no hysteresis** (ENT-PHASE-2, §5.5): after 3 (*Phase* `heat`). *Room temperature* 22: nothing. On Adaptative BI, lower high to 20: low goes to 18 (gap), and *Phase* `cool` at once (22 is above 20, no hysteresis); RADIATOR Virtual only gets *off* (its *Target* does not go to 18), AIRCON Virtual goes to *cool* at 20; *Action* `cooling`.
         5. **After a restart, the phase is chosen again** (ENT-WANT-1, ENT-PHASE-1): from **Start**. Adaptative BI to *heat_cool*: *Phase* `heat`. *Room temperature* 22: stays `heat` (not above 25). Restart Home Assistant: *Phase* `cool` (22 is closer to 24; no hysteresis when entering).
-        6. **Without the room sensor** (ENT-REF-6, ENT-WANT-2): from **Start**. On Room sensor, *Room sensor available* off; *Temperature* of AIRCON Virtual 22: *Reference temperature* 21 (the mean of 20 and 22). Adaptative BI to *heat_cool*: *Phase* `heat`. *Temperature* of AIRCON Virtual 27: nothing (to switch, the lowest of the two, RADIATOR Virtual at 20, must be above 25). *Temperature* of RADIATOR Virtual 25.5: *Phase* `cool`.
+        6. **Without the room sensor** (ENT-REF-6, ENT-WANT-2): from **Start**. On Room sensor, *Room sensor available* off; *Offset* of AIRCON Virtual 2 (it measures 22): *Reference temperature* 21 (the mean of 20 and 22). Adaptative BI to *heat_cool*: *Phase* `heat`. *Offset* of AIRCON Virtual 7 (27): nothing (to switch, the lowest of the two, RADIATOR Virtual at 20, must be above 25). *Offset* of RADIATOR Virtual 5.5 (25.5): *Phase* `cool`, *Action* `cooling`.
         7. **Takeover on a phase source** (ENT-TYPE-5): from **Start**. Adaptative BI to *heat_cool*: *Phase* `heat`. On AIRCON Virtual, *Mode* *cool*: Adaptative BI goes to *cool* (not *heat_cool*), RADIATOR Virtual to *off*.
         8. **Foreign mode of the active source** (ENT-STATE-5): from **Start**. Adaptative BI to *heat*, wait 12 s. On RADIATOR Virtual, *Mode* *fan_only*: Adaptative BI goes to *off*, *Foreign modes* lists RADIATOR Virtual; nothing is sent.
         9. **Foreign mode tolerated** (ENT-STATE-5): from **Start**. Adaptative BI to *cool*. On RADIATOR Virtual, *Mode* *fan_only*: nothing is sent (tolerated). Adaptative BI to *off*: RADIATOR Virtual goes to *off*.
