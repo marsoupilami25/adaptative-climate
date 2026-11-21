@@ -140,14 +140,16 @@ views:
 
         ## Single source
 
-        Adaptative ALL: every mode on ALL Virtual, which shows its low/high target in *heat_cool* and *auto*. *heat*, *cool*, *dry* share fan and swing. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        Adaptative ALL: every mode on ALL Virtual, which shows its low/high target in *heat_cool* and *auto*. *heat*, *cool*, *dry* share fan and swing.
 
-        1. **One device** (ENT-TYPE-2): Adaptative ALL to *heat*, then *cool*: *Mode* of ALL Virtual follows; nothing else is turned off.
-        2. **Mode discovered** (ENT-CAP-5, ENT-CAP-6, §5.4): the first time in *dry*, only the mode is sent; target and fan follow once ALL Virtual shows *dry*.
-        3. **Targets per mode** (§1.3.4.3, ENT-FEAT-4): Adaptative ALL in *heat*, target 20; in *cool*: it shows 20 too (*heat*, *cool*, *dry* share one target); target 26: back in *heat*, 26. In *heat_cool*, set 19–24: in *auto*, Adaptative ALL shows 19–24 and ALL Virtual gets 19 / 24; in *dry*: 26.
-        4. **Mode taken over on the device** (§5.2): Adaptative ALL in *cool*. On ALL Virtual, *Mode* *dry* and *Target* 22: Adaptative ALL goes to *dry* and shows 22.
-        5. **Shared memory** (ENT-FANV-2): Adaptative ALL in *cool*, fan *high*; in *heat*: *high*; in *fan_only*: its own memory.
-        6. **Off, everything synchronized?** (ENT-FAN-3): no (*fan_only*, *auto*, *heat_cool* are not): no fan shown in *off*.
-        7. **Restart, device changed meanwhile** (SRC-STATE-10, §5.6): Adaptative ALL in *cool*, fan *low*, wait 12 s. On ALL Virtual, *Available* off, then *Fan* *auto* (not seen: the source is away). Restart Home Assistant (*Available* is back on at start): *Fan* of ALL Virtual goes back to *low*, the mode is not sent again.
+        **Start**: **Reset the sources**: ALL Virtual *off*, *Target* 20, low/high 19–25, fan *auto*, swings *off*; then Adaptative ALL *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+
+        1. **One device** (ENT-TYPE-2): from **Start**. Adaptative ALL to *heat*, then *cool*: *Mode* of ALL Virtual follows; nothing else is turned off.
+        2. **Mode discovered** (ENT-CAP-5, ENT-CAP-6, §5.4): from **Start**, *dry* never run since the memory was forgotten. Adaptative ALL to *dry*: only the mode is sent; target and fan follow once ALL Virtual shows *dry*.
+        3. **Targets per mode** (§1.3.4.3, ENT-FEAT-4): from **Start**. Adaptative ALL to *heat*, target 20; to *cool*: it shows 20 too (*heat*, *cool*, *dry* share one target); target 26: back in *heat*, 26. In *heat_cool*, set 19–24: in *auto*, Adaptative ALL shows 19–24 and ALL Virtual gets 19 / 24; in *dry*: 26.
+        4. **Mode taken over on the device** (§5.2): from **Start**. Adaptative ALL to *cool*. On ALL Virtual, *Mode* *dry* and *Target* 22: Adaptative ALL goes to *dry* and shows 22.
+        5. **Shared memory** (ENT-FANV-2): from **Start**. Adaptative ALL to *cool*, fan *high*; to *heat*: *high*; to *fan_only*: its own memory.
+        6. **Off, everything synchronized?** (ENT-FAN-3): from **Start**: no (*fan_only*, *auto*, *heat_cool* are not): no fan shown in *off*.
+        7. **Restart, device changed meanwhile** (SRC-STATE-10, §5.6): from **Start**. Adaptative ALL to *cool*, fan *low*, wait 12 s. On ALL Virtual, *Available* off, then *Fan* *auto* (not seen: the source is away). Restart Home Assistant (*Available* is back on at start): *Fan* of ALL Virtual goes back to *low*, the mode is not sent again.
 
         </small>

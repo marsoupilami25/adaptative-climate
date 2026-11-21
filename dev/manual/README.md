@@ -124,9 +124,13 @@ or *Problem*; then its problems and attributes), its sources, then its
 scenarios, in columns. *Tests multi-sources*
 and *Tests manual* have their sources on a second view.
 
-Start from **Reset the sources** before a case. The scenarios of a view follow
-each other: one can rely on the previous ones (a mode already discovered, for
-instance).
+Each view defines its **Start**: **Reset the sources**, the state of the
+entity under test, and the targets it needs. Each step says where it starts
+from: "from **Start**", or "after N" when it goes on from step N; a step never
+relies on another one without saying so. A step that depends on the memory of
+the entity (a value it may already hold, a first discovery) says what to do
+when that memory differs (another value, or the memory forgotten with
+`reset_memory.sh`).
 
 ## When the behavior changes
 

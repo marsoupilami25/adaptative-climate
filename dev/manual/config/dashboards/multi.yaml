@@ -73,23 +73,24 @@ views:
         - **The sources** (view *Sources*): HEAT, COOL, DRY, FAN_ONLY and AUTO Virtual. *Offset*: each one measures the room plus its offset (0 after the reset); a source in *heat* is *heating* while it measures less than its target, in *cool* *cooling* while it measures more.
         - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative MULTI, its reference temperature. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable (the reference is then the temperature measured by the active source); *Read by Adaptative MULTI* is what the entity sees.
 
-        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**: **Reset the sources**: every source *off*, *Target* 20, *Offset* 0, fans *auto*, swings *off*; *Room temperature* 20, room sensor available; then Adaptative MULTI *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+
         The options are written differently: HEAT Virtual in *Capitals* with *Turbo* on top, DRY Virtual in *UPPERCASE* without *medium*, the others in lowercase. The sources are on the view *Sources*.
 
-        1. **Mode change** (ENT-STATE-3): Adaptative MULTI to *heat*, then *cool*: COOL Virtual goes to *cool*, HEAT Virtual back to *off*.
-        2. **Turned on on a device** (ENT-STATE-5, ENT-STATE-3): Adaptative MULTI *off*. On HEAT Virtual, *Mode* *heat*: Adaptative MULTI goes to *heat*. Then on COOL Virtual, *Mode* *cool*: Adaptative MULTI goes to *cool*, HEAT Virtual is turned off (the last one wins).
-        3. **Turn on** (ENT-STATE-2, ENT-STATE-8): Adaptative MULTI *off*, then its on button: the last used mode comes back.
-        4. **Mode unavailable** (ENT-HVAC-4, ENT-STATE-4): on DRY Virtual, *Available* off: *dry* is in *Unavailable modes*; Adaptative MULTI to *dry* is refused.
-        5. **Waiting for the source** (ENT-WAIT-1, ENT-WAIT-2, MON-SRC-1): Adaptative MULTI in *cool*. On COOL Virtual, *Available* off: Adaptative MULTI goes to *Unknown*, keeps its targets and range; after 15 s, *Monitoring sources* goes to *Problem*. Target 23 on Adaptative MULTI: nothing is sent. *Available* on: COOL Virtual goes back to *cool* at 23, *Monitoring sources* back to *OK*.
-        6. **Range per mode** (ENT-RANGE-2): *heat* 5–30, *cool* 16–32, *dry* 18–30, *auto* 10–30, *off*: the widest.
-        7. **Shared memory and case** (ENT-FANV-2, ENT-FAN-5, ENT-FAN-6): Adaptative MULTI in *cool*, fan *high*; in *heat*: *Fan* of HEAT Virtual goes to *High*; in *dry*: *HIGH*.
-        8. **Option of one source only** (ENT-FANV-3, ENT-FAN-3): Adaptative MULTI in *heat* offers *Turbo*; choose it: HEAT Virtual goes to *Turbo*. Adaptative MULTI to *cool*: the fan goes back to *high* (Turbo is not remembered).
-        9. **Off** (ENT-FAN-3): *fan_only* and *auto* are not synchronized: in *off*, Adaptative MULTI shows no fan.
-        10. **Room sensor** (ENT-REF-1, ENT-REF-2): Adaptative MULTI in *heat*; *Offset* of HEAT Virtual 1. *Room temperature* 21: *Reference temperature* 21; *Room sensor available* off: 22, what the active source, HEAT Virtual, measures. *Room sensor available* on, *Offset* of HEAT Virtual 0.
-        11. **Temperature gap** (MON-TEMP-1): *Room temperature* 21, *Offset* of HEAT Virtual 4 (it measures 25): after 15 s, *Monitoring temperatures* goes to *Problem* (HEAT Virtual is 4 from the room sensor and from the other sources); *Offset* 0: back to *OK*.
-        12. **heat_cool** (ENT-TYPE-3): range 19–24, *Room temperature* 21, Adaptative MULTI to *heat_cool*: HEAT Virtual in *heat*; *Room temperature* 26: COOL Virtual in *cool*, HEAT Virtual *off*; *Action* `cooling`.
-        13. **Restart** (ENT-FANV-1, END-2): Adaptative MULTI in *cool*, fan *low*, then *off*; on HEAT Virtual, *Fan* *Auto*; restart; Adaptative MULTI to *heat*: *Fan* of HEAT Virtual goes to *Low*.
-        14. **One target for the single-target modes** (ENT-FEAT-4): Adaptative MULTI in *heat*, target 21; in *cool*, *dry*, *auto*: 21, and their source gets it. *heat_cool* keeps its range.
+        1. **Mode change** (ENT-STATE-3): from **Start**. Adaptative MULTI to *heat*, then *cool*: COOL Virtual goes to *cool*, HEAT Virtual back to *off*.
+        2. **Turned on on a device** (ENT-STATE-5, ENT-STATE-3): from **Start**. On HEAT Virtual, *Mode* *heat*: Adaptative MULTI goes to *heat*. Then on COOL Virtual, *Mode* *cool*: Adaptative MULTI goes to *cool*, HEAT Virtual is turned off (the last one wins).
+        3. **Turn on** (ENT-STATE-2, ENT-STATE-8): after 2 (*cool*). Adaptative MULTI *off*, then its on button: *cool*, the last used mode, comes back.
+        4. **Mode unavailable** (ENT-HVAC-4, ENT-STATE-4): from **Start**. On DRY Virtual, *Available* off: *dry* is in *Unavailable modes*; Adaptative MULTI to *dry* is refused.
+        5. **Waiting for the source** (ENT-WAIT-1, ENT-WAIT-2, MON-SRC-1): from **Start**. Adaptative MULTI to *cool*. On COOL Virtual, *Available* off: Adaptative MULTI goes to *Unknown*, keeps its targets and range; after 15 s, *Monitoring sources* goes to *Problem*. Target 23 on Adaptative MULTI (24 if it already shows 23): nothing is sent. *Available* on: COOL Virtual goes back to *cool* at that target, *Monitoring sources* back to *OK*.
+        6. **Range per mode** (ENT-RANGE-2): from **Start**, every mode run once. *Min / max* in *heat* 5–30, *cool* 16–32, *dry* 18–30, *auto* 10–30; in *off*: the widest, 5–32.
+        7. **Shared memory and case** (ENT-FANV-2, ENT-FAN-5, ENT-FAN-6): from **Start**. Adaptative MULTI to *cool*, fan *high*; to *heat*: *Fan* of HEAT Virtual goes to *High*; to *dry*: *HIGH*.
+        8. **Option of one source only** (ENT-FANV-3, ENT-FAN-3): after 7 (fan *high* shared). Adaptative MULTI to *heat*: it offers *Turbo*; choose it: HEAT Virtual goes to *Turbo*. Adaptative MULTI to *cool*: the fan goes back to *high* (Turbo is not remembered).
+        9. **Off** (ENT-FAN-3): from **Start**. *fan_only* and *auto* are not synchronized: in *off*, Adaptative MULTI shows no fan.
+        10. **Room sensor** (ENT-REF-1, ENT-REF-2): from **Start**. Adaptative MULTI to *heat*; *Offset* of HEAT Virtual 1. *Room temperature* 21: *Reference temperature* 21; *Room sensor available* off: 22, what the active source, HEAT Virtual, measures.
+        11. **Temperature gap** (MON-TEMP-1): from **Start**. *Room temperature* 21, *Offset* of HEAT Virtual 4 (it measures 25): after 15 s, *Monitoring temperatures* goes to *Problem* (HEAT Virtual is 4 from the room sensor and from the other sources); *Offset* 0: back to *OK*.
+        12. **heat_cool** (ENT-TYPE-3): from **Start**. On Adaptative MULTI (*off*), range 19–24; *Room temperature* 21. Adaptative MULTI to *heat_cool*: HEAT Virtual in *heat*; *Room temperature* 26: COOL Virtual in *cool*, HEAT Virtual *off*; *Action* `cooling`.
+        13. **Restart** (ENT-FANV-1, END-2): from **Start**. Adaptative MULTI to *cool*, fan *low*, then *off*; on HEAT Virtual, *Fan* *Auto*; restart Home Assistant; Adaptative MULTI to *heat*: *Fan* of HEAT Virtual goes to *Low*.
+        14. **One target for the single-target modes** (ENT-FEAT-4): from **Start**. Adaptative MULTI to *heat*, target 21; to *cool*, *dry*, *auto*: 21, and their source gets it. *heat_cool* keeps its range.
 
         </small>
 - title: Sources

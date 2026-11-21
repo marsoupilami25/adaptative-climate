@@ -74,17 +74,17 @@ views:
         - **The sources** (view *Sources*): *Offset*: each one measures the room (*Room temperature*) plus its offset. HEAT Virtual also shows *External temperature (written by Adaptative Manual)*, the entity *External temperature HEAT*, once it is the `heat_external_sensor` (step 5).
         - **Room sensor**: the room thermometer, the entity *Room sensor (manual)*, added as `temperature_sensor` in step 3. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable; *Read by Adaptative Manual* is what the entity sees.
 
-        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**: **Reset the sources**: every source *off*, *Target* 20, *Offset* 0; *Room temperature* 20, room sensor available; Adaptative Manual does not exist (never created, or deleted in 9). The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
-        1. **Creation** (§3): *Settings > Devices & services > Helpers > Create helper > Adaptative Climate*, name **Adaptative Manual**, *heat*: HEAT Virtual (manual), *cool*: COOL Virtual (manual), and the delays of the tests above. Adaptative Manual lists *off*, *heat*, *cool*, *heat_cool*.
-        2. **Refused** (CFG-CHECK-1): another entry named `adaptative manual`: refused. With *heat*: COOL Virtual: refused (COOL Virtual does not offer *heat*). With an external sensor and no room sensor: refused. With next try 10 s and confirmation 30 s: refused.
-        3. **Options** (CFG-YAML-4, ENT-INIT-4): Adaptative Manual in *heat*; open its options, add the room sensor: the entry reloads, Adaptative Manual is *off*, HEAT Virtual goes to *off*.
-        4. **Remove a mode** (CFG-YAML-4, ENT-HVAC-1): options, clear *cool*: no more *cool* nor *heat_cool*.
-        5. **External sensor** (ENT-EXT-1, CFG-SENS-2): options, *heat_external_sensor*: *External temperature HEAT*, with the room sensor: the *Room temperature* is written to *External temperature* of HEAT Virtual. With `heat_offset` 1 as well: refused.
-        6. **One source for several modes** (CFG-SENS-4): options, *heat* and *cool* on ALL Virtual with different offsets: refused, the error names both modes.
-        7. **Entries of the YAML** (CFG-YAML-3): the entries declared in the YAML (Adaptative HEAT...) have no options in the UI.
-        8. **Reload without change** (ENT-INIT-4): Adaptative Manual in *heat*, *Reload* the entry: it resumes *heat*.
-        9. **Deletion** (END-3): Adaptative Manual in *heat*, delete the entry: HEAT Virtual stays in *heat*, nothing drives it any more.
+        1. **Creation** (§3): from **Start**. *Settings > Devices & services > Helpers > Create helper > Adaptative Climate*, name **Adaptative Manual**, *heat*: HEAT Virtual (manual), *cool*: COOL Virtual (manual), and the delays of the tests above. Adaptative Manual lists *off*, *heat*, *cool*, *heat_cool*.
+        2. **Refused** (CFG-CHECK-1): after 1. Another entry named `adaptative manual`: refused. With *heat*: COOL Virtual: refused (COOL Virtual does not offer *heat*). With an external sensor and no room sensor: refused. With next try 10 s and confirmation 30 s: refused.
+        3. **Options** (CFG-YAML-4, ENT-INIT-4): after 1. Adaptative Manual to *heat*; open its options, add the room sensor: the entry reloads, Adaptative Manual is *off*, HEAT Virtual goes to *off*.
+        4. **Remove a mode** (CFG-YAML-4, ENT-HVAC-1): after 3. Options, clear *cool*: no more *cool* nor *heat_cool*.
+        5. **External sensor** (ENT-EXT-1, CFG-SENS-2): after 4 (room sensor added). Options, *heat_external_sensor*: *External temperature HEAT*, with the room sensor: the *Room temperature* is written to *External temperature* of HEAT Virtual. With `heat_offset` 1 as well: refused.
+        6. **One source for several modes** (CFG-SENS-4): after 1. Options, *heat* and *cool* on ALL Virtual with different offsets: refused, the error names both modes.
+        7. **Entries of the YAML** (CFG-YAML-3): at any time. The entries declared in the YAML (Adaptative HEAT...) have no options in the UI.
+        8. **Reload without change** (ENT-INIT-4): after 1. Adaptative Manual to *heat*, *Reload* the entry: it resumes *heat*.
+        9. **Deletion** (END-3): after 8 (*heat*). Delete the entry: HEAT Virtual stays in *heat*, nothing drives it any more. Back to **Start** for 1.
 
         </small>
 - title: Sources
