@@ -232,7 +232,30 @@ class AdaptativeClimateEntity(ClimateEntity):
                 request[name] = float(kwargs[name])
         if kwargs.get(ATTR_HVAC_MODE) is not None:
             request["hvac_mode"] = str(kwargs[ATTR_HVAC_MODE])
+        written = self._written
         self._request(Event(U_SET_SETTINGS, "U", request))
+        if self._written == written and self._not_kept_as_asked(request):
+            self._write_again()
+
+    def _not_kept_as_asked(self, request: dict[str, Any]) -> bool:
+        """A target asked is shown with another value (gap, range, step)."""
+        shown = {
+            ATTR_TEMPERATURE: self._view.temperature,
+            ATTR_TARGET_TEMP_LOW: self._view.target_temp_low,
+            ATTR_TARGET_TEMP_HIGH: self._view.target_temp_high,
+        }
+        return any(
+            name in request and value is not None and abs(value - request[name]) > 1e-6
+            for name, value in shown.items()
+        )
+
+    def _write_again(self) -> None:
+        """ENT-TGT-7, ARCH-8: written even unchanged, so that the card drops the values it asked."""
+        self._attr_force_update = True
+        try:
+            self.async_write_ha_state()
+        finally:
+            self._attr_force_update = False
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """U=>AC_set_settings(fan_mode)."""

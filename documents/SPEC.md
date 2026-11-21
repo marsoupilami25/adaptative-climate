@@ -2468,7 +2468,7 @@ The temperature targets used and shown by each mode are listed in
     (ENT-TGT-9): the takeover does not survive a change of the
     capabilities;
   - the gap is applied again (ENT-TGT-5), also when a takeover broke it
-    (ENT-TGT-9): the high target moves, as when the user sets them
+    (ENT-TGT-9): the high target moves, as when the user changes both
     (ENT-TGT-6); if it cannot (the end of its range is reached), the low
     target moves instead;
   - what is sent to the active source follows ENT-CAP-7: the settings
@@ -2496,11 +2496,21 @@ The temperature targets used and shown by each mode are listed in
     the minimum of its range and the high target to the maximum of its
     range: the gap is as large as they allow.
 - **ENT-TGT-6** The user sets low and high together (Home Assistant asks
-  for both). When they are closer than the gap (ENT-TGT-5):
-  - the high target moves up, rounded away from the low one, on the step
-    of the entity, so that the gap is kept;
-  - if it cannot move (the end of its range is reached), the low target
-    moves down instead.
+  for both). A target the user changes is one whose value asked differs
+  from the value shown (ENT-TGT-11); the card changes one at a time. When
+  they are closer than the gap (ENT-TGT-5):
+  - one target changed: it is kept, and the other one moves away from it,
+    rounded away from it, on the step of the entity, so that the gap is
+    kept. The same rule as a takeover (ENT-TGT-9). If the other one
+    cannot move far enough (the end of its range is reached), it goes to
+    that end, and the target changed gives way: it stops at the gap from
+    the other one. Example with `min_gap` 2 °C and a range 16–30 °C:
+    from 22 / 24, high lowered to 23 gives 21 / 23; from 28 / 30, low
+    raised to 29 stays 28 / 30;
+  - both changed, or none: the high target moves up,
+    rounded away from the low one, on the step of the entity, so that the
+    gap is kept; if it cannot move (the end of its range is reached), the
+    low target moves down instead.
 
 **Set by the user**
 
@@ -2533,6 +2543,11 @@ The temperature targets used and shown by each mode are listed in
     as long as the entity declares `TARGET_TEMPERATURE` (another mode
     shows it): T is kept, not sent;
   - `target_temp_low` / `target_temp_high` set low / high;
+  - when the values kept are not the ones asked (the gap, the range, the
+    step), the entity writes its state in Home Assistant even when it did
+    not change: the card shows the values kept, not the ones it asked.
+    Example: from 28 / 30 (range 16–30 °C, `min_gap` 2 °C), low raised to
+    29 stays 28 / 30, and the card goes back to 28;
   - with an `hvac_mode` in the same user request, the mode and the temperature
     targets are handled together: the entity switches to the new mode
     (`U=>AC_set_mode`), and the temperature targets are set for that new
@@ -2594,13 +2609,19 @@ The temperature targets used and shown by each mode are listed in
   - it is kept even outside the limits and the range of the entity, until
     the capabilities change (ENT-TGT-4);
   - it is not sent back to the source;
-  - the other temperature target moves to keep the gap (ENT-TGT-5); the
+  - the other temperature target moves to keep the gap (ENT-TGT-5), as
+    when the user changes one (ENT-TGT-6); unlike the user, the
     temperature target taken never gives way. If the other one cannot move (the end
     of its range is reached), the gap is broken: ENT-TGT-5 does not hold
     until the next change of a target by the user (ENT-TGT-6) or of the
     capabilities (ENT-TGT-4). Example: low taken at 30 °C from the
     radiator of a bi-source `heat_cool`, high at the maximum of its range
     (30 °C): low 30, high 30;
+  - the target moved for the gap is sent to the active source when it
+    uses it (ENT-TGT-8): low and high go together, the one taken with
+    the value the source shows. Example: source at 19 / 24, `min_gap`
+    2 °C, low set to 23 on the source: the entity keeps 23 / 25, and the
+    source gets 23 / 25;
   - when the source changes both low and high, both are taken as they
     are, gap included;
   - in a bi-source `heat_cool`, the phase is checked on the targets
@@ -2628,7 +2649,8 @@ The temperature targets used and shown by each mode are listed in
     its heat source and high from the single target of its cool source;
     for the missing ones, T − 1 °C and T + 1 °C (2 °F, CFG-UNIT-1).
   - The targets restored are kept as they are: only the missing ones are
-    taken. The gap is then applied (ENT-TGT-5, ENT-TGT-6).
+    taken. The gap is then applied (ENT-TGT-5), as when the user changes
+    both (ENT-TGT-6).
 
 **Shown**
 
@@ -2855,6 +2877,7 @@ Extra attributes:
 | `saved_targets` | The three temperature targets, as kept. | ENT-TGT-1 |
 | `saved_settings` | The fan and swing values remembered for each mode (not recorded in the history). | ENT-FANV-1 |
 | `target_gaps` | The temperature targets shown otherwise than they are kept. | ENT-TGT-13 |
+| `min_gap` | The smallest gap between the low and high targets, as configured (§3.1.6). | ENT-TGT-5 |
 
 The attributes of the monitoring sensors are in §4.
 

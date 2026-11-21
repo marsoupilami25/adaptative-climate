@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from homeassistant.const import EVENT_STATE_CHANGED
+from homeassistant.core import Event as HassEvent, callback
 from homeassistant.exceptions import HomeAssistantError
 import pytest
 
@@ -271,6 +273,63 @@ async def test_ent_tgt_6_the_target_set_gives_way_at_the_end_of_the_range(bench:
     assert low_high(bench) == (29.0, 30.0)
 
 
+async def gap_pump(bench: Bench, low: float, high: float) -> Any:
+    """heat_cool on a source with low/high at 16–30 °C, `min_gap` 2, running at low / high."""
+    pump = bench.device(
+        PUMP, ["heat_cool"], min_temp=16.0, max_temp=30.0, single_target=False,
+        range_target=True, target_temp_low=low, target_temp_high=high,
+    )
+    await bench.start([yaml_entry("Living room", heat_cool_entity=PUMP, min_gap=2)])
+    await ac(bench).set_hvac_mode("heat_cool")
+    await bench.advance(15)
+    assert low_high(bench) == (low, high)
+    pump.clear_calls()
+    return pump
+
+
+@spec("ENT-TGT-5", "ENT-TGT-6")
+@pytest.mark.parametrize(
+    ("start", "asked", "kept"),
+    [
+        pytest.param((22.0, 24.0), (22.0, 23.0), (21.0, 23.0), id="high lowered: low moves down"),
+        pytest.param((22.0, 24.0), (23.0, 24.0), (23.0, 25.0), id="low raised: high moves up"),
+        pytest.param((28.0, 30.0), (29.0, 30.0), (28.0, 30.0), id="high at the end: low gives way"),
+        pytest.param((16.0, 18.0), (16.0, 17.0), (16.0, 18.0), id="low at the end: high gives way"),
+    ],
+)
+async def test_ent_tgt_6_one_changed_the_other_moves(
+    bench: Bench, start: tuple[float, float], asked: tuple[float, float],
+    kept: tuple[float, float],
+) -> None:
+    """The card changes one target: it is kept, the other one moves; else it gives way."""
+    pump = await gap_pump(bench, *start)
+    await ac(bench).set_temperature(target_temp_low=asked[0], target_temp_high=asked[1])
+    assert low_high(bench) == kept
+    assert (pump.target_temp_low, pump.target_temp_high) == kept
+
+
+@spec("ENT-TGT-7", "ENT-TGT-6")
+async def test_ent_tgt_7_state_written_when_not_kept_as_asked(bench: Bench) -> None:
+    """From 28 / 30, low raised to 29 stays 28 / 30: the state is written all the same,
+    so that the card drops the 29 it shows; a request kept as asked writes nothing."""
+    await gap_pump(bench, 28.0, 30.0)
+    written: list[HassEvent] = []
+
+    @callback
+    def listener(event: HassEvent) -> None:
+        if event.data["entity_id"] == ac(bench).entity_id:
+            written.append(event)
+
+    bench.hass.bus.async_listen(EVENT_STATE_CHANGED, listener)
+    await ac(bench).set_temperature(target_temp_low=29.0, target_temp_high=30.0)
+    await bench.settle()
+    assert low_high(bench) == (28.0, 30.0)
+    assert len(written) == 1
+    await ac(bench).set_temperature(target_temp_low=28.0, target_temp_high=30.0)
+    await bench.settle()
+    assert len(written) == 1
+
+
 @spec("ENT-FEAT-4", "ENT-TGT-1")
 async def test_ent_feat_4_modes_with_a_single_target_share_t(bench: Bench) -> None:
     heater, aircon, pump = await without_low_high(bench)
@@ -434,8 +493,29 @@ async def test_ent_tgt_9_both_changed_are_taken_as_they_are(bench: Bench) -> Non
 @spec("ENT-TGT-9", "ENT-TGT-5")
 async def test_ent_tgt_9_low_taken_pushes_high(bench: Bench) -> None:
     pump = await range_pump(bench)
+    pump.clear_calls()
     await pump.set(target_temp_low=23.5)
     assert low_high(bench) == (23.5, 24.5)
+    # The target moved is sent, with the one taken as the source shows it
+    assert pump.temperatures_asked() == [{"target_temp_low": 23.5, "target_temp_high": 24.5}]
+    assert (pump.target_temp_low, pump.target_temp_high) == (23.5, 24.5)
+
+
+@spec("ENT-TGT-9", "ENT-TGT-5", "ENT-TGT-6")
+async def test_ent_tgt_9_high_taken_pushes_low(bench: Bench) -> None:
+    pump = await gap_pump(bench, 22.0, 26.0)
+    await pump.set(target_temp_high=23.0)
+    assert low_high(bench) == (21.0, 23.0)
+    assert pump.temperatures_asked() == [{"target_temp_low": 21.0, "target_temp_high": 23.0}]
+
+
+@spec("ENT-TGT-9", "ENT-TGT-5")
+async def test_ent_tgt_9_taken_at_the_end_breaks_the_gap(bench: Bench) -> None:
+    """High at the end of its range cannot move: the gap is broken, nothing is sent."""
+    pump = await gap_pump(bench, 26.0, 30.0)
+    await pump.set(target_temp_low=29.5)
+    assert low_high(bench) == (29.5, 30.0)
+    assert pump.temperatures_asked() == []
 
 
 # --- ENT-TGT-10, ENT-TGT-11: first targets, shown ---------------------------------------------------------------

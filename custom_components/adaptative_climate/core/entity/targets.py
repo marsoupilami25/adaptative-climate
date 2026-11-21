@@ -55,8 +55,46 @@ def _fit(value: float, rng: tuple[float, float], step: float) -> float:
     return clean(value)
 
 
+def _too_close(entity: ACEntity) -> bool:
+    """Low and high both kept, closer than min_gap (ENT-TGT-5)."""
+    low, high = entity.stored.targets[LOW], entity.stored.targets[HIGH]
+    return low is not None and high is not None and high - low < entity.entry.min_gap - EPSILON
+
+
+def _push_other(entity: ACEntity, kept: str) -> None:
+    """The target other than `kept` moves away from it to keep the gap (ENT-TGT-6, ENT-TGT-9).
+
+    Rounded away from `kept`, on the step of the entity; it stops at the end
+    of its range, and never moves toward `kept`.
+    """
+    cam = entity.cam
+    step = cam.step()
+    targets = entity.stored.targets
+    gap = entity.entry.min_gap
+    if kept == LOW:
+        limit = round_to_step(cam.target_range(HIGH)[1], step, -1)
+        targets[HIGH] = max(targets[HIGH], min(round_to_step(targets[LOW] + gap, step, 1), limit))
+    else:
+        limit = round_to_step(cam.target_range(LOW)[0], step, 1)
+        targets[LOW] = min(targets[LOW], max(round_to_step(targets[HIGH] - gap, step, -1), limit))
+
+
+def _give_way(entity: ACEntity, changed: str) -> None:
+    """ENT-TGT-6: the target changed stops at the gap from the other one, within its range."""
+    cam = entity.cam
+    step = cam.step()
+    targets = entity.stored.targets
+    gap = entity.entry.min_gap
+    if changed == LOW:
+        low_min = round_to_step(cam.target_range(LOW)[0], step, 1)
+        targets[LOW] = max(round_to_step(targets[HIGH] - gap, step, -1), low_min)
+    else:
+        high_max = round_to_step(cam.target_range(HIGH)[1], step, -1)
+        targets[HIGH] = min(round_to_step(targets[LOW] + gap, step, 1), high_max)
+
+
 def apply_gap(entity: ACEntity) -> None:
-    """Keep low at least min_gap below high (ENT-TGT-5, ENT-TGT-6).
+    """Keep low at least min_gap below high, both changed (ENT-TGT-5, ENT-TGT-6).
 
     High moves up, rounded away from low; at the end of its range, low moves
     down instead; if neither can, low goes to the minimum of its range and
@@ -110,38 +148,48 @@ def user_set(entity: ACEntity, request: dict[str, Any]) -> bool:
     if not values:
         return False
     targets = entity.stored.targets
+    before, _ = shown(entity)
+    changed = []
     for name, value in values.items():
         targets[name] = _fit(float(value), cam.target_range(name), step)
-    if cam.has_low_high() and (LOW in values or HIGH in values):
-        apply_gap(entity)
+        attribute = {LOW: TARGET_TEMP_LOW, HIGH: TARGET_TEMP_HIGH}.get(name)
+        if attribute is not None and (
+            before[attribute] is None or abs(targets[name] - before[attribute]) > EPSILON
+        ):
+            changed.append(name)
+    if cam.has_low_high() and (LOW in values or HIGH in values) and _too_close(entity):
+        if len(changed) == 1:
+            # ENT-TGT-6: the target changed is kept, the other one moves; else it gives way
+            _push_other(entity, changed[0])
+            if _too_close(entity):
+                _give_way(entity, changed[0])
+        else:
+            apply_gap(entity)
     entity.save()
     return True
 
 
-def takeover(entity: ACEntity, taken: dict[str, float]) -> None:
-    """ENT-TGT-9: a target changed on the active source becomes the target of the entity."""
+def takeover(entity: ACEntity, taken: dict[str, float]) -> set[str]:
+    """ENT-TGT-9: a target changed on the active source becomes the target of the entity.
+
+    Returns the targets moved for the gap.
+    """
     cam = entity.cam
     step = cam.step()
     targets = entity.stored.targets
     for name, value in taken.items():
         targets[name] = round_to_step(value, step)  # kept even outside the ranges
-    gap = entity.entry.min_gap
-    low, high = targets[LOW], targets[HIGH]
-    if (
-        cam.has_low_high()
-        and len({LOW, HIGH} & taken.keys()) == 1
-        and low is not None
-        and high is not None
-        and high - low < gap - EPSILON
-    ):
+    moved: set[str] = set()
+    if cam.has_low_high() and len({LOW, HIGH} & taken.keys()) == 1 and _too_close(entity):
         # The other one moves; the target taken never gives way.
-        if LOW in taken:
-            limit = round_to_step(cam.target_range(HIGH)[1], step, -1)
-            targets[HIGH] = max(high, min(round_to_step(low + gap, step, 1), limit))
-        else:
-            limit = round_to_step(cam.target_range(LOW)[0], step, 1)
-            targets[LOW] = min(low, max(round_to_step(high - gap, step, -1), limit))
+        kept = LOW if LOW in taken else HIGH
+        other = HIGH if kept == LOW else LOW
+        before = targets[other]
+        _push_other(entity, kept)
+        if targets[other] != before:
+            moved.add(other)
     entity.save()
+    return moved
 
 
 def first_targets(entity: ACEntity) -> None:

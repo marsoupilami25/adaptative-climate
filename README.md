@@ -175,10 +175,19 @@ another mode, or off then turned on, it was changed meanwhile and gives its
 targets.
 
 The low target stays at least `min_gap` below the high one (1 degree at
-least, also the default). Low and high are set together (Home Assistant
-asks for both): when they are too close, the high target moves up; when it
-cannot (the end of its range), the low target moves down. A change made on a
-source has the upper hand: it is kept, and only the other target moves.
+least, also the default), shown in the `min_gap` attribute. When a change
+brings them too close, the target changed is kept and the other one moves:
+raise low and high goes up, lower high and low goes down. This holds for a
+change on the card and for a change made on a source; the target moved is
+sent to the source. When the other one cannot move (the end of its range),
+a change on the card gives way (the target changed stops at the gap), a
+change made on a source has the upper hand (it is kept, the gap is broken).
+When both are changed at once (a service call), the high target moves up,
+or the low one down when high cannot.
+
+The card itself does not know the gap: while dragging, it stops the low
+target at the high one (and the reverse), and only sends the change when
+released. To go from 19-22 to 23-25, raise high first, then low.
 
 The entity has its own step (`target_temp_step`), the same for the single,
 low and high targets: the largest step every source step is a multiple of

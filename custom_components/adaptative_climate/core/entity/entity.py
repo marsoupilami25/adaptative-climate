@@ -425,6 +425,7 @@ class ACEntity(Actor):
             },
             "saved_settings": {k: dict(v) for k, v in self.stored.memory.items()},
             "target_gaps": [],
+            "min_gap": entry.min_gap,
         }
         if state in (INIT, NO_SOURCE):
             return view

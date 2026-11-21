@@ -214,7 +214,8 @@ source entity itself, as the spec accepts (CFG-SENS-5).
 - **ARCH-8 Home Assistant entities are views.** The `climate` entity and
   the two monitoring binary sensors only show the state of the core and
   forward the user requests to the runtime. Their state is written once
-  per stimulus, after it, when it changed.
+  per stimulus, after it, when it changed, and after a user request whose
+  temperature targets were not kept as asked, even unchanged (ENT-TGT-7).
   *Why:* the behavior lives in one place; the card sees a consistent state
   (ENT-CAP-7: "the entity writes its state in Home Assistant").
 - **ARCH-9 Stored data saved per stimulus.** Each actor marks its stored

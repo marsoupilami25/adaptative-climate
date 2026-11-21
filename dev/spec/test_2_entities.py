@@ -90,8 +90,9 @@ async def test_attributes_shown_in_off(bench: Bench) -> None:
     assert ac.attr("mode_entity_ids") == {"heat": HEATER}
     assert ac.attr("unavailable_modes") == []
     assert ac.attr("foreign_modes") == {}
-    for extra in ("saved_targets", "saved_settings", "target_gaps"):
+    for extra in ("saved_targets", "saved_settings", "target_gaps", "min_gap"):
         assert extra in ac.attributes, extra
+    assert ac.attr("min_gap") == 1.0  # the default (§3.1.6)
 
 
 @spec("ENT-ON-1")

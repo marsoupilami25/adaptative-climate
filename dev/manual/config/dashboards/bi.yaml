@@ -43,6 +43,7 @@ views:
         | Step | {{ state_attr(e, 'target_temp_step') }} |
         | Target | {{ state_attr(e, 'temperature') }} |
         | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min gap | {{ state_attr(e, 'min_gap') }} |
         | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
         | Phase | {{ state_attr(e, 'phase') }} |
         | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
@@ -192,7 +193,7 @@ views:
         9. **Foreign mode tolerated** (ENT-STATE-5): Adaptative BI in *cool*. On RADIATOR Virtual, *Mode* *fan_only*: nothing is sent (tolerated). Adaptative BI to *off*: RADIATOR Virtual goes to *off*.
         10. **Phase source away** (ENT-PHASE-5, MON-SRC-1): Adaptative BI in *heat_cool*, *Phase* `heat`. On AIRCON Virtual, *Available* off: nothing reported (the other phase). *Room temperature* 26: *Phase* `cool`, RADIATOR Virtual to *off*; after 15 s, *Monitoring sources* goes to *Problem* (AIRCON Virtual). AIRCON Virtual *Available* on: it goes to *cool*, back to *OK*.
         11. **No source left** (ENT-STATE-6, MON-SRC-2): *Phase* `heat`; turn *Available* off on AIRCON Virtual, then on RADIATOR Virtual: Adaptative BI is unavailable; *Monitoring sources* stays *OK* (the unavailable entity says it). RADIATOR Virtual *Available* on: back to *heat_cool*.
-        12. **Minimum gap** (ENT-TGT-6): Adaptative BI *off*, set 22–23: high goes to 24.
+        12. **Minimum gap** (ENT-TGT-6): Adaptative BI *off*, set 22–24 (*Min gap* 2). Lower high to 23: low goes to 21. Raise low to 22: high goes to 24.
         13. **heat and cool share one target** (ENT-FEAT-4): Adaptative BI in *heat*, target 21; in *cool*: 21, AIRCON Virtual gets 21; in *heat_cool*: the range comes back.
 
         </small>

@@ -129,8 +129,12 @@ class SettingsManagement:
                 self.fan.adopt(name, value)
                 sending.reported_setting(source_id, name, value)
         if taken:
-            targets.takeover(entity, taken)
+            moved = targets.takeover(entity, taken)
             entity.post(Event(ACSEM_TARGETS_CHANGED))
+            if moved:
+                # ENT-TGT-9: the target moved for the gap is sent; the one taken stays as reported
+                attributes = {LOW: TARGET_TEMP_LOW, HIGH: TARGET_TEMP_HIGH}
+                self.refresh_expected({attributes[name] for name in moved})
 
     # --- Capabilities changed (ENT-CAP-7) -------------------------------------------
 
