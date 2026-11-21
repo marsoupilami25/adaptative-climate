@@ -184,10 +184,9 @@ views:
         - **AIRCON Virtual**: `cool_entity`, *cool*, 16–30 °C by steps of 1. *Temperature (measured by the source)*: its own reading.
         - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative BI, its reference temperature. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable (the reference is then the mean of the two sources); *Read by Adaptative BI* is what the entity sees.
 
-        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
-        Adaptative BI *off*: set the range to 19–24 and *Room temperature* to 21.
+        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
-        1. **Entering heat_cool** (ENT-WANT-1, ENT-TYPE-3): Adaptative BI to *heat_cool*: *Phase* `heat`, RADIATOR Virtual goes to *heat* at 19, AIRCON Virtual stays *off*.
+        1. **Entering heat_cool** (ENT-WANT-1, ENT-TYPE-3): the phase is the one of the target closest to the *Reference temperature*. Adaptative BI *off*; on its card, set the range to 19–24 (*Low / high* 19 / 24; raise high before low if needed); on Room sensor, *Room temperature* 21 (*Reference temperature* 21). Adaptative BI to *heat_cool*: 19 is the closest, *Phase* `heat`, RADIATOR Virtual goes to *heat* at 19, AIRCON Virtual stays *off*. (From *off* with *Room temperature* 22, 24 is the closest: *Phase* `cool`.)
         2. **Switch with hysteresis** (ENT-WANT-3, ENT-PHASE-3): *Room temperature* 25: nothing. 25.5: *Phase* `cool`, AIRCON Virtual goes to *cool* at 24, RADIATOR Virtual to *off*.
         3. **Back**: *Room temperature* 18: nothing; 17.5: *Phase* `heat`.
         4. **Targets changed: no hysteresis** (ENT-PHASE-2, §5.5): *Phase* `heat`, *Room temperature* 22. Set 17–20 on Adaptative BI: *Phase* `cool` at once; RADIATOR Virtual only gets *off* (its *Target* does not go to 17).

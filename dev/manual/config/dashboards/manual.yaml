@@ -74,7 +74,7 @@ views:
         - **The sources** (view *Sources*): *Temperature (measured by the source)*: the own reading of each one. HEAT Virtual also shows *External temperature (written by Adaptative Manual)*, the entity *External temperature HEAT*, once it is the `heat_external_sensor` (step 5).
         - **Room sensor**: the room thermometer, the entity *Room sensor (manual)*, added as `temperature_sensor` in step 3. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable; *Read by Adaptative Manual* is what the entity sees.
 
-        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **Creation** (§3): *Settings > Devices & services > Helpers > Create helper > Adaptative Climate*, name **Adaptative Manual**, *heat*: HEAT Virtual (manual), *cool*: COOL Virtual (manual), and the delays of the tests above. Adaptative Manual lists *off*, *heat*, *cool*, *heat_cool*.
         2. **Refused** (CFG-CHECK-1): another entry named `adaptative manual`: refused. With *heat*: COOL Virtual: refused (COOL Virtual does not offer *heat*). With an external sensor and no room sensor: refused. With next try 10 s and confirmation 30 s: refused.

@@ -140,7 +140,7 @@ views:
 
         ## Single source
 
-        Adaptative ALL: every mode on ALL Virtual, which shows its low/high target in *heat_cool* and *auto*. *heat*, *cool*, *dry* share fan and swing. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        Adaptative ALL: every mode on ALL Virtual, which shows its low/high target in *heat_cool* and *auto*. *heat*, *cool*, *dry* share fan and swing. Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
 
         1. **One device** (ENT-TYPE-2): Adaptative ALL to *heat*, then *cool*: *Mode* of ALL Virtual follows; nothing else is turned off.
         2. **Mode discovered** (ENT-CAP-5, ENT-CAP-6, §5.4): the first time in *dry*, only the mode is sent; target and fan follow once ALL Virtual shows *dry*.

@@ -11,6 +11,7 @@ dev/manual/
     packages/sources_<case>.yaml   virtual sources of a case and their helpers
     dashboards/<case>.yaml         one dashboard per case
   link_config.sh                   links these files into an HA config folder
+  reset_memory.sh                  forgets the memory of entities under test
 ```
 
 ## Setup
@@ -62,6 +63,26 @@ The switches go back to their initial value at each restart. The range
 (`min`/`max`) and the step of a source are fixed: a change of range is tested
 in the automated tests. **Reset the sources** resets everything for its case;
 it does not touch the memory of the entities under test.
+
+### Memory of the entities under test
+
+To test a first start again (no stored data, ENT-DATA-1), delete the memory of
+an entity: its mode, phase, targets and fan/swing memory, and what its sources
+discovered and keep (one file, `.storage/adaptative_climate.<entry_id>`).
+
+1. Press **Reset the sources** of its case: at the next start, the targets are
+   taken from the sources as they show them (ENT-TGT-10). Taken from sources
+   still at 0 °C, they end up at the minimum (7 / 9 for low / high).
+2. Stop Home Assistant: while it runs, it writes its memory back (the script
+   refuses).
+3. Delete the memory, then start Home Assistant:
+
+   ```bash
+   dev/manual/reset_memory.sh --list           # entries, with or without memory
+   dev/manual/reset_memory.sh bi heat_cool     # by title, "Adaptative " optional
+   dev/manual/reset_memory.sh --all
+   dev/manual/reset_memory.sh -c ~/other/config bi
+   ```
 
 The cases with a room sensor have a `sensor.room_sensor_<case>`, driven by
 *Room temperature* and *Room sensor available*.

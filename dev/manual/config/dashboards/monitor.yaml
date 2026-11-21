@@ -224,7 +224,7 @@ views:
         - **RADIATOR Virtual**, **AIRCON Virtual**: *Temperature (measured by the source)*: the own reading of each one, compared with the room sensor and with each other.
         - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative MONITOR. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable; *Read by Adaptative MONITOR* is what the entity sees.
 
-        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them. Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        Start from **Reset the sources**. It does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `dev/manual/reset_memory.sh` forgets it (HA stopped, see `dev/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
         Events: *Developer tools > Events*, listen to `adaptative_climate_problem`.
 
         1. **Source never seen** (MON-SRC-5): Adaptative GHOST, *off*: 15 s after the start, its *Monitoring sources* is *Problem*; a `started` event.
