@@ -354,18 +354,20 @@ async def test_src_state_8_discovered_without_its_mode_is_unusable(bench: Bench)
     assert aircon.calls == []
 
 
-@spec("SRC-UNDISC-2", "ENT-STEP-1")
+@spec("SRC-UNDISC-2", "ENT-STEP-1", "ENT-CAP-4", "SRC-DATA-13")
 async def test_src_undisc_2_undiscovered_source_offers_nothing(bench: Bench) -> None:
-    """Not counted for the step until discovered."""
-    heater = bench.device(HEATER, ["heat"], present=False)
-    bench.device(AIRCON, ["cool"], target_temp_step=1.0, temperature=24.0)
+    """Never seen usable: not counted for the step; heat counts as a single target at
+    7–35 °C. Once seen, its provisional capabilities count (here, no step: 0.5)."""
+    heater = bench.device(HEATER, ["heat"], present=False, min_temp=10.0, max_temp=30.0)
+    bench.device(AIRCON, ["cool"], target_temp_step=1.0, temperature=24.0, min_temp=16.0, max_temp=30.0)
     await start(bench, heat_entity=HEATER, cool_entity=AIRCON)
     await ac(bench).set_hvac_mode("cool")  # the cool mode is discovered, step 1
     assert ac(bench).attr("target_temp_step") == 1.0
-    await heater.appear()  # discovered, heat not yet: still not counted
-    assert ac(bench).attr("target_temp_step") == 1.0
-    await ac(bench).set_hvac_mode("heat")  # heat discovered, without step: counts 0.5
+    await ac(bench).set_hvac_mode("off")
+    assert (ac(bench).attr("min_temp"), ac(bench).attr("max_temp")) == (7.0, 35.0)  # heat: 7–35
+    await heater.appear()  # seen: what it shows counts, heat not discovered yet
     assert ac(bench).attr("target_temp_step") == 0.5
+    assert (ac(bench).attr("min_temp"), ac(bench).attr("max_temp")) == (10.0, 30.0)
 
 
 # --- SRC-STATE-9: stored state -------------------------------------------------------------------

@@ -71,7 +71,9 @@ class FanSwing:
         """Options offered by all the modes of a memory (ENT-FAN-6, ENT-FAN-8).
 
         Modes not discovered, or without the setting, are left out; None when
-        no mode is left. Written as the first mode writes them.
+        no mode is left. Written as the first mode writes them. With a single
+        configured mode not discovered yet: the provisional options of its
+        source (ENT-FAN-3).
         """
         cam = self._entity.cam
         lists = [
@@ -80,7 +82,7 @@ class FanSwing:
             if (options := cam.options(source_id, mode, setting)) is not None
         ]
         if not lists:
-            return None
+            return cam.provisional_options(setting)
         return [o for o in lists[0] if all(match_option(o, other) for other in lists[1:])]
 
     def remembered(self, key: str, setting: str) -> str | None:
@@ -135,7 +137,7 @@ class FanSwing:
         if context is None:
             return None, []
         source_id, mode, label, phase = context
-        options = entity.cam.options(source_id, mode, setting)
+        options = entity.cam.shown_options(source_id, mode, setting)  # held ones included
         if options is None:
             return None, []
         value = self.not_shared.get(setting) or self.remembered(self.key_of(label, phase), setting)

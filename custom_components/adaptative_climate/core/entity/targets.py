@@ -257,7 +257,7 @@ def send_values(
     if case not in (CASE_SINGLE, CASE_LOW_HIGH):
         return {}
     targets = entity.stored.targets
-    low_range, high_range = cam.context_range(source_id, mode)
+    low_range, high_range = cam.context_range(source_id, mode, shown=False)  # never a guess (ENT-CAP-5)
     offset = entity.entry.offset_of(source_id)
     step = cam.source_step(source_id, mode)
     raw_min, raw_max = cam.raw_range(source_id, mode)

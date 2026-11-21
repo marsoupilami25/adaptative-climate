@@ -80,6 +80,10 @@ class Source(Actor):
         self.data, self.has_stored_state = restore_data(store.load(self.part))
         self.snapshot: Snapshot | None = None
         self.prev_snapshot: Snapshot | None = None
+        #: Provisional capabilities (SRC-DATA-13): not stored; None until a usable read.
+        self.provisional: ModeCaps | None = None
+        #: Held capabilities of a mode just discovered (SRC-DATA-13): shown, never sent; not stored.
+        self.held: dict[str, ModeCaps] = {}
         self.dsm = StorageManagement(self)
         self.stm = StateManagement(self)
         self.mrc = ModeRequestConfirmation(self)

@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from .source import Source
 
 REMOVAL = "removal:"
+HELD = "held:"
 HVAC_MODES = "hvac_modes"
 FEATURES = "supported_features"
 
@@ -141,8 +142,11 @@ class StorageManagement:
                 self._update(self._source.snapshot, at_start=False)
         elif kind in SE_NOT_USABLE:
             self._cancel_all()  # SRC-DATA-11
+            self._end_holds()  # SRC-DATA-13
         elif kind == TIMEOUT and event.value[0].startswith(REMOVAL):
             self._confirm_removal(event.value[0])
+        elif kind == TIMEOUT and event.value[0].startswith(HELD):
+            self._end_hold(event.value[0].removeprefix(HELD))
 
     # --- Restore (§1.2.2.2) ----------------------------------------------------
 
@@ -168,6 +172,7 @@ class StorageManagement:
         running = snapshot.state if snapshot.state != OFF else None
         if running is not None:
             self.data.modes[running] = self._read_caps(snapshot)
+        self._source.provisional = self._read_caps(snapshot)  # SRC-DATA-13
         self._source.save()
         if not at_start:
             self._source.post(Event(SDSM_DISCOVERED))
@@ -181,6 +186,7 @@ class StorageManagement:
         changed = False
         removals: list[Pending] = []
         served_missing = not source.served_offered()
+        previous = source.provisional
 
         # hvac_modes, item by item
         shown = as_text_list(snapshot.get(HVAC_MODES)) or []
@@ -204,10 +210,21 @@ class StorageManagement:
         if running is not None:
             caps = self.data.modes.get(running)
             if caps is None:
-                self.data.modes[running] = self._read_caps(snapshot)
+                caps = self._read_caps(snapshot)
+                self.data.modes[running] = caps
                 changed = True
+                if previous is not None:
+                    self._hold(running, previous, caps)
             else:
                 changed |= self._compare_caps(running, caps, snapshot, removals)
+
+        # Provisional capabilities (SRC-DATA-13): reported while a served mode is not discovered
+        source.provisional = self._read_caps(snapshot)
+        changed_provisional = (
+            not at_start  # read at start: there before the first state (SRC-DATA-12)
+            and (previous is None or previous.to_dict() != source.provisional.to_dict())
+            and bool(source.cfg.served_source_modes - set(self.data.modes))
+        )
 
         for pending in removals:
             if pending.key not in self._pending:
@@ -218,7 +235,7 @@ class StorageManagement:
         if changed:
             source.save()
         lost = self._remove_now()  # removal_confirmation_timer 0: removed at once
-        if changed or lost is not None:
+        if changed or lost is not None or changed_provisional:
             source.send_ac(S_CAPABILITIES)
         if served_missing and source.served_offered() and not at_start:
             source.post(Event(SDSM_SERVED_MODES_BACK))
@@ -281,6 +298,39 @@ class StorageManagement:
             caps.low_high_seen = True
             changed = True
         return changed
+
+    # --- Held capabilities (SRC-DATA-13) ------------------------------------------
+
+    def _hold(self, mode: str, provisional: ModeCaps, read: ModeCaps) -> None:
+        """At the discovery of a mode: the provisional capabilities it does not show, held."""
+        source = self._source
+        seconds = source.entry.removal_confirmation_timer
+        held = ModeCaps(supported_features=provisional.supported_features & ~read.supported_features)
+        for name in CAP_NUMBERS:
+            if getattr(read, name) is None:
+                setattr(held, name, getattr(provisional, name))
+        for name in CAP_LISTS:
+            setattr(held, name, [i for i in getattr(provisional, name) if i not in getattr(read, name)])
+        empty = not held.supported_features and all(
+            getattr(held, name) in (None, []) for name in (*CAP_NUMBERS, *CAP_LISTS)
+        )
+        if empty or seconds <= 0:
+            return
+        source.held[mode] = held
+        source.timers.start(f"{HELD}{mode}", seconds)
+
+    def _end_hold(self, mode: str) -> None:
+        if self._source.held.pop(mode, None) is not None:
+            self._source.send_ac(S_CAPABILITIES)
+
+    def _end_holds(self) -> None:
+        source = self._source
+        if not source.held:
+            return
+        for mode in list(source.held):
+            source.timers.cancel(f"{HELD}{mode}")
+        source.held.clear()
+        source.send_ac(S_CAPABILITIES)
 
     # --- Removal confirmation ----------------------------------------------------
 

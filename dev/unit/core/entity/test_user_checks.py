@@ -76,8 +76,11 @@ def test_ent_tgt_7_ent_fan_4_settings_checked(request_: dict[str, Any], refusal:
 
 
 def test_ent_tgt_7_temperature_without_the_feature() -> None:
-    core = Core({"heat_entity": HEATER}, snapshots={HEATER: climate("off", ["heat"])})
-    core.start()  # heat not discovered: no single target shown yet
+    core = Core(
+        {"heat_entity": HEATER},
+        snapshots={HEATER: climate("off", ["heat"], supported_features=128 | 256)},
+    )
+    core.start()  # heat not discovered, its source shows no target: none shown (ENT-CAP-4)
     core.user(U_SET_SETTINGS, {"temperature": 22.0})
     assert core.entity.refusal == FEATURE_NOT_SUPPORTED
 

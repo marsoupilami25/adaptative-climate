@@ -394,12 +394,27 @@ async def test_ent_tgt_7_low_above_high_is_refused(bench: Bench) -> None:
 
 @spec("ENT-TGT-7", "ENT-FEAT-3")
 async def test_ent_tgt_7_single_target_refused_without_the_feature(bench: Bench) -> None:
-    """A new entry, nothing discovered: only low/high (the bi-source heat_cool) can be set."""
-    bench.device(HEATER, ["heat"])
-    bench.device(AIRCON, ["cool"])
+    """A new entry whose sources show no single target, even off: only low/high (the
+    bi-source heat_cool) can be set."""
+    bench.device(HEATER, ["heat"], single_target=False)
+    bench.device(AIRCON, ["cool"], single_target=False)
     await bench.start([yaml_entry("Living room", heat_entity=HEATER, cool_entity=AIRCON)])
     with pytest.raises(HomeAssistantError):
         await ac(bench).set_temperature(temperature=21.0)
+
+
+@spec("ENT-TGT-7", "ENT-CAP-4", "ENT-CAP-5", "ENT-FEAT-5")
+async def test_ent_tgt_7_new_entry_takes_the_target_its_sources_show(bench: Bench) -> None:
+    """A new entry, nothing discovered: the heater shows a single target, off, so the
+    entity has one; set, it is kept and not sent until heat is discovered."""
+    heater = bench.device(HEATER, ["heat"])
+    await bench.start([yaml_entry("Living room", heat_entity=HEATER)])
+    await ac(bench).set_temperature(temperature=21.5)
+    assert ac(bench).attr("temperature") == 21.5
+    assert heater.temperatures_asked() == []
+    await ac(bench).set_hvac_mode("heat")
+    await bench.advance(15)
+    assert heater.temperature == 21.5
 
 
 @spec("ENT-TGT-7", "ENT-FEAT-3")

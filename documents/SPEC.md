@@ -123,6 +123,7 @@ per notion. The rules are in the sections cited.
 | **Usable** | Said of an entity of Home Assistant (source entity, external sensor entity): it exists, and its state is not `unavailable` / `unknown`. |
 | **`unavailable`** | Always the Home Assistant state: of a source entity (not usable), or of the entity in `INIT` and `NO_SOURCE` (ENT-INIT-3, ENT-NOSRC-2). |
 | **Discovered** | Seen once on the source entity, and stored (§1.2.2). A **source** is discovered once its `hvac_modes` is known, restored or read (SRC-DATA-3); before, it is `UNDISCOVERED`. A **mode** of a source is discovered once the source entity has run in it: its capabilities are read (SRC-DATA-1, ENT-CAP-3). A **capability** (a fan/swing setting) is discovered once its mode is discovered and the source declares it there, an **option** once it is among the options read for a discovered mode (ENT-FAN-4). The **discovery** is that first time. |
+| **Provisional capabilities** | What a source entity shows now, whatever its mode (`off` included): its features, range, step and options, read as the capabilities of its modes not discovered yet, until their discovery (SRC-DATA-13, ENT-CAP-4). Never stored, never used to send. |
 | **Available** | Said of a source: in `OFF` or `ON(x)`, neither `UNDISCOVERED` nor `UNUSABLE` (read in `state@S`). It **becomes available** when it enters `OFF` or `ON(x)` from `UNUSABLE` (`S=>AC_usable`) or from `UNDISCOVERED` (`S=>AC_off`, SRC-STATE-8). **No source available**: every source is `UNUSABLE` or `UNDISCOVERED`. Said of a mode: its source is available (ENT-HVAC-2; bi-source: one phase source is enough, ENT-TYPE-4). Never said of an entity of Home Assistant: see usable and `unavailable`. |
 
 **Modes and sources**
@@ -381,7 +382,7 @@ Data a source makes readable to the AC entity:
 | Data | Content |
 |---|---|
 | `state@S` | The state of the source now (§1.2.3.1): `UNDISCOVERED`, `OFF`, `ON(m)` or `UNUSABLE`. In `UNUSABLE`, also its stored state (`OFF` or `ON(m)`): the state it goes back to (SRC-STATE-7). A change of state is reported by `S=>AC_undiscovered`, `S=>AC_off`, `S=>AC_on(m)`, `S=>AC_unusable`, `S=>AC_usable`. The stored state in `UNUSABLE` changes only on a request of the entity (SRC-STATE-4): nothing is reported. |
-| `capabilities@S` | The stored capabilities of the source (§1.2.2), whatever its state. A change is reported by `S=>AC_capabilities`. |
+| `capabilities@S` | The stored capabilities of the source (§1.2.2), whatever its state, and its provisional and held capabilities (SRC-DATA-13, not stored). A change is reported by `S=>AC_capabilities`. |
 | `temperature@S` | The current temperature the source entity shows now (`current_temperature`), as read (the entity removes the offset, CFG-SENS-1); `None` when it shows none, and when the source is `UNDISCOVERED` or `UNUSABLE`, whatever the reason (served mode not offered included, SRC-UNUS-2). Not stored. A change is reported by `S=>AC_temperature(t)`. |
 | `action@S` | The `hvac_action` the source entity shows now; `None` when it has none, and when the source is `UNDISCOVERED` or `UNUSABLE`, whatever the reason. Not stored (SRC-STATE-12). A change is reported by `S=>AC_action(a)`. |
 | `settings@S` | The settings the source entity shows now, in `OFF` and `ON(m)`: `temperature`, `target_temp_low`, `target_temp_high`, `fan_mode`, `swing_mode`, `swing_horizontal_mode`, as read (the entity removes the offset, CFG-SENS-1); `None` for each one it does not show, all `None` when the source is `UNDISCOVERED` or `UNUSABLE`, whatever the reason. Not stored. |
@@ -585,7 +586,9 @@ Stored data of a source, saved across restarts:
   used: those of a mode are read only while the source entity runs in it
   (it shows that mode), whatever the state of the source (SRC-DATA-6;
   read in `UNUSABLE` too, SRC-UNUS-2). A mode of `hvac_modes` with no stored
-  capabilities (never run) gets the Home Assistant defaults:
+  capabilities (never run) has the provisional capabilities of the source
+  (SRC-DATA-13). A capability the source entity does not show counts as the
+  Home Assistant default:
 
   | Capability | Default |
   |---|---|
@@ -595,10 +598,18 @@ Stored data of a source, saved across restarts:
   | `fan_modes`, `swing_modes`, `swing_horizontal_modes` | none |
   | `low_high_seen` | no |
 
-- **SRC-DATA-2** Nothing is read for `off` (useless).
+- **SRC-DATA-2** `off` is not a mode with capabilities: what the source
+  entity shows while it is `off` is never stored as the capabilities of a
+  mode. It is only read as provisional capabilities (SRC-DATA-13), which
+  stand for the modes not discovered yet. A discovered mode keeps its
+  stored capabilities, whatever the source entity shows while it is
+  `off`, and whatever the state of the entity: in `OFF` too, the entity
+  shows the stored capabilities of its discovered modes (ENT-RANGE-2,
+  ENT-FAN-3).
 - **SRC-DATA-3** The source is **discovered** once its `hvac_modes` is
   known (restored or read). Its modes may not be discovered yet: their
-  capabilities are then the Home Assistant defaults (SRC-DATA-1).
+  capabilities are then the provisional capabilities of the source
+  (SRC-DATA-13).
 - What the entity does with a mode not discovered yet: ENT-CAP-3 to ENT-CAP-6
   (§1.3).
 
@@ -631,8 +642,8 @@ flowchart TD
     and the mode capabilities if it runs in a mode); if it cannot be
     read (not usable), the source is not discovered (SRC-DATA-3) until
     the first usable change (SRC-DATA-6);
-  - no stored mode capabilities or `low_high_seen` for a mode → Home
-    Assistant defaults (SRC-DATA-1);
+  - no stored mode capabilities or `low_high_seen` for a mode → the
+    mode is not discovered (SRC-DATA-1, SRC-DATA-13);
   - no stored kept settings → no kept setting, as when the entity has
     sent none (SRC-SET-1, SRC-SET-12).
 
@@ -737,6 +748,27 @@ stateDiagram-v2
     while the entity is in `INIT` (ENT-INIT-1). A change read on the
     source entity right after the restore (SRC-DATA-4) is reported as
     any other change.
+- **SRC-DATA-13** **Provisional capabilities.** At each read of a usable
+  source entity (at start, and on each change, SRC-DATA-6), whatever its
+  mode, `off` included, the source reads what it shows: features, range,
+  step, fan/swing options, and whether it shows numeric low/high.
+  - They are its provisional capabilities: the capabilities of its modes
+    not discovered yet, until their discovery (ENT-CAP-4). A discovered
+    mode never uses them: it has its own, stored (SRC-DATA-1).
+  - They are not stored: read again at start. They are kept while the
+    source entity is not usable. A source entity never seen usable since
+    the start gives none (ENT-CAP-4).
+  - A change is reported to the entity (`S=>AC_capabilities`) while a
+    served source mode is not discovered yet.
+  - At the discovery of a mode, its capabilities are what the source
+    entity shows in it (SRC-DATA-6). A provisional capability, read
+    before it entered the mode, that it does not show there is **held**:
+    still shown by the entity for that mode until
+    `removal_confirmation_timer` ends (SRC-DATA-10), but never used to
+    send (ENT-CAP-5). So the entity does not lose, then find again, a
+    capability that a device shows a few seconds after it enters the
+    mode; if the device shows it meanwhile, it is stored as any other.
+    The source entity becoming not usable ends the holding.
 
 #### 1.2.3 State management
 
@@ -914,9 +946,12 @@ The source is not discovered: its `hvac_modes` is not known (SRC-DATA-3).
   (`S=>AC_capabilities`, SRC-DATA-12): `Sdsm=>Sstm_discovered` moves the
   source to `OFF`, or to `UNUSABLE` if a served source mode is not
   offered (SRC-STATE-8).
-- **SRC-UNDISC-2** The source offers nothing: no capability (the entity does
-  not count it for the step, uses Home Assistant default ranges 7–35 °C,
-  no options), no HVAC mode (its modes are not judged as offered or not).
+- **SRC-UNDISC-2** The source offers nothing: no capability, and no
+  provisional capability if its source entity was never seen usable since
+  the start (SRC-DATA-13): the entity does not count it for the step,
+  counts its modes as with a single temperature target in the Home
+  Assistant default range 7–35 °C (ENT-CAP-4), without options; no HVAC
+  mode (its modes are not judged as offered or not).
 
 ##### 1.2.3.3 OFF state
 
@@ -1945,14 +1980,23 @@ A mode is **not discovered yet** when its source has never run in it
 
 - **ENT-CAP-3** A mode not discovered yet is available as any other
   (ENT-HVAC-2): the entity can switch to it.
-- **ENT-CAP-4** Until it is discovered, the mode has no capability.
-  - The entity shows no temperature target and no fan/swing for it
-    (ENT-FEAT-5).
-  - Its range is the Home Assistant default range, 7–35 °C.
-  - The temperature targets the user sets for it meanwhile (through the
-    service, when the entity declares the feature, ENT-TGT-7) are kept,
-    but not sent.
-  - A user request for a fan/swing setting in it is refused (ENT-FAN-4).
+- **ENT-CAP-4** Until it is discovered, the mode has the provisional
+  capabilities of its source (SRC-DATA-13): what the source entity shows
+  now, whatever its mode.
+  - The entity shows the temperature targets of the case they give
+    (ENT-FEAT-1, ENT-FEAT-2: with both features, the single target, until
+    low/high are seen in the mode), in their range and on their step
+    (ENT-RANGE-1, ENT-STEP-1) (ENT-FEAT-5).
+  - A source never seen usable since the start gives none: the mode then
+    counts as a source with a single temperature target, in the Home
+    Assistant default range, 7–35 °C, without step.
+  - The temperature targets the user sets for it meanwhile are kept, but
+    not sent (ENT-CAP-5).
+  - No fan/swing for it, except in `OFF` for an entity with a single
+    configured mode (ENT-FAN-3). Elsewhere, a user request for a fan/swing
+    setting in it is refused (ENT-FAN-4).
+  - What it shows is a guess: the entity never sends anything from it
+    (ENT-CAP-5).
 - **ENT-CAP-5** When the entity enters a mode not discovered yet, it
   only sends the mode.
   - No temperature target and no fan/swing setting is sent: the entity does not know
@@ -1961,10 +2005,18 @@ A mode is **not discovered yet** when its source has never run in it
     to send.
 - **ENT-CAP-6** At the first update of the source entity in that mode,
   the mode is discovered: its capabilities are read (SRC-DATA-6), and
-  reported to the entity (`S=>AC_capabilities`, ENT-CAP-7).
+  reported to the entity (`S=>AC_capabilities`, ENT-CAP-7). A provisional
+  capability the source entity does not show in the mode stays shown
+  until the removal confirmation ends, but nothing is sent from it
+  (held, SRC-DATA-13); its end is reported too.
   - The kept temperature targets are first brought back in line
-    (ENT-TGT-4): before, the mode counted as 7–35 °C (ENT-CAP-4) and
-    had no step.
+    (ENT-TGT-4): before, the mode counted with its provisional range and
+    step (ENT-CAP-4).
+  - When the temperature targets the mode shows differ from those it
+    showed before its discovery (another case, ENT-FEAT-1: no target, or
+    low/high instead of the single target), a line is logged at info
+    level: the targets set before are kept, the mode uses others, or
+    none.
   - They are then sent as in ENT-TGT-8 (range of the mode, offset, step
     of the source): none was sent yet (ENT-CAP-5), so every target the
     mode uses differs from what the source has (ENT-CAP-7).
@@ -2070,7 +2122,7 @@ number of sources (ENT-FEAT-4).
 | `heat_cool` bi-source | two sources | low, high | `target_temp_low`, `target_temp_high` | in each phase, to the source of that phase: low in `heat`, high in `cool`, or both to a source with low/high (ENT-FEAT-4, ENT-TGT-8) |
 | `heat`, `cool`, `heat_cool` mono-source, `auto`, `dry` | without temperature target | none | nothing | nothing |
 | `fan_only` | any | none | nothing | nothing |
-| a mono-source mode not discovered yet | not known yet | none | nothing | nothing (ENT-FEAT-5) |
+| a mono-source mode not discovered yet | its provisional capabilities (ENT-CAP-4) | those of the case they give | as in that case | nothing (ENT-CAP-5, ENT-FEAT-5) |
 
 - **ENT-FEAT-1** What a mode uses depends on what its source supports in
   that mode. The source is in one of three cases:
@@ -2111,7 +2163,7 @@ number of sources (ENT-FEAT-4).
     mode shows low/high;
   - these features do not change with the current mode. They follow
     what the modes show (table above): a mode not discovered yet counts
-    from its discovery (ENT-FEAT-5), and a mode whose source changes case
+    with its provisional capabilities (ENT-FEAT-5), and a mode whose source changes case
     (`low_high_seen` set, ENT-FEAT-2) is judged again (ENT-CAP-7);
   - the other features of the sources (presets, humidity) are not
     exposed.
@@ -2129,14 +2181,14 @@ number of sources (ENT-FEAT-4).
     brought back in line (ENT-TGT-4): they do not take the value of T.
     This happens once per mode, at its first use (SRC-DATA-8).
 - **ENT-FEAT-5** A mono-source mode not discovered yet (ENT-CAP-4) uses
-  no temperature target, since the case of its source is not known yet:
-  nothing is shown, nothing is sent (ENT-CAP-5).
+  the temperature targets of the case its provisional capabilities give:
+  they are shown, nothing is sent (ENT-CAP-5).
   - The temperature targets the user sets meanwhile go through the
-    service, which does not depend on what this mode shows, only on the
-    features of the entity (ENT-FEAT-3, ENT-TGT-7): a single
-    `temperature` sets T, `target_temp_low` / `target_temp_high` set low
-    / high. They are kept, and the ones the mode uses are sent at the
-    discovery (ENT-CAP-6).
+    service (ENT-FEAT-3, ENT-TGT-7): a single `temperature` sets T,
+    `target_temp_low` / `target_temp_high` set low / high. They are kept,
+    and the ones the mode uses are sent at the discovery (ENT-CAP-6).
+  - At the discovery, the case may differ from the provisional one: the
+    mode then shows the targets of its real case (logged, ENT-CAP-6).
   - A bi-source `heat_cool` always shows low and high: they choose the
     phase (§1.3.3.2.2). The source of a phase whose mode is not
     discovered yet gets only the mode (ENT-CAP-5).
@@ -2145,7 +2197,8 @@ number of sources (ENT-FEAT-4).
 
 - **ENT-STEP-1** The entity has one step (`target_temp_step`). It is
   computed from the steps of all the sources, in all their discovered
-  modes.
+  modes, and from the provisional step of a source while one of its
+  configured modes is not discovered yet (ENT-CAP-4).
   - The step of the entity is the largest value that divides every step
     of the sources exactly.
   - Examples: steps 0.5 and 1 give 0.5. Steps 0.5 and 0.2 give 0.1.
@@ -2165,7 +2218,9 @@ number of sources (ENT-FEAT-4).
     (the cool source in `cool`): the low target goes to the heat source,
     the high one to the cool source. Each target is then brought into
     the range of its phase when it is sent (ENT-RANGE-4).
-  - For a mode not discovered yet, it is 7–35 °C (ENT-CAP-4).
+  - For a mode not discovered yet, it is the provisional range of its
+    source, minus the offset; 7–35 °C for a source never seen usable
+    (ENT-CAP-4).
 - **ENT-RANGE-2** The range shown by the entity:
   - in `ON(m)` and `WAITING(m)`: the range of `m`;
   - in `OFF`: the widest range of all the modes.
@@ -2184,10 +2239,9 @@ number of sources (ENT-FEAT-4).
   from a source can be outside (takeover: ENT-TGT-9). For example, T is
   used by `heat` and `cool` when their sources have a single temperature
   target: T can take any value that at least one of these modes accepts.
-  A temperature target that no mode uses yet
-  (its modes not discovered, ENT-FEAT-5, or not configured) is kept
-  within the widest range of all the modes (the range shown in `OFF`,
-  ENT-RANGE-2).
+  A temperature target that no mode uses, even provisionally (ENT-FEAT-5),
+  is kept within the widest range of all the modes (the range shown in
+  `OFF`, ENT-RANGE-2).
 - **ENT-RANGE-6** This way, a value is not lost because one mode cannot
   reach it. For example, with a radiator at 5–30 °C for `heat` and an AC
   unit at 16–30 °C for `cool`, a target T of 14 °C is kept at 14 °C. The
@@ -2205,10 +2259,14 @@ remembered for each mode are in §1.3.5.4.
   that mode.
   - For a bi-source `heat_cool`, they are the options of the source of
     the current phase.
-  - A mode not discovered yet has no option (ENT-CAP-4).
+  - A mode not discovered yet has no option (ENT-CAP-4), except in `OFF`
+    for an entity with a single configured mode: the provisional options
+    of its source (ENT-FAN-3).
 - **ENT-FAN-2** The entity declares the features `FAN_MODE`, `SWING_MODE`
   and `SWING_HORIZONTAL_MODE` as soon as at least one configured mode has
-  that capability discovered (ENT-FAN-4), even without option. These
+  that capability discovered (ENT-FAN-4), even without option; with a
+  single configured mode not discovered yet, as soon as its source has it
+  provisionally (ENT-FAN-3). These
   features do not change with the mode, so the card keeps the same size.
 - **ENT-FAN-3** The options shown by the entity depend on its state:
   - in `ON(m)` and `WAITING(m)`, it shows the options of `m` (in
@@ -2221,7 +2279,12 @@ remembered for each mode are in §1.3.5.4.
     **every** configured mode is in `sync_modes` (ENT-FAN-6), a bi-source
     `heat_cool` excepted (it cannot be listed, ENT-FAN-7). With a single
     configured mode, it shows the options of that mode, the only one
-    `turn_on` can start, as if it were synchronized with itself.
+    `turn_on` can start, as if it were synchronized with itself; before
+    its discovery, the provisional options of its source (SRC-DATA-13): a
+    value chosen then is remembered (ENT-FANV-9), and sent at the
+    discovery if the mode offers it (ENT-CAP-6, ENT-FANV-3). With several
+    configured modes, a mode not discovered yet adds nothing, even to
+    the options shared by synchronized modes (ENT-FAN-6).
     Otherwise, it shows none (it does not show the options of the mode
     `turn_on` would start).
 - **ENT-FAN-4** A setting is shown and set only from what is discovered.
@@ -2229,7 +2292,9 @@ remembered for each mode are in §1.3.5.4.
   offered) are distinct:
   - **capability not discovered** (the source never ran in the mode, or
     does not declare the setting in it): the setting is not shown, and a
-    user request for it is refused with a clear error;
+    user request for it is refused with a clear error. Only exception: in
+    `OFF`, with a single configured mode not discovered yet, the
+    provisional capability and options of its source (ENT-FAN-3);
   - **capability discovered**: the setting is shown, with its discovered
     options (ENT-FAN-1), which may be none;
   - only a value among the options shown can be set. Any other value is
@@ -2522,24 +2587,24 @@ The temperature targets used and shown by each mode are listed in
     `target_temp_low` / `target_temp_high` while it does not declare
     `TARGET_TEMPERATURE_RANGE` (ENT-FEAT-3), is refused with an error:
     nothing is kept, nothing is sent. Home Assistant makes these checks
-    itself, before it calls the entity; the entity checks the same. So,
-    in a new entry, `temperature` is refused until a mode that shows a
-    single temperature target is discovered, and low/high until a mode
-    shows them (a bi-source `heat_cool` always does, ENT-FEAT-5);
-    meanwhile, the temperature targets are those taken from the sources
-    (ENT-TGT-10);
+    itself, before it calls the entity; the entity checks the same. In a
+    new entry, the features come from the provisional capabilities of the
+    sources (ENT-CAP-4): `temperature` is accepted as soon as a mode shows
+    a single temperature target, provisionally or not, and low/high as
+    soon as a mode shows them (a bi-source `heat_cool` always does,
+    ENT-FEAT-5);
   - a value within the range shown, but outside the range of the
     temperature target it sets (ENT-RANGE-5), is brought to the nearest
     end of that range, without error, then the gap is applied
     (ENT-TGT-6). This happens in `OFF` (the range shown is the widest of
     all the modes), with `target_temp_low` / `target_temp_high` in a mode
     that shows `temperature` (`target_temp_low` in `cool`), in a mode not
-    discovered yet (shown 7–35 °C, ENT-CAP-4), and with an `hvac_mode`
+    discovered yet (shown in its provisional range, ENT-CAP-4), and with an `hvac_mode`
     (the range checked is the one of the current state);
   - a single `temperature` sets T, the temperature target every mode
     shows as `temperature` (§1.3.4.3). This holds too in `OFF`, and when
-    the current mode does not use T (a mode not discovered yet,
-    ENT-FEAT-5; a source without temperature target, or with low/high),
+    the current mode does not use T (a source without temperature
+    target, or with low/high, provisionally or not, ENT-FEAT-5),
     as long as the entity declares `TARGET_TEMPERATURE` (another mode
     shows it): T is kept, not sent;
   - `target_temp_low` / `target_temp_high` set low / high;
@@ -3604,7 +3669,7 @@ sequenceDiagram
     rect rgba(127, 127, 127, 0.12)
         Note over Sdsm,Smrc: one external event, given to each function (EXEC-1)
         SE-)Sdsm: SE=>S_on(dry)
-        Note over Sdsm: first capabilities of dry: stored<br/>sends S=>AC_capabilities
+        Note over Sdsm: first capabilities of dry: stored<br/>provisional ones not shown: held (SRC-DATA-13)<br/>sends S=>AC_capabilities
         SE-)Sstm: SE=>S_on(dry)
         Note over Sstm: already ON(dry): no transition
         SE-)Smrc: SE=>S_on(dry)

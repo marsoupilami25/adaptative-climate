@@ -99,7 +99,8 @@ its fan; a radiator shows none. When the entity is off, none of them is
 shown, unless every mode is in `sync_modes`: then the options shared by the
 sources are shown, and a value chosen is sent to the source of the next mode
 started. An entity with a single mode shows the options of that mode while
-off, and a value chosen is sent when it starts. While the entity waits for an unavailable source, the options of
+off, even before the mode ever ran (the options its source shows), and a
+value chosen is sent when it starts. While the entity waits for an unavailable source, the options of
 that source are shown (see "Source unavailable").
 
 Each mode remembers its settings and sends them back to its source when the
@@ -313,6 +314,21 @@ only narrow the range of the source, never widen it: `max_temp: 23` keeps
 heating at 23 °C or below. A limit outside the range of the current source
 is ignored. When a source gives no range, the Home Assistant defaults
 (7-35 °C) apply.
+
+### A mode that never ran
+
+Some devices change what they accept with the mode (range, target, fan
+options), so the entity only trusts what a source shows while it runs a
+mode. Before a mode has run once, the entity shows what its source shows
+now, even off: its target (single or low/high), its range and its step,
+and, for an entity with a single mode, its fan and swing options while off.
+A target or a fan set meanwhile is kept, and sent the first time the mode
+runs; nothing is sent before. If the mode then accepts less (no target, a
+narrower range, fewer options), what it no longer shows stays for a moment
+(the removal confirmation, 60 s by default), then goes; a change of the
+target shown (gone, or low/high instead of a single one) is noted in the
+log. A source never seen since Home Assistant started counts as one with a
+single target, 7-35 °C.
 
 ### Temperature offset
 

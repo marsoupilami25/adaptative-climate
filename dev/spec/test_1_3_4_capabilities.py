@@ -13,7 +13,7 @@ from homeassistant.components.climate import ClimateEntityFeature as F
 from homeassistant.exceptions import HomeAssistantError
 import pytest
 
-from dev.spec.harness import Bench, warnings_logged, yaml_entry
+from dev.spec.harness import Bench, logged, warnings_logged, yaml_entry
 
 spec = pytest.mark.spec
 
@@ -47,9 +47,12 @@ async def discover(*devices_modes: tuple[Any, str]) -> None:
 # --- ENT-CAP: modes not discovered yet, changes -------------------------------------------------------
 
 
-@spec("ENT-CAP-4", "ENT-FEAT-5", "ENT-RANGE-1")
-async def test_ent_cap_4_mode_not_discovered_has_no_capability(bench: Bench) -> None:
-    """Asked, not shown yet by its device: no target, no fan, 7–35 °C."""
+@spec("ENT-CAP-4", "ENT-FEAT-5", "ENT-RANGE-1", "ENT-CAP-5")
+async def test_ent_cap_4_mode_not_discovered_shows_the_provisional_capabilities(
+    bench: Bench,
+) -> None:
+    """Asked, not shown yet by its device: what the heater shows now, off (a single
+    target, 10–30 °C); no fan (several modes); nothing sent."""
     heater = bench.device(
         HEATER, ["heat"], obey=False, min_temp=10.0, max_temp=30.0, fan_modes=["low", "high"]
     )
@@ -58,9 +61,10 @@ async def test_ent_cap_4_mode_not_discovered_has_no_capability(bench: Bench) -> 
     await discover((aircon, "cool"))
     await ac(bench).set_hvac_mode("heat")
     assert ac(bench).state == "heat"
-    assert ac(bench).attr("temperature") is None
+    assert ac(bench).attr("temperature") is not None
     assert not ac(bench).attr("fan_modes")
-    assert shown_range(bench) == (7.0, 35.0)
+    assert shown_range(bench) == (10.0, 30.0)
+    assert heater.temperatures_asked() == []
 
 
 @spec("ENT-CAP-5", "ENT-CAP-6", "ENT-FEAT-5", "ENT-TGT-7")
@@ -79,13 +83,16 @@ async def test_ent_cap_6_target_set_before_the_discovery_is_sent_at_it(bench: Be
 
 @spec("ENT-CAP-6", "ENT-TGT-4", "ENT-RANGE-5")
 async def test_ent_cap_6_target_brought_in_line_at_the_discovery(bench: Bench) -> None:
-    """T set at 8 °C while heat counted 7–35; heat found at 10–30: 10 is shown and sent.
-    T stays at 8: cool (7–35) reaches it."""
-    heater = bench.device(HEATER, ["heat"], min_temp=10.0, max_temp=30.0, obey=False)
+    """T set at 8 °C while heat counted 7–35 (what the heater shows off); heat found at
+    10–30: 10 is shown and sent. T stays at 8: cool (7–35) reaches it."""
+    heater = bench.device(
+        HEATER, ["heat"], obey=False,
+        profiles={"heat": {"min_temp": 10.0, "max_temp": 30.0}, "off": {"min_temp": 7.0, "max_temp": 35.0}},
+    )
     aircon = bench.device(AIRCON, ["cool"], min_temp=7.0, max_temp=35.0)
     await entry(bench, heat_entity=HEATER, cool_entity=AIRCON)
     await discover((aircon, "cool"))
-    await ac(bench).set_hvac_mode("heat")  # not shown yet: heat not discovered, 7–35
+    await ac(bench).set_hvac_mode("heat")  # not shown yet: heat not discovered, 7–35 provisionally
     await ac(bench).set_temperature(temperature=8.0)
     await heater.set(hvac_mode="heat")  # discovered at 10–30
     assert ac(bench).attr("temperature") == 10.0
@@ -95,9 +102,13 @@ async def test_ent_cap_6_target_brought_in_line_at_the_discovery(bench: Bench) -
     ]
 
 
-@spec("ENT-CAP-5", "ENT-FEAT-1", "ENT-CAP-2")
-async def test_ent_cap_5_capabilities_of_another_mode_never_used(bench: Bench) -> None:
-    """The pump has a target in cool, none in dry: nothing is ever sent in dry."""
+@spec("ENT-CAP-5", "ENT-FEAT-1", "ENT-CAP-2", "ENT-CAP-6", "SRC-DATA-13")
+async def test_ent_cap_5_capabilities_of_another_mode_never_used(
+    bench: Bench, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The pump has a target in cool, none in dry: nothing is ever sent in dry. The single
+    target it showed before dry was discovered stays shown until the removal confirmation
+    ends (held), then dry shows none, and a line is logged."""
     pump = bench.device(
         PUMP,
         ["cool", "dry"],
@@ -108,8 +119,12 @@ async def test_ent_cap_5_capabilities_of_another_mode_never_used(bench: Bench) -
     await ac(bench).set_temperature(temperature=24.0)
     await ac(bench).set_hvac_mode("dry")
     await bench.advance(15)
+    assert ac(bench).attr("temperature") == 24.0  # held
+    assert pump.temperatures_asked() == []
+    await bench.advance(50)  # removal confirmation: 60 s
     assert ac(bench).attr("temperature") is None
     assert pump.temperatures_asked() == []
+    assert logged(caplog, logging.INFO, "dry discovered", "no temperature target")
 
 
 async def heat_without_target(bench: Bench) -> Any:
@@ -165,17 +180,21 @@ async def test_ent_cap_7_capabilities_rebuilt_while_the_entity_is_off(bench: Ben
 
 
 @spec("ENT-FEAT-3", "ENT-FEAT-5")
-async def test_ent_feat_3_features_follow_what_the_modes_show(bench: Bench) -> None:
-    heater = bench.device(HEATER, ["heat"])
+@pytest.mark.parametrize("single_target", [True, False], ids=["single target", "no target"])
+async def test_ent_feat_3_features_follow_what_the_modes_show(
+    bench: Bench, single_target: bool
+) -> None:
+    """Before heat is discovered, what the heater shows provisionally; the same after."""
+    heater = bench.device(HEATER, ["heat"], single_target=single_target)
     await entry(bench, heat_entity=HEATER)
     features = ac(bench).features
     assert features & F.TURN_ON and features & F.TURN_OFF
-    assert not features & F.TARGET_TEMPERATURE  # heat not discovered yet
+    assert bool(features & F.TARGET_TEMPERATURE) == single_target  # heat not discovered yet
     assert not features & F.TARGET_TEMPERATURE_RANGE
     await ac(bench).set_hvac_mode("heat")
-    assert ac(bench).features & F.TARGET_TEMPERATURE
+    assert bool(ac(bench).features & F.TARGET_TEMPERATURE) == single_target
     await ac(bench).set_hvac_mode("off")
-    assert ac(bench).features & F.TARGET_TEMPERATURE  # not changed by the mode
+    assert bool(ac(bench).features & F.TARGET_TEMPERATURE) == single_target  # not changed by the mode
 
 
 @spec("ENT-FEAT-3", "ENT-FEAT-5")
@@ -250,11 +269,15 @@ async def test_ent_step_1_largest_step_dividing_every_step(
     assert ac(bench).attr("target_temp_step") == pytest.approx(step)
 
 
-@spec("ENT-STEP-1")
-async def test_ent_step_1_no_step_known_yet(bench: Bench) -> None:
-    bench.device(HEATER, ["heat"], target_temp_step=1.0)
+@spec("ENT-STEP-1", "ENT-CAP-4")
+@pytest.mark.parametrize(("shown", "step"), [(1.0, 1.0), (None, 0.5)], ids=["step 1", "no step"])
+async def test_ent_step_1_provisional_step_before_the_discovery(
+    bench: Bench, shown: float | None, step: float
+) -> None:
+    """Heat not discovered: the step the heater shows off; without, 0.5."""
+    bench.device(HEATER, ["heat"], target_temp_step=shown)
     await entry(bench, heat_entity=HEATER)
-    assert ac(bench).attr("target_temp_step") == 0.5
+    assert ac(bench).attr("target_temp_step") == step
 
 
 @spec("ENT-STEP-2")

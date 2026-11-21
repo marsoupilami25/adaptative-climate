@@ -138,7 +138,7 @@ views:
         11. **Device that does not obey** (SRC-REQ-5, SRC-REQ-6, MON-SRC-3): from **Start**. On HEAT Virtual, turn *Obeys the mode* off. Adaptative HEAT to *heat*: it shows *heat*, *Mode* of HEAT Virtual stays *off*. After 10 s, *Monitoring sources* goes to *Problem* (out of sync). On HEAT Virtual, *Obeys the mode* on: at the next try (30 s at most), *Mode* goes to *heat*, *Monitoring sources* back to *OK*.
         12. **Mode lost** (SRC-UNUS-2, ENT-HVAC-5): from **Start**. On HEAT Virtual, turn *Offers heat* off: after 20 s (removal confirmation), Adaptative HEAT is unavailable and a repair shows up (*Settings > Repairs*), with a warning in the log. *Offers heat* on: the repair is gone, with an info in the log (`Repairs issue mode_not_supported resolved`).
         13. **Restart** (ENT-STATE-1, END-2): from **Start**. Adaptative HEAT to *heat*, target 22; restart Home Assistant: Adaptative HEAT resumes *heat* at 22.
-        14. **Fan in off, a single mode** (ENT-FAN-3, ENT-FANV-9): from **Start** (*heat* already run once, as in 1). On HEAT Virtual, *Fan* *high*: ignored, Adaptative HEAT is *off*. Adaptative HEAT shows the fan of *heat*, its only mode: fan *low* on it: nothing is sent (HEAT Virtual stays *high*). Adaptative HEAT to *heat*: *Fan* of HEAT Virtual goes to *low*.
+        14. **Fan in off, a single mode** (ENT-FAN-3, ENT-FANV-9): from **Start**. On HEAT Virtual, *Fan* *high*: ignored, Adaptative HEAT is *off*. Adaptative HEAT shows the fan of *heat*, its only mode, even if *heat* never ran (the options HEAT Virtual shows, provisional): fan *low* on it: nothing is sent (HEAT Virtual stays *high*). Adaptative HEAT to *heat*: *Fan* of HEAT Virtual goes to *low*.
 
         </small>
 - title: COOL

@@ -403,6 +403,12 @@ drawn. Neither kind is a dependency between modules (§3).
   adapter (state and attributes). `settings@S`, `temperature@S` and
   `action@S` are read from it; `Sdsm` reads it on each change
   (SRC-DATA-6).
+- `Sdsm` also keeps the provisional capabilities (SRC-DATA-13) read from
+  that snapshot, and the held ones of a mode just discovered (with a
+  timer each, as the removal confirmations), in memory only (not in the
+  stored data). `capabilities@S` gives them with the stored ones; the
+  entity uses them only to show and to accept settings, never to decide
+  what to send (ENT-CAP-5).
 - The removal confirmations (SRC-DATA-10) are timers of `Sdsm`, one per
   value or item no longer shown.
 - The problem hook judges source not discovered (from `Sstm`), out of

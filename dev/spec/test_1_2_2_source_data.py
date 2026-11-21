@@ -205,7 +205,11 @@ async def test_src_data_8_low_high_once_shown_in_the_mode(bench: Bench) -> None:
 
 @spec("SRC-DATA-9", "ENT-INIT-4")
 async def test_src_data_9_source_entity_removed_loses_its_data(bench: Bench) -> None:
-    heater = bench.device(HEATER, ["heat"], min_temp=10.0, max_temp=30.0)
+    # The heater shows 10–30 in heat, 7–35 while off
+    heater = bench.device(
+        HEATER, ["heat"],
+        profiles={"heat": {"min_temp": 10.0, "max_temp": 30.0}, "off": {"min_temp": 7.0, "max_temp": 35.0}},
+    )
     aircon = bench.device(AIRCON, ["cool"], min_temp=16.0, max_temp=32.0)
     await bench.start()
     result = await bench.create_entry(name="Living room", heat_entity=HEATER, cool_entity=AIRCON)
@@ -217,8 +221,42 @@ async def test_src_data_9_source_entity_removed_loses_its_data(bench: Bench) -> 
     assert shown_range(bench) == (10.0, 32.0)
     await bench.change_options("Living room", heat_entity=None)
     await bench.change_options("Living room", heat_entity=HEATER)
-    # Heat is no longer discovered: its range is the default one again
+    # Heat is no longer discovered: its range is the provisional one again,
+    # what the heater shows now, off (SRC-DATA-13): 7–35, the widest
     assert shown_range(bench) == (7.0, 35.0)
+
+
+# --- SRC-DATA-13: provisional capabilities ---------------------------------------------------------
+
+
+@spec("SRC-DATA-13", "ENT-CAP-4", "ENT-RANGE-1")
+async def test_src_data_13_provisional_capabilities_follow_the_source_entity(bench: Bench) -> None:
+    """Heat never run: the entity shows what the heater shows now, off; a change counts at
+    once; not stored: read again at start."""
+    heater = bench.device(HEATER, ["heat"], min_temp=10.0, max_temp=30.0)
+    await bench.start([yaml_entry("Living room", heat_entity=HEATER)])
+    assert shown_range(bench) == (10.0, 30.0)
+    await heater.set(max_temp=28.0)
+    assert shown_range(bench) == (10.0, 28.0)
+    await bench.stop()
+    heater.max_temp = 26.0
+    await bench.start(bench.yaml)
+    assert shown_range(bench) == (10.0, 26.0)
+
+
+@spec("SRC-DATA-13", "ENT-CAP-6", "ENT-FAN-2")
+async def test_src_data_13_held_capability_found_again_meanwhile(bench: Bench) -> None:
+    """The heater shows its fan a few seconds after it enters heat: held meanwhile, the
+    fan never disappears."""
+    heater = bench.device(HEATER, ["heat", "cool"], fan_modes=["low", "high"], fan_mode="low",
+                          profiles={"heat": {"fan_modes": None}})
+    await bench.start([yaml_entry("Living room", heat_entity=HEATER, cool_entity=HEATER)])
+    await ac(bench).set_hvac_mode("heat")  # heat discovered without fan: the fan is held
+    assert ac(bench).attr("fan_modes") == ["low", "high"]
+    await bench.advance(5)
+    await heater.set(fan_modes=["low", "high"])  # shown now: stored
+    await bench.advance(60)
+    assert ac(bench).attr("fan_modes") == ["low", "high"]
 
 
 # --- SRC-DATA-10, SRC-DATA-11: removal confirmation ------------------------------------------------

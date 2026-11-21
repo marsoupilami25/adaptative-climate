@@ -244,22 +244,26 @@ async def test_ent_fanv_9_value_set_in_off_with_every_mode_synchronized(bench: B
 
 @spec("ENT-FANV-9", "ENT-FANV-8", "ENT-FAN-3")
 async def test_ent_fanv_9_value_set_in_off_with_a_single_mode(bench: Bench) -> None:
-    """A single configured mode: in OFF, its options and its value. A value set there is
-    remembered for it, and sent when it starts."""
+    """A single configured mode: in OFF, its options and its value; before its discovery,
+    the options its source shows (provisional). A value set there is remembered for it,
+    and sent when it starts."""
     heater = bench.device(HEATER, ["heat"], fan_modes=["low", "high"], fan_mode="low")
     await bench.start([yaml_entry("Living room", heat_entity=HEATER)])
-    assert not ac(bench).attr("fan_modes")  # heat not discovered yet
-    await mode(bench, "heat")
-    assert fan(bench) == "low"  # taken from the heater
-    await ac(bench).set_hvac_mode("off")
-    assert ac(bench).attr("fan_modes") == ["low", "high"]
-    assert fan(bench) == "low"
-    heater.clear_calls()
+    assert ac(bench).attr("fan_modes") == ["low", "high"]  # heat not discovered yet
+    assert fan(bench) is None  # nothing remembered yet
     await ac(bench).set_fan_mode("high")
     assert fan(bench) == "high"
     assert heater.values_asked("fan_mode") == []  # kept, not sent in OFF
-    await mode(bench, "heat")
+    await mode(bench, "heat")  # discovered: the value remembered is sent
     assert heater.values_asked("fan_mode") == ["high"]
+    await ac(bench).set_hvac_mode("off")
+    assert ac(bench).attr("fan_modes") == ["low", "high"]
+    assert fan(bench) == "high"
+    heater.clear_calls()
+    await ac(bench).set_fan_mode("low")
+    assert heater.values_asked("fan_mode") == []
+    await mode(bench, "heat")
+    assert heater.values_asked("fan_mode") == ["low"]
 
 
 # --- ENT-DATA-1 --------------------------------------------------------------------------------------
