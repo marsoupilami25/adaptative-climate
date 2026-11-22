@@ -48,6 +48,19 @@ async def test_entities_of_an_entry_are_named_after_it(bench: Bench) -> None:
         assert sensor.attr("device_class") == "problem"
 
 
+async def test_entity_ids_do_not_follow_the_language(bench: Bench) -> None:
+    """Home Assistant in French: the names shown are translated, not the entity ids (§2.1)."""
+    heater(bench)
+    await bench.start()
+    bench.hass.config.language = "fr"
+    result = await bench.create_entry(name="Living room", heat_entity=HEATER)
+    assert result["type"] == "create_entry"
+    ac = bench.ac("Living room")
+    assert ac.exists
+    for sensor in (ac.monitoring_sources, ac.monitoring_temperatures):
+        assert sensor.exists, sensor.entity_id
+
+
 async def test_each_entry_has_its_own_entities(bench: Bench) -> None:
     heater(bench)
     bench.device("climate.aircon", ["cool"])

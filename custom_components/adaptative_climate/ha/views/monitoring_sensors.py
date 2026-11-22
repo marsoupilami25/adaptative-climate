@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+from homeassistant.util import slugify
 
 from ...core.model.problems import SENSOR_SOURCES, SENSOR_TEMPERATURES
 from ..entry.host import EntryHost
@@ -24,6 +25,9 @@ class MonitoringSensor(BinarySensorEntity):
         self._attr_translation_key = f"monitoring_{sensor}"
         self._attr_unique_id = f"{host.model.entry_id}_monitoring_{sensor}"
         self._attr_device_info = device_info(host)
+        # Spec §2.1: the entity id does not follow the language of Home Assistant (the
+        # name shown does); a free id at the first registration, kept by the registry after
+        self.entity_id = f"binary_sensor.{slugify(host.model.name)}_monitoring_{sensor}"
         self._written: str | None = None
 
     async def async_added_to_hass(self) -> None:
