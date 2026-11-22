@@ -2223,7 +2223,11 @@ number of sources (ENT-FEAT-4).
     (ENT-CAP-4).
 - **ENT-RANGE-2** The range shown by the entity:
   - in `ON(m)` and `WAITING(m)`: the range of `m`;
-  - in `OFF`: the widest range of all the modes.
+  - in `OFF`: the widest range of the modes that use a temperature
+    target (§1.3.4.3, provisionally or not). A mode without temperature
+    target (`fan_only`, a source without temperature target) does not
+    count: its range bounds no target. With no such mode, the widest
+    range of all the modes.
 - **ENT-RANGE-3** The limits `min_temp` / `max_temp` (§3.1.6):
   - they can only narrow the range, never widen it;
   - a limit outside the range is ignored;
@@ -2240,8 +2244,7 @@ number of sources (ENT-FEAT-4).
   used by `heat` and `cool` when their sources have a single temperature
   target: T can take any value that at least one of these modes accepts.
   A temperature target that no mode uses, even provisionally (ENT-FEAT-5),
-  is kept within the widest range of all the modes (the range shown in
-  `OFF`, ENT-RANGE-2).
+  is kept within the range shown in `OFF` (ENT-RANGE-2).
 - **ENT-RANGE-6** This way, a value is not lost because one mode cannot
   reach it. For example, with a radiator at 5–30 °C for `heat` and an AC
   unit at 16–30 °C for `cool`, a target T of 14 °C is kept at 14 °C. The
@@ -2597,7 +2600,7 @@ The temperature targets used and shown by each mode are listed in
     temperature target it sets (ENT-RANGE-5), is brought to the nearest
     end of that range, without error, then the gap is applied
     (ENT-TGT-6). This happens in `OFF` (the range shown is the widest of
-    all the modes), with `target_temp_low` / `target_temp_high` in a mode
+    the modes with a temperature target, ENT-RANGE-2), with `target_temp_low` / `target_temp_high` in a mode
     that shows `temperature` (`target_temp_low` in `cool`), in a mode not
     discovered yet (shown in its provisional range, ENT-CAP-4), and with an `hvac_mode`
     (the range checked is the one of the current state);
@@ -2707,8 +2710,8 @@ The temperature targets used and shown by each mode are listed in
   available, or no target shown) is skipped.
   - T: the single target (`temperature`) of the first source that shows
     one; else the middle of the range shown in `OFF` (ENT-RANGE-2: the
-    widest range of all the modes, 21 °C with the Home Assistant
-    default range 7–35 °C).
+    widest range of the modes with a temperature target, 21 °C with the
+    Home Assistant default range 7–35 °C).
   - low and high: the low/high targets of the first source that shows
     them; else, in a bi-source `heat_cool`, low from the single target of
     its heat source and high from the single target of its cool source;

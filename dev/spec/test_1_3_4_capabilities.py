@@ -393,6 +393,19 @@ async def test_ent_tgt_7_outside_the_range_shown_is_refused(bench: Bench) -> Non
         await ac(bench).set_temperature(target_temp_low=14.0, target_temp_high=24.0)
 
 
+@spec("ENT-RANGE-2")
+async def test_ent_range_2_a_mode_without_target_does_not_widen_off(bench: Bench) -> None:
+    """A fan at 7–35 (fan_only, no target) and a heater at 10–30: in OFF, 10–30; in
+    fan_only, its own range."""
+    bench.device(HEATER, ["heat"], min_temp=10.0, max_temp=30.0)
+    fan = bench.device("climate.fan", ["fan_only"], min_temp=7.0, max_temp=35.0, single_target=False)
+    await entry(bench, heat_entity=HEATER, fan_only_entity="climate.fan")
+    assert shown_range(bench) == (10.0, 30.0)
+    await ac(bench).set_hvac_mode("fan_only")
+    await fan.set(hvac_mode="fan_only")
+    assert shown_range(bench) == (7.0, 35.0)
+
+
 # --- ENT-FAN: options -------------------------------------------------------------------------------
 
 

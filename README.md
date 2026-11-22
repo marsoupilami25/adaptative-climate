@@ -303,7 +303,7 @@ on, not to keep running.
 
 The minimum and maximum temperatures follow the sources: those of the
 source of the current mode, or the widest range of the sources when the
-entity is off. A radiator at 5-30 °C and an AC at 16-32 °C give 5-30 °C
+entity is off (a mode without target, such as fan only, does not count). A radiator at 5-30 °C and an AC at 16-32 °C give 5-30 °C
 in heat mode and 16-32 °C in cool mode. The heat/cool mode using the heat
 and cool sources has the widest range of both (5-32 °C); each target is
 still limited to the range of the source it goes to. An unavailable source

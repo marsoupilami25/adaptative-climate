@@ -200,8 +200,11 @@ class CapabilitiesManagement:
         return self.context_range(*context)
 
     def widest_range(self) -> Range:
-        """The widest range of all the modes: the range shown in OFF (ENT-RANGE-2)."""
-        ranges = [self.mode_range(m) for m in self._entity.entry.modes]
+        """The range shown in OFF (ENT-RANGE-2): the widest of the modes with a temperature
+        target; with none, of all the modes."""
+        modes = self._entity.entry.modes
+        ranges = [self.mode_range(m) for m in modes if self.mode_targets(m)]
+        ranges = ranges or [self.mode_range(m) for m in modes]
         if not ranges:
             # Safety net (not reached): a configuration without mode is refused (CFG-MODE-4)
             entry = self._entity.entry
