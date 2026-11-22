@@ -714,6 +714,8 @@ custom_components/adaptative_climate/
   binary_sensor.py           interface: platform setup → ha/views
   const.py                   the domain name, shared by every package
   manifest.json, strings.json, translations/
+  brand/                     icon of the integration, served by Home Assistant
+                             (icon.png, icon@2x.png, dark_*; made by dev/brand/make_icon.py)
 
   core/                      package: pure Python, no homeassistant import (ARCH-1)
     runtime/
