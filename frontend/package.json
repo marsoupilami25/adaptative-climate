@@ -1,0 +1,33 @@
+{
+  "name": "adaptative-climate-card",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Dashboard card of the Adaptative Climate integration (documents/CARD_SPEC.md).",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "vite build",
+    "build:debug": "vite build --mode debug",
+    "watch": "vite build --watch --mode debug",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@egjs/hammerjs": "2.0.17",
+    "@lit-labs/observers": "2.1.0",
+    "@lit/context": "1.1.6",
+    "@mdi/js": "7.4.47",
+    "home-assistant-js-websocket": "9.8.0",
+    "lit": "3.3.3",
+    "superstruct": "2.0.2"
+  },
+  "devDependencies": {
+    "@vitest/browser-playwright": "^5.1.1",
+    "playwright": "^1.65.1",
+    "typescript": "6.0.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  }
+}
