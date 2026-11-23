@@ -40,6 +40,7 @@ Conventions:
 - [10. Home Assistant integration points](#10-home-assistant-integration-points)
 - [11. Python package layout](#11-python-package-layout)
 - [12. Traceability](#12-traceability)
+- [13. Card and release](#13-card-and-release)
 
 ## 0. Terms
 
@@ -699,6 +700,7 @@ register themselves.
 | Storage | `Store` | `ha/adapters` | §1.2.2.1, §1.3.6 |
 | Repairs issues | Repairs API | `ha/adapters` | ENT-HVAC-5, ENT-FAN-7, ENT-FAN-8 |
 | Event `adaptative_climate_problem`, logs | event bus, logger | `ha/adapters` | MON-LIFE-2, MON-LIFE-3 |
+| The card file, served and declared to the frontend ([§13](#13-card-and-release)) | `__init__.py` (`async_setup`) | `ha/frontend` | ENT-CARD-1 |
 
 ## 11. Python package layout
 
@@ -716,6 +718,7 @@ custom_components/adaptative_climate/
   manifest.json, strings.json, translations/
   brand/                     icon of the integration, served by Home Assistant
                              (icon.png, icon@2x.png, dark_*; made by dev/brand/make_icon.py)
+  frontend/                  the card file, built from <repo>/frontend (§13), not in git
 
   core/                      package: pure Python, no homeassistant import (ARCH-1)
     runtime/
@@ -769,6 +772,8 @@ custom_components/adaptative_climate/
       store.py               store port (§7)
       repairs.py             Repairs port
       notify.py              logs and problem events
+    frontend/
+      card.py                serves the card file, declares it to the frontend (§13)
 
   config/                    package: configuration
     options/
@@ -811,7 +816,52 @@ custom_components/adaptative_climate/
 | §1.3.5.4 Fan and swing values (ENT-FANV) | `core/entity` | `fan_swing.py` |
 | §1.3.6 Stored data (ENT-DATA) | `core/entity`, `ha/adapters` | `stored.py`; `store.py` |
 | §2 Entities and attributes (ENT-HA) | `ha/views` | `climate_view.py`, `monitoring_sensors.py` |
+| §2.4 Dashboard card (ENT-CARD) | `ha/frontend` | `card.py` |
 | §3 Configuration (CFG) | `config/options`, `config/flows`, `config/yaml_import`, `core/model` | `schema.py`, `checks.py`, `builder.py`; `config_flow.py`, `options_flow.py`; `yaml_import.py`; `entry_config.py` |
 | §4.1 Monitoring sensors (MON-SENS) | `ha/views` | `monitoring_sensors.py` |
 | §4.2, §4.3 Problems (MON-SRC, MON-TEMP) | `core/source`, `core/entity`, `core/model` | `source.py`; `entity.py`; `problems.py` |
 | §4.4 Lifecycle (MON-SEND, MON-LIFE, MON-ROLE) | `core/monitoring`, `ha/adapters` | `monitoring.py`, `problem_lifecycle.py`; `notify.py` |
+
+## 13. Card and release
+
+The card has its own documents: [CARD_SPEC.md](CARD_SPEC.md) and
+[CARD_ARCHITECTURE.md](CARD_ARCHITECTURE.md). This section says how the
+integration provides it (ENT-CARD-1), and how a release is built.
+
+- **ARCH-12**<a id="arch-12"></a> **The integration serves the card.** In
+  `async_setup`, once per Home Assistant instance, `ha/frontend/card.py`:
+  - serves the folder `custom_components/adaptative_climate/frontend/` at
+    `/adaptative_climate/frontend/`
+    (`hass.http.async_register_static_paths`);
+  - declares `/adaptative_climate/frontend/adaptative-climate-card.js?v=<version>`
+    to the frontend (`frontend.add_extra_js_url`).
+
+  > **Why:** installing the integration is enough. The version in the URL
+  > makes the browser load a new card after an update.
+
+- **ARCH-13**<a id="arch-13"></a> **Only what is loaded.** `http` and
+  `frontend` are in `after_dependencies`, not in `dependencies`. The file is
+  served only when `http` is loaded, and declared only when `frontend` is.
+  When the file is missing (not built), the integration logs a warning and
+  does not declare it.
+
+  > **Why:** the tests run without the frontend package (117 MB). The
+  > integration keeps working without the card.
+
+- **ARCH-14**<a id="arch-14"></a> **One version.** The tag `vX.Y.Z`, the
+  `version` of `manifest.json` and the `version` of `frontend/package.json`
+  are the same. The release workflow checks it.
+- **ARCH-15**<a id="arch-15"></a> **The release is a zip.** On a tag
+  `vX.Y.Z`, the CI builds the card, then zips the content of
+  `custom_components/adaptative_climate/`, card file included. The zip is
+  attached to the GitHub release. HACS installs it (`zip_release` and
+  `filename` in `hacs.json`).
+
+  > **Why:** the card file is not in git. Every install gets a card built by
+  > the CI.
+
+**Testability of ENT-CARD-1.** The spec tests load `http` but not
+`frontend`. They check that the card file is served at its URL. The
+declaration to the frontend is checked by a unit test of `card.py`, and by
+the manual tests (the card is listed in "Add card").
+
