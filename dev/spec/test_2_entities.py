@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+
 from homeassistant.components.climate import ClimateEntityFeature
 import pytest
 
@@ -166,3 +170,56 @@ async def test_ent_ha_1_in_fahrenheit(bench: Bench) -> None:
     assert ac.attr("temperature") == 72.0
     await bench.advance(15)
     assert bench.devices[HEATER].temperature == 72.0
+
+
+# --- §2.4 Dashboard card ----------------------------------------------------------------------
+
+# Where the integration serves the card (ARCHITECTURE ARCH-12): the only name
+# these tests take outside the spec. The frontend package is not installed in
+# the tests, so what a browser loads is checked here through `http` alone
+# (ARCHITECTURE §13, testability of ENT-CARD-1).
+CARD_URL = "/adaptative_climate/frontend/adaptative-climate-card.js"
+CARD_FILE = (
+    Path(__file__).resolve().parents[2]
+    / "custom_components/adaptative_climate/frontend/adaptative-climate-card.js"
+)
+
+
+@pytest.fixture
+def card_file() -> Iterator[bytes]:
+    """The card file, as the release puts it in the integration.
+
+    The build of a developer is used as it is. Without one (the CI), a stand-in
+    is written for the test and removed after.
+    """
+    if CARD_FILE.is_file():
+        yield CARD_FILE.read_bytes()
+        return
+    created_folder = not CARD_FILE.parent.exists()
+    CARD_FILE.parent.mkdir(parents=True, exist_ok=True)
+    content = b"// stand-in of the card file, for the spec tests\n"
+    CARD_FILE.write_bytes(content)
+    try:
+        yield content
+    finally:
+        CARD_FILE.unlink()
+        if created_folder:
+            CARD_FILE.parent.rmdir()
+
+
+@spec("ENT-CARD-1")
+async def test_the_card_is_provided_with_the_integration(
+    bench: Bench, aiohttp_client: Any, socket_enabled: None, card_file: bytes
+) -> None:
+    """Nothing else to install: the integration serves the card file.
+
+    `socket_enabled`: the test client of `http` listens on 127.0.0.1, as for the
+    `hass_client` fixture of Home Assistant.
+    """
+    heater(bench)
+    await bench.start([yaml_entry("Living room", heat_entity=HEATER)])
+    client = await aiohttp_client(bench.hass.http.app)
+    response = await client.get(f"{CARD_URL}?v=1")
+    assert response.status == 200
+    assert await response.read() == card_file
+

@@ -1,6 +1,7 @@
 """Adaptative Climate: interface module, no logic (ARCHITECTURE §3, §11).
 
-Setup, unload, remove -> ha/entry; YAML at start -> config/yaml_import.
+Setup, unload, remove -> ha/entry; YAML at start -> config/yaml_import;
+the dashboard card -> ha/frontend.
 """
 
 from __future__ import annotations
@@ -11,13 +12,15 @@ from homeassistant.helpers.typing import ConfigType
 
 from .config.yaml_import.yaml_import import CONFIG_SCHEMA, async_import_yaml
 from .ha.entry import lifecycle
+from .ha.frontend.card import async_setup_card
 
 __all__ = ["CONFIG_SCHEMA"]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Import and sync the YAML entries (spec §3.2)."""
+    """Import and sync the YAML entries (spec §3.2), provide the card (ENT-CARD-1)."""
     await async_import_yaml(hass, config)
+    await async_setup_card(hass)
     return True
 
 

@@ -839,11 +839,11 @@ integration provides it (ENT-CARD-1), and how a release is built.
   > **Why:** installing the integration is enough. The version in the URL
   > makes the browser load a new card after an update.
 
-- **ARCH-13**<a id="arch-13"></a> **Only what is loaded.** `http` and
-  `frontend` are in `after_dependencies`, not in `dependencies`. The file is
-  served only when `http` is loaded, and declared only when `frontend` is.
-  When the file is missing (not built), the integration logs a warning and
-  does not declare it.
+- **ARCH-13**<a id="arch-13"></a> **Declared only when the frontend is
+  loaded.** `http` is a dependency (`repairs` needs it too): the file is
+  always served. `frontend` is in `after_dependencies`: the file is declared
+  only when `frontend` is loaded. When the file is missing (not built), the
+  integration logs a warning, and neither serves nor declares it.
 
   > **Why:** the tests run without the frontend package (117 MB). The
   > integration keeps working without the card.

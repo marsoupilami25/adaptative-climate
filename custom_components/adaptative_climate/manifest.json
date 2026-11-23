@@ -1,10 +1,10 @@
 {
   "domain": "adaptative_climate",
   "name": "Adaptative Climate",
-  "after_dependencies": ["climate", "sensor", "number", "input_number"],
+  "after_dependencies": ["climate", "sensor", "number", "input_number", "frontend"],
   "codeowners": ["@marsoupilami25"],
   "config_flow": true,
-  "dependencies": ["repairs"],
+  "dependencies": ["http", "repairs"],
   "documentation": "https://github.com/marsoupilami25/adaptative-climate",
   "integration_type": "helper",
   "iot_class": "local_push",
