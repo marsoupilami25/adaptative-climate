@@ -72,6 +72,7 @@ Conventions:
   - [2.1 Entities created](#21-entities-created)
   - [2.2 Attributes of the AC entity](#22-attributes-of-the-ac-entity)
   - [2.3 Home Assistant versions](#23-home-assistant-versions)
+  - [2.4 Dashboard card](#24-dashboard-card)
 - [3. Configuration](#3-configuration)
   - [3.1 Configuration parameters](#31-configuration-parameters)
     - [3.1.1 General](#311-general)
@@ -2962,7 +2963,16 @@ The attributes of the monitoring sensors are in §4.
 - **ENT-HA-3**<a id="ent-ha-3"></a> The integration needs Home Assistant
   2026.6 or later.
 
-  Why: the AC card needs it, and the integration keeps the same minimum.
+  > **Why:** the AC card needs it, and the integration keeps the same
+  > minimum.
+
+### 2.4 Dashboard card
+
+The card that shows an AC entity has its own spec:
+[CARD_SPEC.md](CARD_SPEC.md).
+
+- **ENT-CARD-1**<a id="ent-card-1"></a> The integration provides the card to
+  the dashboards. Nothing else is installed.
 
 ## 3. Configuration
 
