@@ -9,8 +9,8 @@ four points of view. How to run them: `dev/README.md`.
 | Type | Folder | Checks | Point of view | Home Assistant |
 |---|---|---|---|---|
 | Spec | `dev/spec` | the rules of the spec | black box, through Home Assistant only | 2026.11.2 |
-| Compatibility | `dev/compat` | the same behavior on an older Home Assistant (ENT-HA-2) | the spec and unit suites, unchanged | 2025.1.0 |
-| Unit | `dev/unit` | the code the spec tests do not reach | white box, per component (`ARCHITECTURE.md` §11) | 2026.11.2 and 2025.1.0 |
+| Compatibility | `dev/compat` | the same behavior on an older Home Assistant (ENT-HA-2) | the spec and unit suites, unchanged | 2026.6.0 |
+| Unit | `dev/unit` | the code the spec tests do not reach | white box, per component (`ARCHITECTURE.md` §11) | 2026.11.2 and 2026.6.0 |
 | Manual | `dev/manual` | the behavior in a real Home Assistant, on a dashboard | a person, by scenarios | the dev instance |
 
 ## 2. Spec tests
@@ -53,8 +53,8 @@ settled in the spec first.
 
 ## 3. Compatibility tests
 
-The spec and the unit suites, run on Home Assistant 2025.1.0, the oldest
-version declared (`hacs.json`). From 2026.11, Home Assistant reads the
+The spec and the unit suites, run on Home Assistant 2026.6.0, the oldest
+version declared (`hacs.json`, ENT-HA-3). From 2026.11, Home Assistant reads the
 temperatures of a `climate` entity under `native_*` names; before, under
 the former names (ENT-HA-1). Both paths are thus checked. The devices of
 the bench give both names too.

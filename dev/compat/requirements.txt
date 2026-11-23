@@ -1,6 +1,6 @@
 # Compatibility suite: the spec and unit tests on Home Assistant before 2026.11 (ENT-HA-2).
 # pytest-homeassistant only exists from 2026.11; before, the plugin is
 # pytest-homeassistant-custom-component, which pins one Home Assistant version:
-# 0.13.201 = Home Assistant 2025.1.0 (Python 3.12 or 3.13).
-pytest-homeassistant-custom-component==0.13.201
-# pytest-cov comes with the plugin (6.0.0).
+# 0.13.336 = Home Assistant 2026.6.0 (Python 3.14), the minimum declared (ENT-HA-3).
+pytest-homeassistant-custom-component==0.13.336
+# pytest-cov comes with the plugin (7.1.0).

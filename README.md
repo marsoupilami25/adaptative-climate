@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://hacs.xyz"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS Custom"></a>
-  <img src="https://img.shields.io/badge/Home%20Assistant-2025.1%2B-41BDF5.svg?logo=homeassistant&logoColor=white" alt="Home Assistant 2025.1+">
+  <img src="https://img.shields.io/badge/Home%20Assistant-2026.6%2B-41BDF5.svg?logo=homeassistant&logoColor=white" alt="Home Assistant 2026.6+">
   <a href="https://github.com/marsoupilami25/adaptative-climate/actions/workflows/tests.yml"><img src="https://github.com/marsoupilami25/adaptative-climate/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="https://github.com/marsoupilami25/adaptative-climate/actions/workflows/validate.yml"><img src="https://github.com/marsoupilami25/adaptative-climate/actions/workflows/validate.yml/badge.svg" alt="Validate"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"></a>
@@ -69,7 +69,7 @@ Copy `custom_components/adaptative_climate` into the `custom_components`
 folder of your configuration, then restart Home Assistant.
 
 > [!NOTE]
-> Requires Home Assistant 2025.1 or later.
+> Requires Home Assistant 2026.6 or later.
 
 ## ⚙️ Configuration
 

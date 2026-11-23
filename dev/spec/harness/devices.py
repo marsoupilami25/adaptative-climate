@@ -270,8 +270,6 @@ class DeviceEntity(ClimateEntity):
     """The source entity of a device, in one Home Assistant instance."""
 
     _attr_should_poll = False
-    # Home Assistant before 2025.x: the device declares TURN_ON / TURN_OFF itself
-    _enable_turn_on_off_backwards_compatibility = False
 
     def __init__(self, device: Device) -> None:
         self.device = device

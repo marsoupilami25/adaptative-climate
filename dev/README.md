@@ -7,7 +7,7 @@ dev/
   conftest.py, ha_test.py   shared by the pytest suites (ha_test.py: helpers of the plugin installed)
   spec/                     1. spec tests: black box, through Home Assistant only
     harness/                the bench: devices, sensors, AC entity, flows, Home Assistant instances
-  compat/                   2. compatibility: the same suites on Home Assistant 2025.1.0
+  compat/                   2. compatibility: the same suites on Home Assistant 2026.6.0
   unit/                     3. unit tests: white box, per component
   manual/                   4. manual tests: Home Assistant config and dashboards
 ```
@@ -25,10 +25,10 @@ The venv `~/ha-dev/.venv-test`, from `requirements_test.txt`:
 
 Find the tests of a rule: `grep -rn '"ENT-TGT-4"' dev/spec`.
 
-## Compatibility tests (Home Assistant 2025.1.0)
+## Compatibility tests (Home Assistant 2026.6.0)
 
 ```bash
-dev/compat/run.sh           # creates ~/ha-dev/.venv-test-2025.1 if needed
+dev/compat/run.sh           # creates ~/ha-dev/.venv-test-2026.6 if needed
 dev/compat/run.sh dev/spec
 ```
 
@@ -48,7 +48,7 @@ The repo's `.vscode/` is not versioned. In a new dev environment, create
 }
 ```
 
-These are the tests on Home Assistant 2026.11.2. To see them on 2025.1.0 too,
+These are the tests on Home Assistant 2026.11.2. To see them on 2026.6.0 too,
 next to them: run `dev/compat/vscode.sh`, see
 [compat/README.md](compat/README.md#in-the-vs-code-testing-tab).
 

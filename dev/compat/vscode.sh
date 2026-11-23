@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shows the compatibility tests (Home Assistant 2025.1.0) in the VS Code
+# Shows the compatibility tests (Home Assistant 2026.6.0) in the VS Code
 # Testing tab, next to the current ones. To run once per dev environment;
 # running it again does no harm. See dev/compat/README.md.
 #
@@ -8,13 +8,13 @@
 # whose venv is the compatibility one, and adds it to the workspace.
 #
 # Usage: dev/compat/vscode.sh
-#   FOLDER=...    (default: ~/ha-dev/adaptative-climate-2025.1)
+#   FOLDER=...    (default: ~/ha-dev/adaptative-climate-2026.6)
 #   WORKSPACE=... (default: ~/ha-dev/ha-dev.code-workspace)
-#   VENV=...      (default: ~/ha-dev/.venv-test-2025.1)
+#   VENV=...      (default: ~/ha-dev/.venv-test-2026.6)
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-folder="${FOLDER:-$HOME/ha-dev/adaptative-climate-2025.1}"
+folder="${FOLDER:-$HOME/ha-dev/adaptative-climate-2026.6}"
 workspace="${WORKSPACE:-$HOME/ha-dev/ha-dev.code-workspace}"
 
 . "$repo/dev/compat/venv.sh"
@@ -48,7 +48,7 @@ with open(path, encoding="utf-8") as file:
     workspace = json.load(file)
 folders = workspace.setdefault("folders", [])
 if all(entry.get("path") != folder for entry in folders):
-    folders.append({"name": "adaptative-climate (HA 2025.1)", "path": folder})
+    folders.append({"name": "adaptative-climate (HA 2026.6)", "path": folder})
     with open(path, "w", encoding="utf-8") as file:
         json.dump(workspace, file, indent=2)
         file.write("\n")

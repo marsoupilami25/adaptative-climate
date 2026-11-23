@@ -1,6 +1,6 @@
 """ha/views/climate_view.py: the temperatures under both names (ENT-HA-1), the action shown.
 
-Home Assistant 2026.11 reads the `native_*` names, 2025.1 the former ones: each
+Home Assistant 2026.11 reads the `native_*` names, 2026.6 the former ones: each
 version runs one path; both are read here.
 """
 

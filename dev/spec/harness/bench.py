@@ -127,8 +127,7 @@ class Bench:
         self._stack = stack
         self._hass = hass
         self._catch_exceptions(hass)
-        if hasattr(frame, "async_setup"):  # Home Assistant from 2025.x, as the `hass` fixture
-            frame.async_setup(hass)
+        frame.async_setup(hass)  # as the `hass` fixture does
         hass.data.pop(loader.DATA_CUSTOM_COMPONENTS, None)  # custom integrations enabled
         hass.config.units = self.units
         # The config entries of the previous instance, from the storage

@@ -3,7 +3,7 @@
 # Creates or updates the venv first. Extra arguments go to pytest.
 #
 # Usage: dev/compat/run.sh [pytest args]
-#   VENV=/path/to/venv (default: ~/ha-dev/.venv-test-2025.1)
+#   VENV=/path/to/venv (default: ~/ha-dev/.venv-test-2026.6)
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

@@ -2959,6 +2959,10 @@ The attributes of the monitoring sensors are in §4.
   before, it reads them without `native_`. The AC entity provides both.
 - **ENT-HA-2** The tests run on a version before 2026.11 and on a version
   from 2026.11, so that both paths are checked.
+- **ENT-HA-3**<a id="ent-ha-3"></a> The integration needs Home Assistant
+  2026.6 or later.
+
+  Why: the AC card needs it, and the integration keeps the same minimum.
 
 ## 3. Configuration
 
