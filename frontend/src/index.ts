@@ -1,7 +1,22 @@
-// Entry of the card file (CARD_ARCHITECTURE.md §3, §8).
-// The elements of the card are registered here from step 5 on.
+// Entry of the card file (CARD_ARCHITECTURE.md §3, §8): registers the
+// elements, and lists the card in "Add card" (CARD-CONF-3).
+
+import { CARD_TYPE } from "./ac/card";
 
 declare const __VERSION__: string;
+
+interface CustomCardEntry {
+  type: string;
+  name: string;
+  description: string;
+  preview?: boolean;
+}
+
+declare global {
+  interface Window {
+    customCards?: CustomCardEntry[];
+  }
+}
 
 // The version in the browser console: it shows which card file is loaded.
 console.info(
@@ -10,4 +25,11 @@ console.info(
   "color: #ff6f22; font-weight: bold",
 );
 
-export {};
+window.customCards ??= [];
+if (!window.customCards.some((card) => card.type === CARD_TYPE)) {
+  window.customCards.push({
+    type: CARD_TYPE,
+    name: "Adaptative Climate",
+    description: "The thermostat of an Adaptative Climate entity.",
+  });
+}

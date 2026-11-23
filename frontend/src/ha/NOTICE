@@ -1,0 +1,12 @@
+This folder holds a copy of files of the Home Assistant frontend
+(https://github.com/home-assistant/frontend), tag 20261028.6,
+Copyright the Home Assistant authors, licensed under the Apache License 2.0
+(https://www.apache.org/licenses/LICENSE-2.0).
+
+Changes made to the copied files (CARD_ARCHITECTURE.md §4):
+- the tag names of the copied elements get the prefix "ac-";
+- the imports of the elements of Home Assistant used as they are are removed;
+- the patches of frontend/ha-patches: plus-minus-buttons, emphasis-slider, emphasis-dial, compat-labels.
+
+The files listed as shims in frontend/ha-source.json are not copied: they are
+written for the card, and hold only what the copied files need.

@@ -1,0 +1,52 @@
+--- a/state-control/climate/ha-state-control-climate-temperature.ts
++++ b/state-control/climate/ha-state-control-climate-temperature.ts
+@@ -257,13 +257,17 @@
+           })}
+           data-target=${target}
+           .step=${-this._step}
+-          .label=${this._i18n.localize(
+-            target === "low"
+-              ? "ui.components.climate-control.lower_temperature_down"
+-              : target === "high"
+-                ? "ui.components.climate-control.upper_temperature_down"
+-                : "ui.components.climate-control.temperature_down"
+-          )}
++          .label=${
++            // AC-PATCH: compat-labels: the low/high keys come after Home Assistant
++            // 2026.6, whose localize gives "" for them: the generic key then
++            this._i18n.localize(
++              target === "low"
++                ? "ui.components.climate-control.lower_temperature_down"
++                : target === "high"
++                  ? "ui.components.climate-control.upper_temperature_down"
++                  : "ui.components.climate-control.temperature_down"
++            ) || this._i18n.localize("ui.components.climate-control.temperature_down")
++          }
+           @click=${this._handleButton}
+         >
+           <ha-svg-icon .path=${mdiMinus}></ha-svg-icon>
+@@ -274,13 +278,17 @@
+           })}
+           data-target=${target}
+           .step=${this._step}
+-          .label=${this._i18n.localize(
+-            target === "low"
+-              ? "ui.components.climate-control.lower_temperature_up"
+-              : target === "high"
+-                ? "ui.components.climate-control.upper_temperature_up"
+-                : "ui.components.climate-control.temperature_up"
+-          )}
++          .label=${
++            // AC-PATCH: compat-labels: the low/high keys come after Home Assistant
++            // 2026.6, whose localize gives "" for them: the generic key then
++            this._i18n.localize(
++              target === "low"
++                ? "ui.components.climate-control.lower_temperature_up"
++                : target === "high"
++                  ? "ui.components.climate-control.upper_temperature_up"
++                  : "ui.components.climate-control.temperature_up"
++            ) || this._i18n.localize("ui.components.climate-control.temperature_up")
++          }
+           @click=${this._handleButton}
+         >
+           <ha-svg-icon .path=${mdiPlus}></ha-svg-icon>

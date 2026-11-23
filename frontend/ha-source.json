@@ -1,0 +1,71 @@
+{
+  "_comment": "The copy of the Home Assistant frontend (CARD_ARCHITECTURE.md \u00a74). Read by scripts/update-ha.sh and scripts/compat-scan.py.",
+  "repository": "home-assistant/frontend",
+  "source_tag": "20261028.6",
+  "source_home_assistant": "2026.11.2",
+  "minimum_tag": "20260527.4",
+  "minimum_home_assistant": "2026.6.0",
+  "files": [
+    "src/common/array/literal-includes.ts",
+    "src/common/const.ts",
+    "src/common/decorators/consume.ts",
+    "src/common/dom/fire_event.ts",
+    "src/common/entity/color/battery_color.ts",
+    "src/common/entity/compute_domain.ts",
+    "src/common/entity/state_active.ts",
+    "src/common/entity/state_color.ts",
+    "src/common/entity/supports-feature.ts",
+    "src/common/number/clamp.ts",
+    "src/common/number/format_number.ts",
+    "src/common/string/slugify.ts",
+    "src/common/translations/blank_before_percent.ts",
+    "src/common/translations/blank_before_unit.ts",
+    "src/common/util/debounce.ts",
+    "src/common/util/pending-value-sync.ts",
+    "src/components/ha-big-number.ts",
+    "src/components/ha-control-circular-slider.ts",
+    "src/components/ha-control-select.ts",
+    "src/data/climate.ts",
+    "src/data/entity/entity.ts",
+    "src/data/feature/climate_entity_feature.ts",
+    "src/data/frontend.ts",
+    "src/data/group.ts",
+    "src/data/translation.ts",
+    "src/resources/css-variables.ts",
+    "src/resources/svg-arc.ts",
+    "src/state-control/climate/ha-state-control-climate-temperature.ts",
+    "src/state-control/state-control-circular-slider-style.ts",
+    "src/util/is_touch.ts"
+  ],
+  "prefix": "ac-",
+  "prefixed_elements": [
+    "ha-big-number",
+    "ha-control-circular-slider",
+    "ha-control-select",
+    "ha-state-control-climate-temperature"
+  ],
+  "used_as_is": {
+    "ha-card": "src/components/ha-card.ts",
+    "ha-icon": "src/components/ha-icon.ts",
+    "ha-icon-button": "src/components/ha-icon-button.ts",
+    "ha-svg-icon": "src/components/ha-svg-icon.ts"
+  },
+  "shims": [
+    "src/data/context/index.ts",
+    "src/data/entity/entity_registry.ts",
+    "src/data/home_shortcuts.ts",
+    "src/types.ts"
+  ],
+  "patches": [
+    "plus-minus-buttons",
+    "emphasis-slider",
+    "emphasis-dial",
+    "compat-labels"
+  ],
+  "compat_fallbacks": {
+    "ui.components.climate-control.lower_temperature_down": "compat-labels",
+    "ui.components.climate-control.lower_temperature_up": "compat-labels",
+    "ui.components.climate-control.upper_temperature_down": "compat-labels",
+    "ui.components.climate-control.upper_temperature_up": "compat-labels"
+  }
+}

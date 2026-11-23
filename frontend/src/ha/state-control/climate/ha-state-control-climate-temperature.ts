@@ -1,0 +1,726 @@
+import type { ContextType } from "@lit/context";
+import { mdiMinus, mdiPlus, mdiThermometer, mdiThermostat } from "@mdi/js";
+import type { CSSResultGroup, PropertyValues } from "lit";
+import { LitElement, css, html, nothing } from "lit";
+import { customElement, property, state } from "lit/decorators";
+import { classMap } from "lit/directives/class-map";
+import { styleMap } from "lit/directives/style-map";
+import { consume } from "../../common/decorators/consume";
+import { UNIT_F } from "../../common/const";
+import type { HASSDomEvent } from "../../common/dom/fire_event";
+import { stateActive } from "../../common/entity/state_active";
+import { stateColorCss } from "../../common/entity/state_color";
+import { supportsFeature } from "../../common/entity/supports-feature";
+import { clamp } from "../../common/number/clamp";
+import { formatNumber } from "../../common/number/format_number";
+import { blankBeforeUnit } from "../../common/translations/blank_before_unit";
+import { debounce } from "../../common/util/debounce";
+import { PendingValueSync } from "../../common/util/pending-value-sync";
+import "../../components/ha-big-number";
+import "../../components/ha-control-circular-slider";
+import type { ControlCircularSliderMode } from "../../components/ha-control-circular-slider";
+// AC-PATCH: plus-minus-buttons: ha-icon-button of Home Assistant, used as it is,
+// with an outline in CSS (state-control-circular-slider-style.ts), not
+// ha-outlined-icon-button (CARD_ARCHITECTURE.md §4, D3.5)
+import type { ClimateEntity, HvacMode } from "../../data/climate";
+import {
+  CLIMATE_HVAC_ACTION_TO_MODE,
+  ClimateEntityFeature,
+} from "../../data/climate";
+import {
+  apiContext,
+  configContext,
+  formattersContext,
+  internationalizationContext,
+} from "../../data/context";
+import { UNAVAILABLE } from "../../data/entity/entity";
+import {
+  createStateControlCircularSliderController,
+  stateControlCircularSliderStyle,
+} from "../state-control-circular-slider-style";
+
+type Target = "value" | "low" | "high";
+
+const SLIDER_MODES: Record<HvacMode, ControlCircularSliderMode> = {
+  auto: "full",
+  cool: "end",
+  dry: "full",
+  fan_only: "full",
+  heat: "start",
+  heat_cool: "full",
+  off: "full",
+};
+
+@customElement("ac-ha-state-control-climate-temperature")
+export class HaStateControlClimateTemperature extends LitElement {
+  @property({ attribute: false }) public stateObj!: ClimateEntity;
+
+  @state()
+  @consume({ context: apiContext, subscribe: true })
+  private _api!: ContextType<typeof apiContext>;
+
+  @state()
+  @consume({ context: configContext, subscribe: true })
+  private _config!: ContextType<typeof configContext>;
+
+  @state()
+  @consume({ context: formattersContext, subscribe: true })
+  private _formatters!: ContextType<typeof formattersContext>;
+
+  @state()
+  @consume({ context: internationalizationContext, subscribe: true })
+  private _i18n!: ContextType<typeof internationalizationContext>;
+
+  @property({ attribute: "show-secondary", type: Boolean })
+  public showSecondary = false;
+
+  @property({ attribute: "use-current-as-primary", type: Boolean })
+  public showCurrentAsPrimary = false;
+
+  @property({ type: Boolean, attribute: "prevent-interaction-on-scroll" })
+  public preventInteractionOnScroll = false;
+
+  // AC-PATCH: emphasis-dial: passed to the slider (CARD-PHASE-1)
+  @property({ type: String }) public emphasis?: "low" | "high";
+
+  @state() private _targetTemperature: Partial<Record<Target, number>> = {};
+
+  @state() private _selectTargetTemperature: Target = "low";
+
+  private _sizeController = createStateControlCircularSliderController(this);
+
+  private _pendingSync = new PendingValueSync();
+
+  protected willUpdate(changedProp: PropertyValues<this>): void {
+    super.willUpdate(changedProp);
+    if (!changedProp.has("stateObj")) {
+      return;
+    }
+    if (changedProp.get("stateObj")?.entity_id !== this.stateObj.entity_id) {
+      this._debouncedCallService.cancel();
+      this._pendingSync.reset();
+      this._syncTargetTemperature();
+    } else if (this._pendingSync.shouldSync()) {
+      this._syncTargetTemperature();
+    }
+  }
+
+  private _syncTargetTemperature() {
+    this._targetTemperature = {
+      value: this.stateObj.attributes.temperature,
+      low: this.stateObj.attributes.target_temp_low,
+      high: this.stateObj.attributes.target_temp_high,
+    };
+  }
+
+  private get _step() {
+    return (
+      this.stateObj.attributes.target_temp_step ||
+      (this._config.config.unit_system.temperature === UNIT_F ? 1 : 0.5)
+    );
+  }
+
+  private get _min() {
+    return this.stateObj.attributes.min_temp;
+  }
+
+  private get _max() {
+    return this.stateObj.attributes.max_temp;
+  }
+
+  private _valueChanged(ev: HASSDomEvent<HASSDomEvents["value-changed"]>) {
+    const { value } = ev.detail;
+    if (typeof value !== "number" || isNaN(value)) return;
+    const target = ev.type.replace("-changed", "");
+    this._targetTemperature = {
+      ...this._targetTemperature,
+      [target]: value,
+    };
+    this._selectTargetTemperature = target as Target;
+    this._debouncedCallService.cancel();
+    this._callService(target);
+  }
+
+  private _valueChanging(ev: HASSDomEvent<HASSDomEvents["value-changing"]>) {
+    const { value } = ev.detail;
+    if (typeof value !== "number" || isNaN(value)) return;
+    const target = ev.type.replace("-changing", "");
+    this._targetTemperature = {
+      ...this._targetTemperature,
+      [target]: value,
+    };
+    this._selectTargetTemperature = target as Target;
+  }
+
+  private _debouncedCallService = debounce(
+    (target: Target) => this._callService(target),
+    1000
+  );
+
+  private _callService(type: string) {
+    const data =
+      type === "high" || type === "low"
+        ? {
+            entity_id: this.stateObj!.entity_id,
+            target_temp_low: this._targetTemperature.low,
+            target_temp_high: this._targetTemperature.high,
+          }
+        : {
+            entity_id: this.stateObj!.entity_id,
+            temperature: this._targetTemperature.value,
+          };
+    return this._pendingSync.run(
+      () => this._api.callService("climate", "set_temperature", data),
+      () => this._syncTargetTemperature()
+    );
+  }
+
+  private _handleButton(ev) {
+    const target = ev.currentTarget.dataset.target as Target;
+    const step = ev.currentTarget.step as number;
+
+    const defaultValue = target === "high" ? this._max : this._min;
+
+    let temp = this._targetTemperature[target] ?? defaultValue;
+    temp += step;
+    temp = clamp(temp, this._min, this._max);
+    if (target === "high" && this._targetTemperature.low != null) {
+      temp = clamp(temp, this._targetTemperature.low, this._max);
+    }
+    if (target === "low" && this._targetTemperature.high != null) {
+      temp = clamp(temp, this._min, this._targetTemperature.high);
+    }
+
+    this._targetTemperature = {
+      ...this._targetTemperature,
+      [target]: temp,
+    };
+    this._pendingSync.schedule();
+    this._debouncedCallService(target);
+  }
+
+  private _handleSelectTemp(ev) {
+    const target = ev.currentTarget.target as Target;
+    this._selectTargetTemperature = target;
+  }
+
+  private _renderLabel() {
+    if (this.stateObj.state === UNAVAILABLE) {
+      return html`
+        <p class="label disabled">
+          ${this._formatters.formatEntityState(this.stateObj, UNAVAILABLE)}
+        </p>
+      `;
+    }
+
+    const action = this.stateObj.attributes.hvac_action;
+
+    const isTemperatureDisplayed =
+      (this.stateObj.attributes.current_temperature != null &&
+        this.showCurrentAsPrimary) ||
+      ((this._supportsTargetTemperature ||
+        this._supportsTargetTemperatureRange) &&
+        !this.showCurrentAsPrimary);
+
+    return html`
+      <p class="label">
+        ${
+          action && action !== "off"
+            ? this._formatters.formatEntityAttributeValue(
+                this.stateObj,
+                "hvac_action"
+              )
+            : isTemperatureDisplayed
+              ? this._formatters.formatEntityState(this.stateObj)
+              : nothing
+        }
+      </p>
+    `;
+  }
+
+  private _renderTemperatureButtons(target: Target, colored?: boolean) {
+    const lowColor = stateColorCss(this.stateObj, "heat");
+    const highColor = stateColorCss(this.stateObj, "cool");
+
+    const color =
+      colored && stateActive(this.stateObj)
+        ? target === "high"
+          ? highColor
+          : lowColor
+        : undefined;
+
+    return html`
+      <div class="buttons">
+        <ha-icon-button
+          style=${styleMap({
+            "--ha-outlined-icon-button-outline-color": color,
+          })}
+          data-target=${target}
+          .step=${-this._step}
+          .label=${
+            // AC-PATCH: compat-labels: the low/high keys come after Home Assistant
+            // 2026.6, whose localize gives "" for them: the generic key then
+            this._i18n.localize(
+              target === "low"
+                ? "ui.components.climate-control.lower_temperature_down"
+                : target === "high"
+                  ? "ui.components.climate-control.upper_temperature_down"
+                  : "ui.components.climate-control.temperature_down"
+            ) || this._i18n.localize("ui.components.climate-control.temperature_down")
+          }
+          @click=${this._handleButton}
+        >
+          <ha-svg-icon .path=${mdiMinus}></ha-svg-icon>
+        </ha-icon-button>
+        <ha-icon-button
+          style=${styleMap({
+            "--ha-outlined-icon-button-outline-color": color,
+          })}
+          data-target=${target}
+          .step=${this._step}
+          .label=${
+            // AC-PATCH: compat-labels: the low/high keys come after Home Assistant
+            // 2026.6, whose localize gives "" for them: the generic key then
+            this._i18n.localize(
+              target === "low"
+                ? "ui.components.climate-control.lower_temperature_up"
+                : target === "high"
+                  ? "ui.components.climate-control.upper_temperature_up"
+                  : "ui.components.climate-control.temperature_up"
+            ) || this._i18n.localize("ui.components.climate-control.temperature_up")
+          }
+          @click=${this._handleButton}
+        >
+          <ha-svg-icon .path=${mdiPlus}></ha-svg-icon>
+        </ha-icon-button>
+      </div>
+    `;
+  }
+
+  private _formatTarget = (temperature: number) =>
+    this._formatters.formatEntityAttributeValue(
+      this.stateObj,
+      "temperature",
+      temperature
+    );
+
+  private _renderTarget(
+    temperature: number,
+    style: "normal" | "big",
+    hideUnit?: boolean
+  ) {
+    const digits = this._step.toString().split(".")?.[1]?.length ?? 0;
+    const formatOptions: Intl.NumberFormatOptions = {
+      maximumFractionDigits: digits,
+      minimumFractionDigits: digits,
+    };
+
+    const unit = hideUnit ? "" : this._config.config.unit_system.temperature;
+
+    if (style === "big") {
+      return html`
+        <ac-ha-big-number
+          .value=${temperature}
+          .unit=${unit}
+          .formatOptions=${formatOptions}
+        ></ac-ha-big-number>
+      `;
+    }
+
+    const formatted = formatNumber(
+      temperature,
+      this._i18n.locale,
+      formatOptions
+    );
+    return html`${formatted}${blankBeforeUnit(unit, this._i18n.locale)}${unit}`;
+  }
+
+  private _renderCurrent(temperature: number, style: "normal" | "big") {
+    const formatOptions: Intl.NumberFormatOptions = {
+      maximumFractionDigits: 1,
+    };
+    if (style === "big") {
+      return html`
+        <ac-ha-big-number
+          .value=${temperature}
+          .unit=${this._config.config.unit_system.temperature}
+          .formatOptions=${formatOptions}
+        ></ac-ha-big-number>
+      `;
+    }
+
+    return html`
+      ${this._formatters.formatEntityAttributeValue(
+        this.stateObj,
+        "current_temperature",
+        temperature
+      )}
+    `;
+  }
+
+  private _renderPrimary() {
+    const currentTemperature = this.stateObj.attributes.current_temperature;
+
+    if (currentTemperature != null && this.showCurrentAsPrimary) {
+      return this._renderCurrent(currentTemperature, "big");
+    }
+
+    if (this._supportsTargetTemperature && !this.showCurrentAsPrimary) {
+      return this._renderTarget(this._targetTemperature.value!, "big");
+    }
+
+    if (this._supportsTargetTemperatureRange && !this.showCurrentAsPrimary) {
+      return html`
+        <div class="dual">
+          <button
+            @click=${this._handleSelectTemp}
+            .target=${"low"}
+            class="target-button ${classMap({
+              selected: this._selectTargetTemperature === "low",
+            })}"
+            aria-pressed=${this._selectTargetTemperature === "low"}
+          >
+            <span class="visually-hidden">
+              ${this._formatters.formatEntityAttributeName(
+                this.stateObj,
+                "target_temp_low"
+              )}
+            </span>
+            ${this._renderTarget(this._targetTemperature.low!, "big")}
+          </button>
+          <button
+            @click=${this._handleSelectTemp}
+            .target=${"high"}
+            class="target-button ${classMap({
+              selected: this._selectTargetTemperature === "high",
+            })}"
+            aria-pressed=${this._selectTargetTemperature === "high"}
+          >
+            <span class="visually-hidden">
+              ${this._formatters.formatEntityAttributeName(
+                this.stateObj,
+                "target_temp_high"
+              )}
+            </span>
+            ${this._renderTarget(this._targetTemperature.high!, "big")}
+          </button>
+        </div>
+      `;
+    }
+
+    if (this.stateObj.state !== UNAVAILABLE) {
+      return html`
+        <p class="primary-state">
+          ${this._formatters.formatEntityState(this.stateObj)}
+        </p>
+      `;
+    }
+
+    return nothing;
+  }
+
+  private _renderSecondary() {
+    if (!this.showSecondary) {
+      return html`<p class="label secondary"></p>`;
+    }
+
+    const currentTemperature = this.stateObj.attributes.current_temperature;
+
+    if (currentTemperature && !this.showCurrentAsPrimary) {
+      return html`
+        <p class="label secondary">
+          <ha-svg-icon .path=${mdiThermometer}></ha-svg-icon>
+          ${this._renderCurrent(currentTemperature, "normal")}
+        </p>
+      `;
+    }
+
+    if (this._supportsTargetTemperature && this.showCurrentAsPrimary) {
+      return html`
+        <p class="label secondary">
+          <ha-svg-icon .path=${mdiThermostat}></ha-svg-icon>
+          ${this._renderTarget(this._targetTemperature.value!, "normal")}
+        </p>
+      `;
+    }
+
+    if (this._supportsTargetTemperatureRange && this.showCurrentAsPrimary) {
+      return html`
+        <p class="label secondary">
+          <ha-svg-icon class="target-icon" .path=${mdiThermostat}></ha-svg-icon>
+          <button
+            @click=${this._handleSelectTemp}
+            .target=${"low"}
+            class="target-button ${classMap({
+              selected: this._selectTargetTemperature === "low",
+            })}"
+            aria-pressed=${this._selectTargetTemperature === "low"}
+          >
+            <span class="visually-hidden">
+              ${this._formatters.formatEntityAttributeName(
+                this.stateObj,
+                "target_temp_low"
+              )}
+            </span>
+            ${this._renderTarget(this._targetTemperature.low!, "normal", true)}
+          </button>
+          <span>·</span>
+          <button
+            @click=${this._handleSelectTemp}
+            .target=${"high"}
+            class="target-button ${classMap({
+              selected: this._selectTargetTemperature === "high",
+            })}"
+            aria-pressed=${this._selectTargetTemperature === "high"}
+          >
+            <span class="visually-hidden">
+              ${this._formatters.formatEntityAttributeName(
+                this.stateObj,
+                "target_temp_high"
+              )}
+            </span>
+            ${this._renderTarget(this._targetTemperature.high!, "normal", true)}
+          </button>
+        </p>
+      `;
+    }
+
+    return html`<p class="label secondary"></p>`;
+  }
+
+  private _renderInfo() {
+    return html`
+      <div class="info">
+        ${this._renderLabel()}${this._renderPrimary()}${this._renderSecondary()}
+      </div>
+    `;
+  }
+
+  get _supportsTargetTemperature() {
+    return (
+      supportsFeature(this.stateObj, ClimateEntityFeature.TARGET_TEMPERATURE) &&
+      this._targetTemperature.value != null
+    );
+  }
+
+  get _supportsTargetTemperatureRange() {
+    return (
+      supportsFeature(
+        this.stateObj,
+        ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+      ) &&
+      this._targetTemperature.low != null &&
+      this._targetTemperature.high != null
+    );
+  }
+
+  protected render() {
+    const mode = this.stateObj.state;
+    const action = this.stateObj.attributes.hvac_action;
+    const active = stateActive(this.stateObj);
+
+    const stateColor = stateColorCss(this.stateObj);
+    const lowColor = stateColorCss(this.stateObj, active ? "heat" : "off");
+    const highColor = stateColorCss(this.stateObj, active ? "cool" : "off");
+
+    let actionColor: string | undefined;
+    if (action && action !== "idle" && action !== "off" && active) {
+      actionColor = stateColorCss(
+        this.stateObj,
+        CLIMATE_HVAC_ACTION_TO_MODE[action]
+      );
+    }
+
+    const containerSizeClass = this._sizeController.value
+      ? ` ${this._sizeController.value}`
+      : "";
+
+    if (
+      this._supportsTargetTemperature &&
+      this.stateObj.state !== UNAVAILABLE
+    ) {
+      const heatCoolModes = this.stateObj.attributes.hvac_modes.filter((m) =>
+        ["heat", "cool", "heat_cool"].includes(m)
+      );
+      const sliderMode =
+        SLIDER_MODES[
+          heatCoolModes.length === 1 && ["off", "auto"].includes(mode)
+            ? heatCoolModes[0]
+            : mode
+        ];
+
+      return html`
+        <div
+          class="container${containerSizeClass}"
+          style=${styleMap({
+            "--state-color": stateColor,
+            "--action-color": actionColor,
+          })}
+        >
+          <ac-ha-control-circular-slider
+            .preventInteractionOnScroll=${this.preventInteractionOnScroll}
+            .inactive=${!active}
+            .mode=${sliderMode}
+            .value=${this._targetTemperature.value}
+            .min=${this._min}
+            .max=${this._max}
+            .step=${this._step}
+            .current=${this.stateObj.attributes.current_temperature}
+            .formatValue=${this._formatTarget}
+            .label=${this._formatters.formatEntityAttributeName(
+              this.stateObj,
+              "temperature"
+            )}
+            @value-changed=${this._valueChanged}
+            @value-changing=${this._valueChanging}
+          >
+          </ac-ha-control-circular-slider>
+          ${this._renderInfo()} ${this._renderTemperatureButtons("value")}
+        </div>
+      `;
+    }
+
+    if (
+      this._supportsTargetTemperatureRange &&
+      this.stateObj.state !== UNAVAILABLE
+    ) {
+      return html`
+        <div
+          class="container${containerSizeClass}"
+          style=${styleMap({
+            "--low-color": lowColor,
+            "--high-color": highColor,
+            "--action-color": actionColor,
+          })}
+        >
+          <ac-ha-control-circular-slider
+            .preventInteractionOnScroll=${this.preventInteractionOnScroll}
+            .inactive=${!active}
+            .emphasis=${this.emphasis}
+            dual
+            .low=${this._targetTemperature.low}
+            .high=${this._targetTemperature.high}
+            .min=${this._min}
+            .max=${this._max}
+            .step=${this._step}
+            .current=${this.stateObj.attributes.current_temperature}
+            .formatValue=${this._formatTarget}
+            .lowLabel=${this._formatters.formatEntityAttributeName(
+              this.stateObj,
+              "target_temp_low"
+            )}
+            .highLabel=${this._formatters.formatEntityAttributeName(
+              this.stateObj,
+              "target_temp_high"
+            )}
+            @low-changed=${this._valueChanged}
+            @low-changing=${this._valueChanging}
+            @high-changed=${this._valueChanged}
+            @high-changing=${this._valueChanging}
+          >
+          </ac-ha-control-circular-slider>
+          ${this._renderInfo()}
+          ${this._renderTemperatureButtons(this._selectTargetTemperature, true)}
+        </div>
+      `;
+    }
+
+    return html`
+      <div
+        class="container${containerSizeClass}"
+        style=${styleMap({
+          "--state-color": stateColor,
+          "--action-color": actionColor,
+        })}
+      >
+        <ac-ha-control-circular-slider
+          .preventInteractionOnScroll=${this.preventInteractionOnScroll}
+          mode="full"
+          .current=${this.stateObj.attributes.current_temperature}
+          .min=${this._min}
+          .max=${this._max}
+          .step=${this._step}
+          readonly
+          .disabled=${!active}
+        >
+        </ac-ha-control-circular-slider>
+        ${this._renderInfo()}
+      </div>
+    `;
+  }
+
+  static get styles(): CSSResultGroup {
+    return [
+      stateControlCircularSliderStyle,
+      css`
+        /* Dual target */
+        .dual {
+          display: flex;
+          flex-direction: row;
+          gap: var(--ha-space-6);
+        }
+        .target-button {
+          outline: none;
+          background: none;
+          color: inherit;
+          font-family: inherit;
+          font-size: inherit;
+          font-weight: inherit;
+          -webkit-tap-highlight-color: transparent;
+          border: none;
+          opacity: 0.7;
+          padding: 0;
+          transition:
+            opacity 180ms ease-in-out,
+            transform 180ms ease-in-out;
+          cursor: pointer;
+        }
+        .target-button:focus-visible {
+          transform: scale(1.1);
+        }
+        .target-button.selected {
+          opacity: 1;
+        }
+        .visually-hidden {
+          position: absolute;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
+          height: 1px;
+          width: 1px;
+          margin: -1px;
+          padding: 0;
+          border: 0;
+        }
+        .container.md .dual {
+          gap: var(--ha-space-4);
+        }
+        .container.sm .dual,
+        .container.xs .dual {
+          gap: var(--ha-space-2);
+        }
+        .container.sm .target-icon {
+          display: none;
+        }
+        .secondary {
+          direction: ltr;
+        }
+        ac-ha-control-circular-slider {
+          --control-circular-slider-low-color: var(
+            --low-color,
+            var(--disabled-color)
+          );
+          --control-circular-slider-high-color: var(
+            --high-color,
+            var(--disabled-color)
+          );
+        }
+      `,
+    ];
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "ac-ha-state-control-climate-temperature": HaStateControlClimateTemperature;
+  }
+}

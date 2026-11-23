@@ -1,0 +1,35 @@
+--- a/components/ha-control-circular-slider.ts
++++ b/components/ha-control-circular-slider.ts
+@@ -99,6 +99,9 @@
+ 
+   @property({ type: Boolean, attribute: "prevent-interaction-on-scroll" })
+   public preventInteractionOnScroll = false;
++
++  // AC-PATCH: emphasis-slider: the handle filled with its color (CARD-PHASE-1)
++  @property({ type: String }) public emphasis?: "low" | "high";
+ 
+   @state() public _localValue?: number = this.value;
+ 
+@@ -621,7 +624,7 @@
+                 stroke-dashoffset=${targetCircle[1]}
+               />
+               <path
+-                class="target"
++                class="target ${classMap({ [`emphasis-${id}`]: this.emphasis === id })}"
+                 d=${path}
+                 stroke-dasharray=${targetCircle[0]}
+                 stroke-dashoffset=${targetCircle[1]}
+@@ -846,6 +849,13 @@
+       stroke: var(--control-circular-slider-color);
+     }
+ 
++    /* AC-PATCH: emphasis-slider: the handle named by emphasis, filled */
++    .target.emphasis-low {
++      stroke: var(--control-circular-slider-low-color);
++    }
++    .target.emphasis-high {
++      stroke: var(--control-circular-slider-high-color);
++    }
+     .low {
+       stroke: var(--control-circular-slider-low-color);
+     }

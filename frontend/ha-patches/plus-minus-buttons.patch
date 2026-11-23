@@ -1,0 +1,61 @@
+--- a/state-control/climate/ha-state-control-climate-temperature.ts
++++ b/state-control/climate/ha-state-control-climate-temperature.ts
+@@ -19,7 +19,9 @@
+ import "../../components/ha-big-number";
+ import "../../components/ha-control-circular-slider";
+ import type { ControlCircularSliderMode } from "../../components/ha-control-circular-slider";
+-import "../../components/ha-outlined-icon-button";
++// AC-PATCH: plus-minus-buttons: ha-icon-button of Home Assistant, used as it is,
++// with an outline in CSS (state-control-circular-slider-style.ts), not
++// ha-outlined-icon-button (CARD_ARCHITECTURE.md §4, D3.5)
+ import type { ClimateEntity, HvacMode } from "../../data/climate";
+ import {
+   CLIMATE_HVAC_ACTION_TO_MODE,
+@@ -246,7 +248,7 @@
+ 
+     return html`
+       <div class="buttons">
+-        <ha-outlined-icon-button
++        <ha-icon-button
+           style=${styleMap({
+             "--ha-outlined-icon-button-outline-color": color,
+           })}
+@@ -262,8 +264,8 @@
+           @click=${this._handleButton}
+         >
+           <ha-svg-icon .path=${mdiMinus}></ha-svg-icon>
+-        </ha-outlined-icon-button>
+-        <ha-outlined-icon-button
++        </ha-icon-button>
++        <ha-icon-button
+           style=${styleMap({
+             "--ha-outlined-icon-button-outline-color": color,
+           })}
+@@ -279,7 +281,7 @@
+           @click=${this._handleButton}
+         >
+           <ha-svg-icon .path=${mdiPlus}></ha-svg-icon>
+-        </ha-outlined-icon-button>
++        </ha-icon-button>
+       </div>
+     `;
+   }
+--- a/state-control/state-control-circular-slider-style.ts
++++ b/state-control/state-control-circular-slider-style.ts
+@@ -74,8 +74,14 @@
+   .primary-state {
+     font-size: 36px;
+   }
+-  .buttons ha-outlined-icon-button {
+-    --ha-icon-button-size: 48px;
++  /* AC-PATCH: plus-minus-buttons: the outline of ha-outlined-icon-button, on
++     ha-icon-button (48px with its border) */
++  .buttons ha-icon-button {
++    --ha-icon-button-size: 46px;
++    color: var(--secondary-text-color);
++    border: 1px solid
++      var(--ha-outlined-icon-button-outline-color, var(--secondary-text-color));
++    border-radius: 50%;
+   }
+   .container.md ac-ha-big-number {
+     font-size: 44px;

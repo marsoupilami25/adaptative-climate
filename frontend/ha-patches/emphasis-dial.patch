@@ -1,0 +1,20 @@
+--- a/state-control/climate/ha-state-control-climate-temperature.ts
++++ b/state-control/climate/ha-state-control-climate-temperature.ts
+@@ -80,6 +80,9 @@
+   @property({ type: Boolean, attribute: "prevent-interaction-on-scroll" })
+   public preventInteractionOnScroll = false;
+ 
++  // AC-PATCH: emphasis-dial: passed to the slider (CARD-PHASE-1)
++  @property({ type: String }) public emphasis?: "low" | "high";
++
+   @state() private _targetTemperature: Partial<Record<Target, number>> = {};
+ 
+   @state() private _selectTargetTemperature: Target = "low";
+@@ -585,6 +588,7 @@
+           <ac-ha-control-circular-slider
+             .preventInteractionOnScroll=${this.preventInteractionOnScroll}
+             .inactive=${!active}
++            .emphasis=${this.emphasis}
+             dual
+             .low=${this._targetTemperature.low}
+             .high=${this._targetTemperature.high}

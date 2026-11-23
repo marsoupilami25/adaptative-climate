@@ -221,3 +221,4 @@ __marimo__/
 # made by the CI for a release (ARCHITECTURE.md ARCH-15)
 frontend/node_modules/
 custom_components/adaptative_climate/frontend/
+frontend/.cache/

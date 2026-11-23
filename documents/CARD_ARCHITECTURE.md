@@ -111,11 +111,15 @@ through them. It holds no logic of the integration
 ```text
 frontend/
   package.json, package-lock.json, tsconfig.json, vite.config.ts
-  ha-source.json        source tag, copied files, shims, elements used as is
+  .npmrc                no install scripts of the dependencies
+  ha-source.json        source and minimum tags, copied files, shims, elements used
+                        as is, patches in order, translation fallbacks
   ha-patches/           one patch per change of level c
   scripts/
-    update-ha.sh        copy from a tag, mechanical changes, patches (§7)
-    compat-scan.py      what the copy needs from the minimum frontend (§7)
+    update-ha.sh        update-ha.sh [TAG]: ha_copy.py update, then compat-scan.py (§7)
+    ha_copy.py          copy, mechanical changes, patches; make-patch NAME (§7)
+    compat-scan.py      what the card needs from the minimum frontend (§7)
+  .cache/               the sources of both frontends, for the scan, not in git
   src/
     index.ts            entry: registers the elements, the card in "Add card"
     ha/                 the copy (§4), with NOTICE (Apache 2.0)
@@ -126,8 +130,9 @@ custom_components/adaptative_climate/frontend/
 
 ## 4. Copied code
 
-The copy keeps the paths of the frontend under `src/ha/`. It has 32 files,
-about 4,300 lines, listed in `ha-source.json`:
+The copy keeps the paths of the frontend under `src/ha/`, without their
+leading `src/`. It has 30 files, about 3,900 lines, listed in
+`ha-source.json`:
 
 | Element or module | Role |
 |---|---|
@@ -136,31 +141,32 @@ about 4,300 lines, listed in `ha-source.json`:
 | `ha-big-number` | The large number in the center. |
 | `state-control-circular-slider-style` | The styles of the dial. |
 | `ha-control-select` | The bar of buttons, for the mode bar and the lists in `icons` style. |
-| `common/…`, `data/climate`, `resources/svg-arc`, `util/…` | What these elements import. |
+| `common/…`, `data/climate`, `data/feature/climate_entity_feature`, `data/translation`, `resources/…`, `util/…` | What these elements import. |
 
 **Mechanical changes**, made by the update script on every copy:
 
-- the prefix on each copied element: `ac-ha-state-control-climate-temperature`,
+- the prefix on each copied element, in its opening and closing tags (the
+  script stops if a tag is left without it): `ac-ha-state-control-climate-temperature`,
   `ac-ha-control-circular-slider`, `ac-ha-big-number`,
   `ac-ha-control-select`;
 - the imports of the elements used as is are removed.
 
-**Patches** (level c):
+Patches, in the order they apply:
 
 | Patch | File | Change | Rule |
 |---|---|---|---|
+| `plus-minus-buttons` | `ha-state-control-climate-temperature`, `state-control-circular-slider-style` | `ha-outlined-icon-button` becomes `ha-icon-button`, with a round outline in CSS. | [CARD-DIAL-1](CARD_SPEC.md#card-dial-1) |
 | `emphasis-slider` | `ha-control-circular-slider` | A property `emphasis` (`low`, `high`). The handle it names is filled with its color. | [CARD-PHASE-1](CARD_SPEC.md#card-phase-1) |
 | `emphasis-dial` | `ha-state-control-climate-temperature` | The same property, passed to the slider. | [CARD-PHASE-1](CARD_SPEC.md#card-phase-1) |
-| `plus-minus-buttons` | `ha-state-control-climate-temperature`, `state-control-circular-slider-style` | `ha-outlined-icon-button` becomes `ha-icon-button`, with a round outline in CSS. | [CARD-DIAL-1](CARD_SPEC.md#card-dial-1) |
+| `compat-labels` | `ha-state-control-climate-temperature` | The labels of the +/− buttons for low and high come after Home Assistant 2026.6. There, `localize` gives "" for them: the generic label is used. The keys are listed in `compat_fallbacks` of `ha-source.json`. | [CARD-GEN-3](CARD_SPEC.md#card-gen-3) |
 
 **Shims** (written by us, never overwritten by the update script):
 
 | Path | What it holds |
 |---|---|
-| `src/types.ts` | The part of `HomeAssistant` the copy uses. |
-| `src/panels/lovelace/types.ts`, `src/panels/lovelace/cards/types.ts` | The card types the copy uses. |
-| `src/data/entity/entity_registry.ts`, `src/data/home_shortcuts.ts` | The types the copy imports from them. |
-| `src/data/context/index.ts` | The four contexts, with the same keys as the frontend. |
+| `types.ts` | The part of `HomeAssistant` the copy and the AC code use, and the events of the copy (`value-changed`). |
+| `data/entity/entity_registry.ts`, `data/home_shortcuts.ts` | The types the copy imports from them. |
+| `data/context/index.ts` | The four contexts, with the same keys as the frontend. |
 
 **Elements used as is:** `ha-card`, `ha-icon-button`, `ha-svg-icon`,
 `ha-icon`, and `ha-form` in the editor. They meet
@@ -230,9 +236,15 @@ The card measures itself, as the thermostat card does for its dial.
 
 1. Gets the files of `ha-source.json` at the new tag.
 2. Makes the mechanical changes ([§4](#4-copied-code)).
-3. Applies the patches. A patch that does not apply stops the script, and
-   says where.
-4. Runs `compat-scan.py` against the minimum frontend.
+3. Applies the patches, in their order. A patch that does not apply stops
+   the script, and says where.
+4. Replaces the copy in `src/ha/`, shims excepted, and writes its `NOTICE`.
+5. Runs `compat-scan.py` against the minimum frontend.
+
+To add a patch: change the files of `src/ha/`, then run
+`scripts/ha_copy.py make-patch <name>`. It writes the difference with the copy
+made with the patches before it, and adds the patch to `ha-source.json`. Only
+the last patch can be written again.
 
 `compat-scan.py` lists what the copy needs from the host frontend, and
 checks it exists in the minimum frontend:
@@ -240,9 +252,11 @@ checks it exists in the minimum frontend:
 - the contexts consumed, and the members used;
 - the `--ha-*` CSS variables used without a fallback;
 - the members of `hass` used;
-- the translation keys;
-- the elements used as is: they exist, and their properties, events and
-  CSS variables are the same in both frontends;
+- the translation keys (a key listed in `compat_fallbacks` is covered by its
+  patch);
+- the elements used as is: they exist, and their public interface
+  (properties, events, documented CSS variables) is the same in both
+  frontends. Their inner styles are theirs;
 - the calls to the backend.
 
 It fails on anything missing.
