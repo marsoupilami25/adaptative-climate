@@ -69,7 +69,7 @@ selected, capitals the selected one. `*` is the icon of the current mode.
 
 ```text
 ┌────────────────────────────────────────────┐
-│ (!) (T)          Living room             ⋮ │  ① header
+│ (✓) (✓)          Living room             ⋮ │  ① header
 ├────────────────────────────────────────────┤
 │                 ╭─────────╮                │
 │            ╭────╯ Heating ╰────╮           │
@@ -126,11 +126,12 @@ This section applies when the AC entity runs a
 [bi-source](SPEC.md#0-glossary) `heat_cool`. The current phase is the
 [`phase` attribute](SPEC.md#22-attributes-of-the-ac-entity).
 
-The dial in phase `cool`. `●` is a handle filled with its color, `○` a
-handle as on the thermostat card.
+The dial in phase `cool`. `●` is an inverted handle: its center in its
+color, its ring white. `○` is a handle as on the thermostat card: its ring in
+its color, its center white.
 
 ```text
-                 ╭─────────────●─╮       ● high handle: filled, cool color
+                 ╭─────────────●─╮       ● high handle: inverted, cool color
             ╭────╯   Cooling     ╰────╮
             │    19 °C  ·  24 °C      │
             │   ⌂ 25.1 °C             │
@@ -139,8 +140,8 @@ handle as on the thermostat card.
 ```
 
 - **CARD-PHASE-1**<a id="card-phase-1"></a> The handle of the current phase
-  is filled with the color of that phase: the low handle for `heat`, the high
-  handle for `cool`.
+  is inverted: its center has the color of the phase, its ring is white. It is
+  the low handle for `heat`, the high handle for `cool`.
 
   > **Why:** the two targets drive two devices. The user sees at a glance
   > which one runs.
@@ -148,7 +149,7 @@ handle as on the thermostat card.
 - **CARD-PHASE-2**<a id="card-phase-2"></a> The handle of the other phase
   looks as on the thermostat card.
 - **CARD-PHASE-3**<a id="card-phase-3"></a> When `phase` is `None`, no handle
-  is filled.
+  is inverted.
 
 The phase changes nothing else: the user sets both targets as on the
 thermostat card. The integration decides what to do with them.
@@ -275,23 +276,46 @@ In `icons` style:
 
 ## 6. Monitoring
 
+The header shows the [monitoring sensors](#0-terms) on its left. `✓` is an
+indicator in green, `!` and `T` in red, `●` the dot of `compact`.
+
 ```text
-│ (!) (T)          Living room             ⋮ │
-   │   └─ temperatures sensor on: thermometer with alert, error color
-   └───── sources sensor on: alert circle, error color
+always       │ (✓) (✓)          Living room            ⋮ │  no problem
+             │ (!) (✓)          Living room            ⋮ │  the devices have a problem
+compact      │ ●                Living room            ⋮ │  green, or red with a problem
+errors       │ (T)              Living room            ⋮ │  only the temperatures have a problem
+hidden       │                  Living room            ⋮ │
 ```
 
-- **CARD-MON-1**<a id="card-mon-1"></a> The header shows, on the left, one
-  indicator per monitoring sensor that is on, in the error color.
-- **CARD-MON-2**<a id="card-mon-2"></a> The indicators show only when the
-  `show_monitoring` option is on.
-- **CARD-MON-3**<a id="card-mon-3"></a> Each sensor has its own icon: an
-  alert circle for the sources, a thermometer with an alert for the
-  temperatures.
-- **CARD-MON-4**<a id="card-mon-4"></a> Pressing an indicator opens the
-  details of its sensor in Home Assistant.
+- **CARD-MON-1**<a id="card-mon-1"></a> The `monitoring` option sets what
+  the header shows:
 
-  > **Why:** its `problems` attribute says what is wrong
+  | Value | Shows |
+  |---|---|
+  | `always` | one indicator per monitoring sensor, always |
+  | `compact` | one dot for both sensors |
+  | `errors` | one indicator per sensor that is on, from the left |
+  | `hidden` | nothing |
+
+  > **Why:** `always` tells that the monitoring works. `compact` and
+  > `errors` save room on a narrow card.
+
+- **CARD-MON-2**<a id="card-mon-2"></a> An indicator is green when its
+  sensor is off, red when it is on.
+- **CARD-MON-3**<a id="card-mon-3"></a> Each sensor has its own icons:
+
+  | Sensor | Off | On |
+  |---|---|---|
+  | sources | two arrows in a circle (`sync`) | the same, with an alert (`sync-alert`) |
+  | temperatures | thermometer with a check (`thermometer-check`) | thermometer with an alert (`thermometer-alert`) |
+
+- **CARD-MON-4**<a id="card-mon-4"></a> The dot of `compact` is green when
+  both sensors are off, red when one is on. Its tooltip names the problems.
+- **CARD-MON-5**<a id="card-mon-5"></a> Pressing an indicator opens the
+  details of its sensor in Home Assistant. Pressing the dot opens the sensor
+  that is on, the sources first, else the sources.
+
+  > **Why:** the `problems` attribute of the sensor says what is wrong
   > ([MON-SENS-2](SPEC.md#41-monitoring-sensors)).
 
 ## 7. Missing data
@@ -330,7 +354,7 @@ The AC entity `unavailable`, with a sources problem:
   | `entity` | yes | | The AC entity. |
   | `name` | no | the name of the entity | The title. |
   | `show_current_as_primary` | no | `false` | As on the thermostat card: the current temperature in large, the target below. |
-  | `show_monitoring` | no | `true` | Shows the monitoring indicators ([§6](#6-monitoring)). |
+  | `monitoring` | no | `always` | What the header shows of the monitoring: `always`, `compact`, `errors` or `hidden` ([§6](#6-monitoring)). |
   | `features` | no | none | The features, in their order. |
 
 - **CARD-CONF-2**<a id="card-conf-2"></a> A feature is given by its `type`,

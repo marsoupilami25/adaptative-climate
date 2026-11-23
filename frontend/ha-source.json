@@ -58,9 +58,9 @@
   ],
   "patches": [
     "plus-minus-buttons",
-    "emphasis-slider",
     "emphasis-dial",
-    "compat-labels"
+    "compat-labels",
+    "emphasis-slider"
   ],
   "compat_fallbacks": {
     "ui.components.climate-control.lower_temperature_down": "compat-labels",

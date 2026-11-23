@@ -1,7 +1,8 @@
 // Entry of the card file (CARD_ARCHITECTURE.md §3, §8): registers the
 // elements, and lists the card in "Add card" (CARD-CONF-3).
 
-import { CARD_TYPE } from "./ac/card";
+import "./ac/card";
+import { CARD_TYPE } from "./ac/config";
 
 declare const __VERSION__: string;
 

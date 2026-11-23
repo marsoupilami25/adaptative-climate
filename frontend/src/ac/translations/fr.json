@@ -1,0 +1,13 @@
+{
+  "error": {
+    "not_found": "Entité non disponible : {entity}",
+    "not_ac": "{entity} n'est pas une entité Adaptative Climate"
+  },
+  "monitoring": {
+    "sources_on": "Les appareils ne répondent pas ou n'obéissent pas",
+    "sources_off": "Les appareils répondent et obéissent",
+    "temperatures_on": "Les températures ne concordent pas",
+    "temperatures_off": "Les températures concordent",
+    "none": "Aucun problème"
+  }
+}

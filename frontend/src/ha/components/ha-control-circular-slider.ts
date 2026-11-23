@@ -618,7 +618,7 @@ export class HaControlCircularSlider extends LitElement {
                 stroke-dashoffset=${targetCircle[1]}
               />
               <path
-                class="target-border ${classMap({ [id]: true })}"
+                class="target-border ${classMap({ [id]: true, [`emphasis-${id}`]: this.emphasis === id })}"
                 d=${path}
                 stroke-dasharray=${targetCircle[0]}
                 stroke-dashoffset=${targetCircle[1]}
@@ -849,12 +849,17 @@ export class HaControlCircularSlider extends LitElement {
       stroke: var(--control-circular-slider-color);
     }
 
-    /* AC-PATCH: emphasis-slider: the handle named by emphasis, filled */
+    /* AC-PATCH: emphasis-slider: the handle named by emphasis, inverted: its
+       center in its color, its ring white, to stand out on the arc */
     .target.emphasis-low {
       stroke: var(--control-circular-slider-low-color);
     }
     .target.emphasis-high {
       stroke: var(--control-circular-slider-high-color);
+    }
+    .target-border.emphasis-low,
+    .target-border.emphasis-high {
+      stroke: white;
     }
     .low {
       stroke: var(--control-circular-slider-low-color);

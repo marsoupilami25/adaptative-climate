@@ -156,9 +156,9 @@ Patches, in the order they apply:
 | Patch | File | Change | Rule |
 |---|---|---|---|
 | `plus-minus-buttons` | `ha-state-control-climate-temperature`, `state-control-circular-slider-style` | `ha-outlined-icon-button` becomes `ha-icon-button`, with a round outline in CSS. | [CARD-DIAL-1](CARD_SPEC.md#card-dial-1) |
-| `emphasis-slider` | `ha-control-circular-slider` | A property `emphasis` (`low`, `high`). The handle it names is filled with its color. | [CARD-PHASE-1](CARD_SPEC.md#card-phase-1) |
 | `emphasis-dial` | `ha-state-control-climate-temperature` | The same property, passed to the slider. | [CARD-PHASE-1](CARD_SPEC.md#card-phase-1) |
 | `compat-labels` | `ha-state-control-climate-temperature` | The labels of the +/− buttons for low and high come after Home Assistant 2026.6. There, `localize` gives "" for them: the generic label is used. The keys are listed in `compat_fallbacks` of `ha-source.json`. | [CARD-GEN-3](CARD_SPEC.md#card-gen-3) |
+| `emphasis-slider` | `ha-control-circular-slider` | A property `emphasis` (`low`, `high`). The handle it names is inverted: its center in its color, its ring white. | [CARD-PHASE-1](CARD_SPEC.md#card-phase-1) |
 
 **Shims** (written by us, never overwritten by the update script):
 

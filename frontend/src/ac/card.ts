@@ -1,7 +1,7 @@
 // The card: our own shell around the copied dial (CARD_ARCHITECTURE.md
 // CARD-ARCH-5, §5). It reproduces the shell of the thermostat card of Home
-// Assistant: title, ⋮ button, dial sized by the card (CARD-DIAL-1).
-// Step 5 of the plan: the shell only, to check the copy. The AC parts come next.
+// Assistant (title, ⋮ button, dial sized by the card: CARD-DIAL-1), and adds
+// the AC parts.
 
 import { ResizeController } from "@lit-labs/observers/resize-controller";
 import { mdiDotsVertical } from "@mdi/js";
@@ -9,18 +9,14 @@ import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators";
 import { styleMap } from "lit/directives/style-map";
 import { fireEvent } from "../ha/common/dom/fire_event";
-import type { ClimateEntity } from "../ha/data/climate";
 import "../ha/state-control/climate/ha-state-control-climate-temperature";
 import type { HomeAssistant } from "../ha/types";
-
-export const CARD_TYPE = "adaptative-climate-card";
-
-export interface AdaptativeClimateCardConfig {
-  type: string;
-  entity: string;
-  name?: string;
-  show_current_as_primary?: boolean;
-}
+import { type AdaptativeClimateCardConfig, CARD_TYPE, checkConfig, stubConfig } from "./config";
+import { localize } from "./localize";
+import "./monitoring";
+import { INDICATOR_WIDTH, indicators, monitoringWidth } from "./monitoring";
+import type { AcClimateEntity } from "./entity";
+import { isAcEntity } from "./registry";
 
 interface GridOptions {
   columns?: number | "full";
@@ -33,6 +29,12 @@ declare global {
   interface HASSDomEvents {
     "hass-more-info": { entityId: string };
   }
+}
+
+/** The handle filled with the color of the current phase (CARD-PHASE-1 to 3). */
+export function phaseEmphasis(stateObj: AcClimateEntity): "low" | "high" | undefined {
+  const phase = stateObj.attributes.phase;
+  return phase === "heat" ? "low" : phase === "cool" ? "high" : undefined;
 }
 
 @customElement(CARD_TYPE)
@@ -49,11 +51,12 @@ export class AdaptativeClimateCard extends LitElement {
     },
   });
 
+  public static getStubConfig(hass: HomeAssistant): AdaptativeClimateCardConfig {
+    return stubConfig(hass);
+  }
+
   public setConfig(config: AdaptativeClimateCardConfig): void {
-    if (!config?.entity || config.entity.split(".")[0] !== "climate") {
-      throw new Error("Specify an entity from within the climate domain");
-    }
-    this._config = config;
+    this._config = checkConfig(config);
   }
 
   public getCardSize(): number {
@@ -68,24 +71,42 @@ export class AdaptativeClimateCard extends LitElement {
     fireEvent(this, "hass-more-info", { entityId: this._config!.entity });
   }
 
+  private _warning(key: string) {
+    return html`<ha-card><p class="warning">${localize(this.hass, key, { entity: this._config!.entity })}</p></ha-card>`;
+  }
+
   protected render() {
     if (!this.hass || !this._config) {
       return nothing;
     }
-    const stateObj = this.hass.states[this._config.entity] as ClimateEntity | undefined;
+    const entityId = this._config.entity;
+    const stateObj = this.hass.states[entityId] as AcClimateEntity | undefined;
     if (!stateObj) {
-      return html`<ha-card><p class="warning">Entity not available: ${this._config.entity}</p></ha-card>`;
+      return this._warning("error.not_found"); // CARD-GEN-2
     }
+    if (!isAcEntity(this.hass, entityId)) {
+      return this._warning("error.not_ac"); // CARD-GEN-1
+    }
+    const monitoring = this._config.monitoring ?? "always";
+    const places = monitoringWidth(monitoring, indicators(this.hass, entityId));
     const controlMaxWidth = this._resizeController.value ? `${this._resizeController.value}px` : undefined;
     return html`
       <ha-card role="group" aria-labelledby="title">
-        <p class="title" id="title">${this.hass.formatEntityName(stateObj, this._config.name)}</p>
+        <ac-monitoring class="monitoring" .hass=${this.hass} .entityId=${entityId} .display=${monitoring}></ac-monitoring>
+        <p
+          class="title"
+          id="title"
+          style=${styleMap({ paddingInline: places ? `${places * INDICATOR_WIDTH + 12}px` : undefined })}
+        >
+          ${this.hass.formatEntityName(stateObj, this._config.name)}
+        </p>
         <div class="container">
           <ac-ha-state-control-climate-temperature
             style=${styleMap({ maxWidth: controlMaxWidth })}
             prevent-interaction-on-scroll
             .showCurrentAsPrimary=${this._config.show_current_as_primary ?? false}
             show-secondary
+            .emphasis=${phaseEmphasis(stateObj)}
             .stateObj=${stateObj}
           ></ac-ha-state-control-climate-temperature>
         </div>
@@ -100,7 +121,7 @@ export class AdaptativeClimateCard extends LitElement {
     `;
   }
 
-  // The styles of the thermostat card
+  // The styles of the thermostat card, and the monitoring indicators
   static styles = css`
     :host {
       position: relative;
@@ -159,8 +180,19 @@ export class AdaptativeClimateCard extends LitElement {
       color: var(--secondary-text-color);
       direction: var(--direction);
     }
+    .monitoring {
+      position: absolute;
+      top: 6px;
+      left: 4px;
+      inset-inline-start: 4px;
+      inset-inline-end: initial;
+    }
     .warning {
+      margin: 0;
       padding: 16px;
+      color: var(--primary-text-color);
+      background-color: rgb(from var(--warning-color) r g b / 0.2);
+      border-radius: var(--ha-card-border-radius, 12px);
     }
   `;
 }
