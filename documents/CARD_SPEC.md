@@ -163,7 +163,7 @@ of its source entity.
 
 ```text
 normal       │          * Radiator living room            │
-unavailable  │          * Radiator living room §          │  error color, § = disconnected
+unavailable  │          * Radiator living room §          │  error color, § = sync alert
 off          │                                            │  empty, same height
 foreign      │          * Radiator living room §          │  warning color, § = remote control
                                                └─ tooltip: "Air conditioner runs dry · not managed"
@@ -180,7 +180,7 @@ foreign      │          * Radiator living room §          │  warning color,
 
   | Reason | Status icon | Color |
   |---|---|---|
-  | The source entity of the active source is `unavailable`. | disconnected (`mdi:lan-disconnect`) | error (`--error-color`, red) |
+  | The source entity of the active source is `unavailable`. | sync alert (`mdi:sync-alert`), as for the sources in the monitoring ([CARD-MON-3](#card-mon-3)) | error (`--error-color`, red) |
   | A device runs a [foreign](SPEC.md#0-glossary) mode (`foreign_modes`). | remote control (`mdi:remote`) | warning (`--warning-color`, amber) |
 
   > **Why:** red when the current mode cannot run, amber when a device runs

@@ -9,5 +9,9 @@
     "temperatures_on": "Les températures ne concordent pas",
     "temperatures_off": "Les températures concordent",
     "none": "Aucun problème"
+  },
+  "device": {
+    "unavailable": "{device} indisponible",
+    "foreign": "{device} est en {mode} · non géré"
   }
 }

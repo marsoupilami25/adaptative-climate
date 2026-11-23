@@ -1,0 +1,30 @@
+--- a/components/ha-control-select.ts
++++ b/components/ha-control-select.ts
+@@ -12,6 +12,8 @@
+   ariaLabel?: string;
+   icon?: TemplateResult;
+   path?: string;
++  // AC-PATCH: control-select-dimmed: greyed out, still pressable (CARD-MODE-4)
++  dimmed?: boolean;
+ }
+ 
+ @customElement("ac-ha-control-select")
+@@ -175,6 +177,7 @@
+         class=${classMap({
+           option: true,
+           selected: isSelected,
++          dimmed: Boolean(option.dimmed),
+         })}
+         role="radio"
+         tabindex=${tabbable ? "0" : "-1"}
+@@ -261,6 +264,10 @@
+       margin-inline-start: initial;
+       direction: var(--direction);
+     }
++    /* AC-PATCH: control-select-dimmed */
++    .option.dimmed:not(.selected) {
++      opacity: 0.4;
++    }
+     .container[disabled] {
+       --control-select-color: var(--disabled-color);
+       --control-select-focused-opacity: 0;

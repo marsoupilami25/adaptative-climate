@@ -12,6 +12,8 @@ export interface ControlSelectOption {
   ariaLabel?: string;
   icon?: TemplateResult;
   path?: string;
+  // AC-PATCH: control-select-dimmed: greyed out, still pressable (CARD-MODE-4)
+  dimmed?: boolean;
 }
 
 @customElement("ac-ha-control-select")
@@ -175,6 +177,7 @@ export class HaControlSelect extends LitElement {
         class=${classMap({
           option: true,
           selected: isSelected,
+          dimmed: Boolean(option.dimmed),
         })}
         role="radio"
         tabindex=${tabbable ? "0" : "-1"}
@@ -260,6 +263,10 @@ export class HaControlSelect extends LitElement {
       margin-inline-end: var(--control-select-padding);
       margin-inline-start: initial;
       direction: var(--direction);
+    }
+    /* AC-PATCH: control-select-dimmed */
+    .option.dimmed:not(.selected) {
+      opacity: 0.4;
     }
     .container[disabled] {
       --control-select-color: var(--disabled-color);

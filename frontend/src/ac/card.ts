@@ -12,6 +12,7 @@ import { fireEvent } from "../ha/common/dom/fire_event";
 import "../ha/state-control/climate/ha-state-control-climate-temperature";
 import type { HomeAssistant } from "../ha/types";
 import { type AdaptativeClimateCardConfig, CARD_TYPE, checkConfig, stubConfig } from "./config";
+import "./features";
 import { localize } from "./localize";
 import "./monitoring";
 import { INDICATOR_WIDTH, indicators, monitoringWidth } from "./monitoring";
@@ -64,7 +65,9 @@ export class AdaptativeClimateCard extends LitElement {
   }
 
   public getGridOptions(): GridOptions {
-    return { columns: 12, rows: 5, min_columns: 6, min_rows: 2 };
+    // As the thermostat card: two thirds of a row per feature (refined in step 6c)
+    const extra = Math.ceil(((this._config?.features?.length ?? 0) * 2) / 3);
+    return { columns: 12, rows: 5 + extra, min_columns: 6, min_rows: 2 + extra };
   }
 
   private _handleMoreInfo(): void {
@@ -117,6 +120,9 @@ export class AdaptativeClimateCard extends LitElement {
           @click=${this._handleMoreInfo}
           tabindex="0"
         ></ha-icon-button>
+        ${this._config.features?.length
+          ? html`<ac-features .hass=${this.hass} .stateObj=${stateObj} .features=${this._config.features}></ac-features>`
+          : nothing}
       </ha-card>
     `;
   }
@@ -186,6 +192,10 @@ export class AdaptativeClimateCard extends LitElement {
       left: 4px;
       inset-inline-start: 4px;
       inset-inline-end: initial;
+    }
+    ac-features {
+      flex: none;
+      padding: 0 12px 12px 12px;
     }
     .warning {
       margin: 0;

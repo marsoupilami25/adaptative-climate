@@ -9,5 +9,9 @@
     "temperatures_on": "The temperatures do not agree",
     "temperatures_off": "The temperatures agree",
     "none": "No problem"
+  },
+  "device": {
+    "unavailable": "{device} unavailable",
+    "foreign": "{device} runs {mode} · not managed"
   }
 }

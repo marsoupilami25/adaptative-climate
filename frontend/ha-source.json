@@ -60,7 +60,8 @@
     "plus-minus-buttons",
     "emphasis-dial",
     "compat-labels",
-    "emphasis-slider"
+    "emphasis-slider",
+    "control-select-dimmed"
   ],
   "compat_fallbacks": {
     "ui.components.climate-control.lower_temperature_down": "compat-labels",
