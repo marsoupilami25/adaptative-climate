@@ -1,6 +1,10 @@
 # The manual tests of the card (documents/CARD_TESTS.md): its configuration and
 # its look, on the entities of the manual tests of the integration.
 # YAML dashboard: after editing this file, refresh the page in the browser.
+#
+# Each view fits on one screen: a few scenarios, its own Start. Each scenario:
+# From (the state it starts from: Start, or after a scenario of the view),
+# Do (the operations), Expect (what to see).
 title: Tests card
 views:
 
@@ -66,18 +70,104 @@ views:
 
         ## Configuration
 
-        - **Not an AC entity**, **Missing entity**, **Wrong option**, **Wrong feature**: cards with a wrong configuration, under their heading.
-        - **Living room**: the card on Adaptative BI (`climate.adaptative_bi`, from the dashboard *Tests bi-source*), with every option: `name`, `show_current_as_primary`, `monitoring: compact`, the modes *cool*, *heat*, *off* and *dry* in that order, the fan in `icons` style (YAML below).
-        - **Reference**: the thermostat card of Home Assistant on Adaptative BI, with the same `show_current_as_primary` and modes.
-        - **Card editor**: a dashboard of your own, to test the editor (a YAML dashboard cannot be edited). Create it once: *Settings > Dashboards > Add dashboard > New dashboard from scratch*, title *Card editor*.
+        **Who is who**
+        - Under the headings: cards configured wrong on purpose. A configuration the card refuses gets the error card of Home Assistant: on a dashboard, it only says *Configuration error*; the detail shows in the preview of an editor (view *Editor and YAML*).
+        - **Living room**: the card on Adaptative BI (`climate.adaptative_bi`, the entity of *Tests bi-source*), with every option set.
+        - **Reference**: the thermostat card of Home Assistant, same entity, same options.
 
-        **Start**: nothing to set. On *Card editor*, delete the cards left by a previous run.
+        **Start**: on *Living room*, press *off*.
 
-        1. **Errors** (CARD-GEN-1, CARD-GEN-2, CARD-CONF-6): *Not an AC entity*: "climate.radiator_virtual_bi is not an Adaptative Climate entity" (a source), and a configuration error for `sensor.room_sensor_bi` (not a climate entity). *Missing entity*: "Entity not available: climate.nowhere". *Wrong option*: a configuration error that names `monitoring`. *Wrong feature*: a configuration error that names `features`.
-        2. **Options** (CARD-CONF-1, CARD-CONF-2, CARD-MODE-2): *Living room* has the title *Living room*, the current temperature in large and the target below, as on *Reference*. The monitoring is one dot. The modes are *cool*, *heat*, *off*, in that order: *dry* is not shown, Adaptative BI does not list it. On *Living room*, *cool*: the fan is a bar of icons (*auto*, *low*, *high*: AIRCON Virtual's fan). Back to *off*.
-        3. **Add card** (CARD-CONF-3): from **Start**. On *Card editor*, edit, *Add card*, search "Adaptative": *Adaptative Climate* is listed. Choose it: the preview shows the first AC entity, with no feature.
-        4. **Visual editor** (CARD-CONF-4): after 3. The editor sets the entity (only AC entities are proposed), the name, *Current temperature in large*, the monitoring and the features. *Add a feature* proposes *Device line*, *Modes*, *Presets*, *Fan*, *Swing*, *Horizontal swing*, in that order; a feature added leaves the list. Add them all; move *Fan* up, remove *Presets*; set *Modes shown* of *Modes*, and *Style* *Icons* of *Swing*: the preview follows each change.
-        5. **Editor and YAML** (CARD-CONF-5): after 4. *Show code editor*: the YAML holds what the editor set. Replace it with the YAML below, back to the visual editor: it shows these options. *Save*: the card looks as *Living room*. Edit it again, *Show code editor*: the YAML is the one pasted.
+        1. **Errors** (CARD-GEN-1, CARD-GEN-2, CARD-CONF-6)
+           - *From*: **Start** (Adaptative BI *off*).
+           - *Do*: nothing.
+           - *Expect*:
+             - *Not an AC entity*: the first card says "climate.radiator_virtual_bi is not an Adaptative Climate entity"; the second (`sensor.room_sensor_bi`, not a climate entity) is the error card: *Configuration error*;
+             - *Missing entity*: "Entity not available: climate.nowhere";
+             - *Wrong option*, *Wrong feature*: the error card: *Configuration error*.
+        2. **Options** (CARD-CONF-1, CARD-CONF-2, CARD-MODE-2, CARD-MON-1)
+           - *From*: **Start** (Adaptative BI *off*).
+           - *Do*: nothing.
+           - *Expect*, on *Living room*:
+             - the title *Living room*;
+             - the current temperature in large, the target under it, as on *Reference*;
+             - one dot at the top left, for the monitoring;
+             - the modes *cool*, *heat*, *off*, in that order; no *dry* (Adaptative BI does not have it);
+             - the fan greyed out (*off* has no fan).
+        3. **Fan as icons** (CARD-CONF-2)
+           - *From*: **Start** (Adaptative BI *off*).
+           - *Do*: on *Living room*, press *cool*.
+           - *Expect*: the fan is a bar of 3 icons: auto, low, high.
+
+        </small>
+
+# --- Editor -----------------------------------------------------------------------
+- title: Editor
+  path: editor
+  type: sections
+  max_columns: 1
+  sections:
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Editor
+
+        **Who is who**
+        - **Card editor**: a dashboard you create once, to test the editor (a YAML dashboard cannot be edited): *Settings > Dashboards > Add dashboard > New dashboard from scratch*, title *Card editor*.
+
+        **Start**: on *Card editor*, delete the cards left by a previous run.
+
+        1. **Add card** (CARD-CONF-3)
+           - *From*: **Start** (*Card editor* empty).
+           - *Do*: on *Card editor*, edit the dashboard, *Add card*, search "Adaptative", choose *Adaptative Climate*.
+           - *Expect*: *Adaptative Climate* is in the list. Its editor opens; the preview shows the card on the first AC entity, with no feature.
+        2. **The options** (CARD-CONF-4)
+           - *From*: after 1 (the editor of the new card open).
+           - *Do*: *Entity*: Adaptative BI; *Name*: "Living room"; *Current temperature in large* on; *Monitoring*: *Compact (a dot)*.
+           - *Expect*: *Entity* proposes only AC entities. The preview follows each change.
+        3. **The features proposed** (CARD-CONF-4)
+           - *From*: after 2 (Adaptative BI, *Living room*, *Compact*, no feature).
+           - *Do*: open *Add a feature*.
+           - *Expect*: *Device line*, *Modes*, *Presets*, *Fan*, *Swing*, *Horizontal swing*, in that order.
+        4. **Each feature once** (CARD-CONF-4)
+           - *From*: after 3 (*Add a feature* open).
+           - *Do*: add the six features, one after the other.
+           - *Expect*: each feature added leaves the list of *Add a feature*. The preview shows them in that order (no presets list: Adaptative BI has none).
+        5. **Order and options of the features** (CARD-CONF-4)
+           - *From*: after 4 (the six features added).
+           - *Do*: move *Fan* up once; remove *Presets*; in *Modes*, *Modes shown*: *heat* and *off*; in *Swing*, *Style*: *Icons*.
+           - *Expect*: the preview follows each change: the fan above the mode bar; the mode bar *heat*, *off*.
+
+        </small>
+
+# --- Editor and YAML --------------------------------------------------------------
+- title: Editor and YAML
+  path: yaml
+  type: sections
+  max_columns: 2
+  sections:
+  - type: grid
+    cards:
+    - type: custom:adaptative-climate-card
+      entity: climate.adaptative_bi
+      name: Living room
+      show_current_as_primary: true
+      monitoring: compact
+      features:
+      - type: ac-device
+      - type: ac-hvac-modes
+        hvac_modes: [cool, heat, 'off', dry]
+      - type: ac-fan-modes
+        style: icons
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        The YAML of *Living room*, to paste:
 
         ```yaml
         type: custom:adaptative-climate-card
@@ -94,6 +184,43 @@ views:
         ```
 
         </small>
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Editor and YAML
+
+        **Who is who**
+        - **Living room**: the card configured by the YAML under it.
+        - **Card editor**: the dashboard of the view *Editor*.
+
+        **Start**: on *Card editor*, edit the dashboard, *Add card*, choose *Adaptative Climate*: its editor opens.
+
+        1. **YAML to editor** (CARD-CONF-5)
+           - *From*: **Start** (the editor of a new card open).
+           - *Do*: *Show code editor*; replace the YAML with the one under *Living room*; *Show visual editor*.
+           - *Expect*: the editor shows *Living room*, current temperature in large, *Compact*, and the features *Device line*, *Modes*, *Fan* (*Icons*). In *Modes*, *cool*, *heat* and *off* selected, in that order; no *dry*: the editor proposes only the modes of Adaptative BI. The preview looks as *Living room*.
+        2. **Editor to YAML** (CARD-CONF-5)
+           - *From*: after 1 (the editor shows the YAML pasted).
+           - *Do*: in *Fan*, *Style*: *List*; *Show code editor*.
+           - *Expect*: the YAML pasted, `dry` included, with one change only: the `style` of `ac-fan-modes` (`dropdown`, or no `style`: the default).
+        3. **Saved** (CARD-CONF-5)
+           - *From*: after 2 (the code editor shows the YAML, the fan as a list).
+           - *Do*: *Save*.
+           - *Expect*: the card looks as *Living room*, with the fan as a list.
+        4. **Saved YAML** (CARD-CONF-5)
+           - *From*: after 3 (the card saved).
+           - *Do*: edit the card, *Show code editor*.
+           - *Expect*: the YAML of 2.
+        5. **A wrong value** (CARD-CONF-6)
+           - *From*: after 4 (the code editor of the saved card open).
+           - *Do*: in the code editor, change `monitoring: compact` to `monitoring: sometimes`.
+           - *Expect*: the preview shows the error card, *Configuration error*, with under it a message that names `monitoring`.
+
+        </small>
 
 # --- Look -------------------------------------------------------------------------
 - title: Look
@@ -106,7 +233,7 @@ views:
     - type: custom:adaptative-climate-card
       entity: climate.adaptative_multi
       name: Adaptative MULTI
-      features:
+      features: &look_features
       - type: ac-device
       - type: ac-hvac-modes
   - type: grid
@@ -114,7 +241,7 @@ views:
     - type: thermostat
       entity: climate.adaptative_multi
       name: Reference
-      features:
+      features: &look_reference
       - type: climate-hvac-modes
     - type: button
       entity: script.reset_sources_multi
@@ -131,21 +258,231 @@ views:
 
         ## Look
 
-        - **Adaptative MULTI**: the card on Adaptative MULTI (`climate.adaptative_multi`, from the dashboard *Tests multi-sources*): one source per mode, *heat_cool* on HEAT and COOL Virtual.
-        - **Reference**: the thermostat card of Home Assistant on the same entity, with its mode bar.
-        - **Reset the sources (multi)**: the reset of *Tests multi-sources*.
+        **Who is who**
+        - **Adaptative MULTI**: the card under test, on Adaptative MULTI (`climate.adaptative_multi`, the entity of *Tests multi-sources*: one source per mode).
+        - **Reference**: the thermostat card of Home Assistant, same entity.
 
-        **Start**: **Reset the sources (multi)**, then Adaptative MULTI *off*. Your profile (*Settings > Profile*) in English, theme *Auto*.
+        **Start**: press **Reset the sources (multi)**; on *Adaptative MULTI*, press *off*.
 
-        1. **As the thermostat card** (CARD-DIAL-1, CARD-LOOK-1, CARD-LOOK-3, CARD-MODE-1, CARD-MODE-3): from **Start**. On Adaptative MULTI, each mode in turn: *heat*, *cool*, *heat_cool*, *auto*, *dry*, *fan_only*, *off*. Each time, both cards show the same dial: colors of the arc, state, numbers, − and + buttons. The mode icons are the same; the button of the current mode is filled with its color. Top to bottom: header, dial, device line, mode bar. ⋮ opens the details of Adaptative MULTI on both cards. − and + move the target as on *Reference*.
-        2. **Mode without target** (CARD-DIAL-2): from **Start**. Adaptative MULTI to *fan_only*: the state in the center is smaller than on *Reference*, centered, inside the circle.
-        3. **Light and dark** (CARD-LOOK-3): from **Start**. Adaptative MULTI to *heat*. Profile, *Theme* *Light*, then *Dark*: both cards change the same way (background, texts, icons); the color of *heat* stays. Back to *Auto*.
-        4. **Languages** (CARD-LANG-1, CARD-LANG-2, CARD-LANG-3, CARD-DIAL-2): from **Start**. Profile, *Language* *Français*. The tooltip of the *heat* button of Adaptative MULTI: "Chauffage · HEAT Virtual (multi)"; the tooltip of its monitoring indicators in French ("Les appareils répondent et obéissent"); states and actions as on *Reference*. Adaptative MULTI to *fan_only*: "Ventilation uniquement" stays inside the circle. *Language* *Deutsch*: the tooltip of the monitoring indicators in English, the modes in German as on *Reference*. Back to English.
+        1. **Each mode as on the thermostat card** (CARD-DIAL-1, CARD-LOOK-3, CARD-MODE-1, CARD-MODE-3)
+           - *From*: **Start** (Adaptative MULTI *off*).
+           - *Do*: on *Adaptative MULTI*, press each mode in turn: *heat*, *cool*, *heat_cool*, *auto*, *dry*, *fan_only*, *off*.
+           - *Expect*, for each mode: the same color of the arc, text of the state, numbers and icons of the modes on both cards. On *Adaptative MULTI*, the button of the current mode filled with its color.
+        2. **Order of the parts** (CARD-LOOK-1)
+           - *From*: **Start** (Adaptative MULTI *off*).
+           - *Do*: nothing.
+           - *Expect*: on *Adaptative MULTI*, from top to bottom: the title, the dial, the device line (empty in *off*), the mode bar.
+        3. **Buttons of the dial** (CARD-DIAL-1)
+           - *From*: **Start** (Adaptative MULTI *off*).
+           - *Do*: on *Adaptative MULTI*, press *heat*, then +, then ⋮.
+           - *Expect*: + raises the target by one step, on both cards. ⋮ opens the details of Adaptative MULTI, as on *Reference*.
+        4. **Mode without target** (CARD-DIAL-2)
+           - *From*: **Start** (Adaptative MULTI *off*).
+           - *Do*: on *Adaptative MULTI*, press *fan_only*.
+           - *Expect*: in the center of *Adaptative MULTI*, "Fan only" is smaller than on *Reference*, centered, inside the circle.
 
         </small>
 
-# --- Phase and device ---------------------------------------------------------------
-- title: Phase and device
+# --- Theme and language -----------------------------------------------------------
+- title: Theme and language
+  path: theme
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: custom:adaptative-climate-card
+      entity: climate.adaptative_multi
+      name: Adaptative MULTI
+      features: *look_features
+  - type: grid
+    cards:
+    - type: thermostat
+      entity: climate.adaptative_multi
+      name: Reference
+      features: *look_reference
+    - type: button
+      entity: script.reset_sources_multi
+      name: Reset the sources (multi)
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Theme and language
+
+        **Who is who**
+        - **Adaptative MULTI**: the card under test, on Adaptative MULTI (`climate.adaptative_multi`, the entity of *Tests multi-sources*).
+        - **Reference**: the thermostat card of Home Assistant, same entity.
+
+        **Start**: press **Reset the sources (multi)**; on *Adaptative MULTI*, press *heat*; in your profile (*Settings > Profile*), *Language* English and *Theme* Auto.
+
+        1. **Light theme** (CARD-LOOK-3)
+           - *From*: **Start** (Adaptative MULTI *heat*; English, theme *Auto*).
+           - *Do*: in your profile, *Theme*: *Light*.
+           - *Expect*: both cards light, with the same background, texts and icons; the same orange for *heat*.
+        2. **Dark theme** (CARD-LOOK-3)
+           - *From*: after 1 (theme *Light*).
+           - *Do*: in your profile, *Theme*: *Dark*.
+           - *Expect*: both cards dark, with the same background, texts and icons; the same orange for *heat*.
+        3. **French** (CARD-LANG-1, CARD-LANG-3)
+           - *From*: **Start** (Adaptative MULTI *heat*; English, theme *Auto*).
+           - *Do*: in your profile, *Language*: *Français*. On *Adaptative MULTI*, hover *heat*, then the two indicators at the top left.
+           - *Expect*: the tooltip of *heat*: "Chauffage · HEAT Virtual (multi)". Those of the indicators: "Les appareils répondent et obéissent", "Les températures concordent". The state and the modes in French, as on *Reference*.
+        4. **French, mode without target** (CARD-DIAL-2)
+           - *From*: after 3 (French; Adaptative MULTI *heat*).
+           - *Do*: on *Adaptative MULTI*, press *fan_only*.
+           - *Expect*: "Ventilation uniquement" stays inside the circle of *Adaptative MULTI*. On *Reference*, it fills the dial.
+        5. **A language the card does not have** (CARD-LANG-2, CARD-LANG-3)
+           - *From*: **Start** (Adaptative MULTI *heat*; English, theme *Auto*).
+           - *Do*: in your profile, *Language*: *Deutsch*. On *Adaptative MULTI*, hover *heat*, then the indicators at the top left.
+           - *Expect*: the tooltip of *heat* in German, from Home Assistant: "Heizen · HEAT Virtual (multi)". Those of the indicators in English: "The devices respond and obey", "The temperatures agree".
+
+        </small>
+
+# --- Phase ------------------------------------------------------------------------
+- title: Phase
+  path: phase
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: custom:adaptative-climate-card
+      entity: climate.adaptative_bi
+      name: Adaptative BI
+      features: &bi_features
+      - type: ac-device
+      - type: ac-hvac-modes
+  - type: grid
+    cards:
+    - type: thermostat
+      entity: climate.adaptative_bi
+      name: Reference
+      features: &bi_reference
+      - type: climate-hvac-modes
+    - type: entities
+      entities:
+      - entity: input_number.room_temperature_bi
+        name: Room temperature
+    - type: button
+      entity: script.reset_sources_bi
+      name: Reset the sources (bi)
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Phase
+
+        **Who is who**
+        - **Adaptative BI**: the card under test, on Adaptative BI (`climate.adaptative_bi`, the entity of *Tests bi-source*). Its *heat_cool* runs phase `heat` on RADIATOR Virtual, phase `cool` on AIRCON Virtual. The phase follows the *Room temperature*, with a hysteresis of 1 °C.
+        - **Reference**: the thermostat card of Home Assistant, same entity.
+        - **Room temperature**: the room sensor of Adaptative BI.
+
+        **Start**: press **Reset the sources (bi)** (*Room temperature* 20). On *Adaptative BI*, press *heat_cool*, set low to 19 and high to 24 on the dial (raise high first if needed), then press *off*: Adaptative BI keeps 19–24 for *heat_cool*.
+
+        1. **Phase heat** (CARD-PHASE-1, CARD-PHASE-2)
+           - *From*: **Start** (Adaptative BI *off*; its *heat_cool* range 19–24; *Room temperature* 20).
+           - *Do*: on *Adaptative BI*, press *heat_cool*.
+           - *Expect*: phase `heat` (20 is closer to 19). The low handle (19) is inverted: its center orange, its ring white. The high handle (24) looks as on *Reference*.
+        2. **Phase cool** (CARD-PHASE-1, CARD-PHASE-2)
+           - *From*: after 1 (*heat_cool*, range 19–24, phase `heat`; *Room temperature* 20).
+           - *Do*: *Room temperature* 25.5.
+           - *Expect*: phase `cool` (above 24 + 1). The high handle is inverted, its center blue. The low handle looks as on *Reference*.
+        3. **Device in phase cool** (CARD-DEV-1)
+           - *From*: after 2 (*heat_cool*, range 19–24, phase `cool`; *Room temperature* 25.5).
+           - *Do*: nothing.
+           - *Expect*: under the dial, the icon of *heat_cool*, then *AIRCON Virtual (bi)*.
+        4. **Device in phase heat** (CARD-DEV-1)
+           - *From*: after 3 (*heat_cool*, range 19–24, phase `cool`; *Room temperature* 25.5).
+           - *Do*: *Room temperature* 17.5.
+           - *Expect*: phase `heat` (below 19 − 1). The line shows *RADIATOR Virtual (bi)*.
+        5. **No device** (CARD-LOOK-2)
+           - *From*: after 4 (*heat_cool*, range 19–24, phase `heat`; *Room temperature* 17.5).
+           - *Do*: on *Adaptative BI*, press *off*.
+           - *Expect*: the device line is empty, but keeps its height: the dial and the mode bar do not move.
+
+        </small>
+
+# --- Modes ------------------------------------------------------------------------
+- title: Modes
+  path: modes
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: custom:adaptative-climate-card
+      entity: climate.adaptative_bi
+      name: Adaptative BI
+      features: *bi_features
+  - type: grid
+    cards:
+    - type: thermostat
+      entity: climate.adaptative_bi
+      name: Reference
+      features: *bi_reference
+    - type: entities
+      state_color: true
+      entities:
+      - entity: input_boolean.available_radiator_bi
+        name: RADIATOR available
+      - entity: input_boolean.available_aircon_bi
+        name: AIRCON available
+    - type: button
+      entity: script.reset_sources_bi
+      name: Reset the sources (bi)
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Modes
+
+        **Who is who**
+        - **Adaptative BI**: the card under test, on Adaptative BI (`climate.adaptative_bi`, the entity of *Tests bi-source*). *heat* runs on RADIATOR Virtual, *cool* on AIRCON Virtual, *heat_cool* on both.
+        - **Reference**: the thermostat card of Home Assistant, same entity.
+        - **RADIATOR available**, **AIRCON available**: off, the source is `unavailable`.
+
+        **Start**: press **Reset the sources (bi)**; on *Adaptative BI*, press *off*.
+
+        1. **Tooltips of the modes** (CARD-MODE-5)
+           - *From*: **Start** (Adaptative BI *off*; both sources available).
+           - *Do*: on *Adaptative BI*, hover *heat*, *cool*, then *heat_cool*.
+           - *Expect*: "Heat · RADIATOR Virtual (bi)", "Cool · AIRCON Virtual (bi)", "Heat/Cool · RADIATOR Virtual (bi) · AIRCON Virtual (bi)".
+        2. **Mode not available** (CARD-MODE-4)
+           - *From*: **Start** (Adaptative BI *off*; both sources available).
+           - *Do*: *RADIATOR available* off.
+           - *Expect*: on *Adaptative BI*, *heat* is greyed out. *heat_cool* is not: AIRCON Virtual is enough for it.
+        3. **Pressing a mode not available** (CARD-MODE-4, CARD-GEN-5)
+           - *From*: after 2 (Adaptative BI *off*; RADIATOR Virtual unavailable).
+           - *Do*: on *Adaptative BI*, press *heat*.
+           - *Expect*: a bubble says "Heat: RADIATOR Virtual (bi) unavailable", then goes away. Adaptative BI stays *off*. No new error in *Settings > System > Logs*.
+        4. **Entity unavailable** (CARD-MISS-1)
+           - *From*: **Start** (Adaptative BI *off*; both sources available).
+           - *Do*: on *Adaptative BI*, press *heat_cool*. *AIRCON available* off, then *RADIATOR available* off.
+           - *Expect*: Adaptative BI is `unavailable`. Its dial looks as on *Reference* ("Unavailable"), its mode bar is greyed out, its device line empty. The two indicators still show at the top left.
+
+        </small>
+
+# --- Device line ------------------------------------------------------------------
+- title: Device line
   path: device
   type: sections
   max_columns: 3
@@ -155,23 +492,12 @@ views:
     - type: custom:adaptative-climate-card
       entity: climate.adaptative_bi
       name: Adaptative BI
-      features:
-      - type: ac-device
-      - type: ac-hvac-modes
-      - type: ac-fan-modes
+      features: *bi_features
   - type: grid
     cards:
-    - type: thermostat
-      entity: climate.adaptative_bi
-      name: Reference
-      features:
-      - type: climate-hvac-modes
     - type: entities
-      title: Bi-source helpers
       state_color: true
       entities:
-      - entity: input_number.room_temperature_bi
-        name: Room temperature
       - entity: input_select.mode_radiator_bi
         name: Mode RADIATOR
       - entity: input_boolean.available_radiator_bi
@@ -191,30 +517,41 @@ views:
       content: |-
         <small>
 
-        ## Phase and device
+        ## Device line
 
-        - **Adaptative BI**: the card on Adaptative BI (`climate.adaptative_bi`, from the dashboard *Tests bi-source*). *heat* on RADIATOR Virtual, *cool* on AIRCON Virtual, *heat_cool* on both: phase `heat` on RADIATOR Virtual, phase `cool` on AIRCON Virtual, chosen on the room temperature (hysteresis 1 °C). RADIATOR Virtual also offers *fan_only*, which Adaptative BI does not serve.
-        - **Reference**: the thermostat card of Home Assistant on the same entity.
-        - **Bi-source helpers**: helpers of *Tests bi-source*. *Room temperature*: the room sensor of Adaptative BI. *Mode RADIATOR*: the remote of RADIATOR Virtual. *RADIATOR available*, *AIRCON available*: off, the source is `unavailable`.
-        - **Reset the sources (bi)**: the reset of *Tests bi-source*.
+        **Who is who**
+        - **Adaptative BI**: the card under test, on Adaptative BI (`climate.adaptative_bi`, the entity of *Tests bi-source*). *heat* runs on RADIATOR Virtual, *cool* on AIRCON Virtual. RADIATOR Virtual can also run *fan_only*, a mode Adaptative BI does not manage.
+        - **Mode RADIATOR**: the remote of RADIATOR Virtual.
+        - **RADIATOR available**, **AIRCON available**: off, the source is `unavailable`.
 
-        **Start**: **Reset the sources (bi)**, then Adaptative BI *off*, and its range 19–24 (on *Adaptative BI*, raise high before low if needed). *Room temperature* is 20.
+        **Start**: press **Reset the sources (bi)**; on *Adaptative BI*, press *off*.
 
-        1. **Phase heat** (CARD-PHASE-1, CARD-PHASE-2): from **Start**. Adaptative BI to *heat_cool*: phase `heat` (20 is closer to 19). The low handle is inverted: its center orange, its ring white. The high handle looks as on *Reference*.
-        2. **Phase cool** (CARD-PHASE-1, CARD-PHASE-2): after 1. *Room temperature* 25.5: phase `cool`. The high handle is inverted, its center blue; the low handle looks as on *Reference*.
-        3. **Device line** (CARD-DEV-1, CARD-LOOK-2): after 2. The device line shows the icon of *heat_cool*, then *AIRCON Virtual (bi)*. *Room temperature* 17.5: phase `heat`, the line shows *RADIATOR Virtual (bi)*. Adaptative BI to *off*: the line is empty, the dial does not move.
-        4. **Mode tooltips** (CARD-MODE-5): from **Start**. The tooltip of *heat*: "Heat · RADIATOR Virtual (bi)"; of *cool*: "Cool · AIRCON Virtual (bi)"; of *heat_cool*: both devices.
-        5. **Mode not available** (CARD-MODE-4, CARD-GEN-5): from **Start**. *RADIATOR available* off: *heat* is greyed out; *heat_cool* is not (one phase source is enough). Press *heat*: a bubble says "Heat: RADIATOR Virtual (bi) unavailable". Adaptative BI stays *off*, and the log of Home Assistant gets no error. *RADIATOR available* on: *heat* is back.
-        6. **Device unavailable** (CARD-DEV-3, CARD-DEV-5, CARD-DEV-6): from **Start**. Adaptative BI to *heat*, wait 12 s. *RADIATOR available* off: Adaptative BI waits for its source. The device line: *RADIATOR Virtual (bi)* and the sync alert icon in red. The tooltip of the icon: "RADIATOR Virtual (bi) unavailable". On a phone, a press on the icon shows the same text.
-        7. **Foreign mode** (CARD-DEV-3, CARD-DEV-4, CARD-DEV-5): from **Start**. Adaptative BI to *cool*, wait 12 s. *Mode RADIATOR* *fan_only* (tolerated, not managed): the device line shows *AIRCON Virtual (bi)* and the remote icon in amber; the tooltip: "RADIATOR Virtual (bi) runs Fan only · not managed". *AIRCON available* off: the line turns red, with the sync alert; the tooltip gives both reasons, one per line, "AIRCON Virtual (bi) unavailable" first.
-        8. **No active source** (CARD-DEV-7): from **Start**. *Mode RADIATOR* *fan_only*: Adaptative BI stays *off*. The device line shows only the remote icon, in amber, with the same tooltip as in 7.
-        9. **Entity unavailable** (CARD-MISS-1): from **Start**. Adaptative BI to *heat_cool*. *AIRCON available* off, then *RADIATOR available* off: Adaptative BI is `unavailable`. Its dial looks as on *Reference*, its mode bar is greyed out, its device line is empty. The monitoring indicators still show.
+        1. **Active device unavailable** (CARD-DEV-3, CARD-DEV-5)
+           - *From*: **Start** (Adaptative BI *off*; both sources *off* and available).
+           - *Do*: on *Adaptative BI*, press *heat*; wait 12 s. *RADIATOR available* off.
+           - *Expect*: Adaptative BI waits for its source. The device line shows *RADIATOR Virtual (bi)* and the sync alert icon, in red. The tooltip of the icon: "RADIATOR Virtual (bi) unavailable".
+        2. **The reason on a touch screen** (CARD-DEV-6)
+           - *From*: after 1 (Adaptative BI waiting in *heat*; RADIATOR Virtual unavailable).
+           - *Do*: press the sync alert icon; then press the text that shows.
+           - *Expect*: the first press shows "RADIATOR Virtual (bi) unavailable" under the line; the second hides it.
+        3. **Foreign mode** (CARD-DEV-3, CARD-DEV-5)
+           - *From*: **Start** (Adaptative BI *off*; both sources *off* and available).
+           - *Do*: on *Adaptative BI*, press *cool*; wait 12 s. *Mode RADIATOR*: *fan_only*.
+           - *Expect*: Adaptative BI stays in *cool*. The device line shows *AIRCON Virtual (bi)* and the remote icon, in amber. The tooltip of the icon: "RADIATOR Virtual (bi) runs Fan only · not managed".
+        4. **Both reasons** (CARD-DEV-4, CARD-DEV-5)
+           - *From*: after 3 (Adaptative BI *cool*; RADIATOR Virtual in *fan_only*).
+           - *Do*: *AIRCON available* off.
+           - *Expect*: the line turns red, with the sync alert icon. Its tooltip, on two lines: "AIRCON Virtual (bi) unavailable", "RADIATOR Virtual (bi) runs Fan only · not managed".
+        5. **No active device** (CARD-DEV-7)
+           - *From*: **Start** (Adaptative BI *off*; both sources *off* and available).
+           - *Do*: *Mode RADIATOR*: *fan_only*.
+           - *Expect*: Adaptative BI stays *off*. The device line shows no name, only the remote icon in amber, with the tooltip of 3.
 
         </small>
 
-# --- Lists ------------------------------------------------------------------------
-- title: Lists
-  path: lists
+# --- Lists: dropdown --------------------------------------------------------------
+- title: Dropdown
+  path: dropdown
   type: sections
   max_columns: 3
   sections:
@@ -231,22 +568,9 @@ views:
       - type: ac-swing-horizontal-modes
   - type: grid
     cards:
-    - type: custom:adaptative-climate-card
-      entity: climate.adaptative_multi
-      name: MULTI icons
-      features:
-      - type: ac-fan-modes
-        style: icons
-      - type: ac-swing-modes
-        style: icons
-      - type: ac-swing-horizontal-modes
-        style: icons
     - type: entities
-      title: Multi-sources helpers
       state_color: true
       entities:
-      - entity: input_boolean.swing_on_heat_multi
-        name: Swing HEAT on
       - entity: input_boolean.fan_reduced_cool_multi
         name: Fan COOL without medium
     - type: button
@@ -262,22 +586,108 @@ views:
       content: |-
         <small>
 
-        ## Lists
+        ## Dropdown
 
-        - **MULTI dropdown**: the card on Adaptative MULTI (`climate.adaptative_multi`, from the dashboard *Tests multi-sources*), with its mode bar and its lists in `dropdown` style.
-        - **MULTI icons**: the same entity, its lists in `icons` style.
-        - **Multi-sources helpers**: helpers of *Tests multi-sources*. *Swing HEAT on* off: HEAT Virtual has no swing. *Fan COOL without medium* on: *medium* leaves the fan of COOL Virtual.
-        - **Reset the sources (multi)**: the reset of *Tests multi-sources*.
+        **Who is who**
+        - **MULTI dropdown**: the card under test, on Adaptative MULTI (`climate.adaptative_multi`, the entity of *Tests multi-sources*), its lists in `dropdown` style. Its fan offers in *heat*: Auto, Low, Medium, High, Turbo; in *cool*: auto, low, medium, high; in *off*: nothing. No presets.
+        - **Fan COOL without medium**: on, *medium* leaves the fan of *cool*.
 
-        Fan options, written differently on purpose: HEAT Virtual *Auto, Low, Medium, High, Turbo*; COOL Virtual *auto, low, medium, high*; DRY Virtual *AUTO, LOW, HIGH*. Swing and horizontal swing: HEAT and COOL Virtual; swing only: DRY Virtual; neither: FAN_ONLY and AUTO Virtual. No entity of the dev config has presets.
+        **Start**: press **Reset the sources (multi)**. On *MULTI dropdown*, press *heat*, choose the fan *Auto*, then press *off*: Adaptative MULTI keeps the fan *Auto* for *heat*, *cool* and *dry* (it remembers the fan across resets).
 
-        **Start**: **Reset the sources (multi)**, then Adaptative MULTI *off* (on *MULTI dropdown*).
+        1. **Greyed lists** (CARD-LIST-1, CARD-LIST-5)
+           - *From*: **Start** (Adaptative MULTI *off*; fan memory *Auto*).
+           - *Do*: hover the fan list, then press it.
+           - *Expect*: the fan, swing and horizontal swing lists faded: the icon "fan off" or "oscillation off", "—", no arrow. The tooltip: "Fan mode: not offered in this mode". The press opens nothing. No presets list.
+        2. **Closed list** (CARD-LIST-2)
+           - *From*: **Start** (Adaptative MULTI *off*; fan memory *Auto*).
+           - *Do*: press *heat*; hover the fan list.
+           - *Expect*: the fan icon, "Auto" and an arrow. The tooltip: "Fan mode".
+        3. **Open list** (CARD-LIST-3)
+           - *From*: after 2 (*heat*, fan *Auto*).
+           - *Do*: press the fan list.
+           - *Expect*: *Auto*, *Low*, *Medium*, *High*, *Turbo*, in that order, each with its icon; *Auto* checked.
+        4. **Choosing an option** (CARD-LIST-3, CARD-GEN-5)
+           - *From*: after 3 (*heat*, fan *Auto*, the fan list open).
+           - *Do*: choose *High*.
+           - *Expect*: the list closes and shows *High*.
+        5. **Closing without choosing** (CARD-LIST-3)
+           - *From*: after 4 (*heat*, fan *High*).
+           - *Do*: open the fan list, press outside it; open it again, press Escape.
+           - *Expect*: it closes each time, and still shows *High*.
+        6. **Option removed** (CARD-LIST-3)
+           - *From*: **Start** (Adaptative MULTI *off*; fan memory *Auto*).
+           - *Do*: press *cool*; *Fan COOL without medium* on; open the fan list.
+           - *Expect*: *Auto*, *Low*, *High*.
 
-        1. **Greyed lists** (CARD-LIST-1, CARD-LIST-5): from **Start** (in *off*, Adaptative MULTI offers no fan nor swing). On both cards, the fan, swing and horizontal swing lists show, greyed out: faded, the icon of the list "off" (fan off, oscillation off). In `dropdown` style: "—" and no arrow; a press opens nothing. The tooltip: "Fan mode: not offered in this mode". The presets list does not show.
-        2. **Dropdown** (CARD-LIST-2, CARD-LIST-3, CARD-LOOK-4, CARD-GEN-5): from **Start**. On *MULTI dropdown*, *heat*. The fan list shows the fan icon and *Auto*; its tooltip, *Fan mode*. Press it: *Auto, Low, Medium, High, Turbo*, in that order, *Auto* checked, each with its icon. Choose *High*: the list shows *High*, and *High* is filled on *MULTI icons*. A press outside an open list closes it, as Escape.
-        3. **Icons** (CARD-LIST-4, CARD-LIST-6): after 2. On *MULTI icons*, the fan bar has one button per option, in the same order, *High* filled. *Turbo* has the icon of *High* (a synonym). Press *Low*: *MULTI dropdown* shows *Low*. Adaptative MULTI to *dry*: DRY Virtual writes *AUTO, LOW, HIGH*, and the bar shows the icons of *auto*, *low* and *high* (the case does not count). The horizontal swing is greyed out: DRY Virtual has none.
-        4. **Setting lost** (CARD-LIST-1): from **Start**. Adaptative MULTI to *heat*. *Swing HEAT on* off: on both cards, the swing and horizontal swing lists are greyed out, and the cards keep their size. *Swing HEAT on* on: they are back.
-        5. **Options of the mode** (CARD-LIST-3, CARD-LIST-4): from **Start**. Adaptative MULTI to *cool*: the fan offers *Auto, Low, Medium, High*. *Fan COOL without medium* on: *Medium* leaves the list and the bar. Off: it is back.
+        </small>
+
+# --- Lists: icons -----------------------------------------------------------------
+- title: Icons
+  path: icons
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: custom:adaptative-climate-card
+      entity: climate.adaptative_multi
+      name: MULTI icons
+      features:
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+        style: icons
+      - type: ac-swing-modes
+        style: icons
+      - type: ac-swing-horizontal-modes
+        style: icons
+  - type: grid
+    cards:
+    - type: entities
+      state_color: true
+      entities:
+      - entity: input_boolean.swing_on_heat_multi
+        name: Swing HEAT on
+    - type: button
+      entity: script.reset_sources_multi
+      name: Reset the sources (multi)
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Icons
+
+        **Who is who**
+        - **MULTI icons**: the card under test, on Adaptative MULTI (`climate.adaptative_multi`, the entity of *Tests multi-sources*), its lists in `icons` style. Its fan offers in *heat*: Auto, Low, Medium, High, Turbo; in *dry*: AUTO, LOW, HIGH. *heat* has both swings, *dry* the swing only, *off* nothing.
+        - **Swing HEAT on**: off, *heat* has no swing any more.
+
+        **Start**: press **Reset the sources (multi)**. On *MULTI icons*, press *heat*, press *Auto* on the fan bar, then press *off*: Adaptative MULTI keeps the fan *Auto* for *heat*, *cool* and *dry* (it remembers the fan across resets).
+
+        1. **Greyed lists** (CARD-LIST-1, CARD-LIST-5)
+           - *From*: **Start** (Adaptative MULTI *off*; fan memory *Auto*).
+           - *Do*: nothing.
+           - *Expect*: three faded bars, each with one icon: "fan off", then "oscillation off" twice.
+        2. **Bar of icons** (CARD-LIST-4, CARD-LIST-6)
+           - *From*: **Start** (Adaptative MULTI *off*; fan memory *Auto*).
+           - *Do*: press *heat*.
+           - *Expect*: the fan bar has 5 buttons, in the order of the options; *Auto* filled. *Turbo* has the same icon as *High* (a synonym).
+        3. **Pressing a button** (CARD-LIST-4, CARD-GEN-5)
+           - *From*: after 2 (*heat*, fan *Auto*).
+           - *Do*: press the second button of the fan bar (*Low*).
+           - *Expect*: *Low* is filled.
+        4. **Values in capitals** (CARD-LIST-6, CARD-LIST-1)
+           - *From*: **Start** (Adaptative MULTI *off*; fan memory *Auto*).
+           - *Do*: press *dry*.
+           - *Expect*: the fan bar has 3 buttons with the icons of auto, low and high (the case does not count). The horizontal swing is greyed out.
+        5. **Setting lost** (CARD-LIST-1)
+           - *From*: **Start** (Adaptative MULTI *off*; fan memory *Auto*).
+           - *Do*: press *heat*; *Swing HEAT on* off.
+           - *Expect*: the swing bar is greyed out. The card keeps its size.
 
         </small>
 
@@ -329,16 +739,29 @@ views:
 
         ## Layout
 
-        - **Default size**, **Taller**, **Narrow**: the card on Adaptative MULTI (`climate.adaptative_multi`, from the dashboard *Tests multi-sources*) with every feature but the presets, in a sections view: at its default size, 12 rows high, 6 columns wide.
-        - **Reset the sources (multi)**: the reset of *Tests multi-sources*.
+        **Who is who**: the card under test on Adaptative MULTI (`climate.adaptative_multi`), every feature but the presets. *Default size*: no size set. *Taller*: 12 rows high. *Narrow*: 6 columns wide.
 
-        **Start**: **Reset the sources (multi)**, then Adaptative MULTI *heat* (on *Default size*).
+        **Start**: press **Reset the sources (multi)**; on *Default size*, press *heat*.
 
-        1. **Order** (CARD-LOOK-1): from **Start**. Each card shows, from top to bottom: the header, the dial, the device line, the mode bar, the fan, the swing, the horizontal swing.
-        2. **Two per row** (CARD-LOOK-4, CARD-LOOK-6): from **Start**. *Default size*: the fan alone on a row, then the swing and the horizontal swing side by side.
-        3. **A row per list** (CARD-LOOK-5): from **Start**. *Taller*: each list on its own row, and the dial as large as on *Default size*.
-        4. **Narrow** (CARD-LOOK-7, CARD-DEV-2): from **Start**. *Narrow*: each list on its own row; the device line stays on one line, a name too long ends with "…". On a phone, every card is so.
-        5. **Empty device line** (CARD-LOOK-2): from **Start**. Adaptative MULTI to *off*: the device line is empty but keeps its height; the dial does not move.
+        1. **Order of the parts** (CARD-LOOK-1)
+           - *From*: **Start** (Adaptative MULTI *heat*).
+           - *Do*: nothing.
+           - *Expect*: on each card, from top to bottom: title, dial, device line, mode bar, fan, swing, horizontal swing.
+        2. **Lists by size** (CARD-LOOK-4, CARD-LOOK-5, CARD-LOOK-6, CARD-LOOK-7)
+           - *From*: **Start** (Adaptative MULTI *heat*).
+           - *Do*: nothing.
+           - *Expect*:
+             - *Default size*: the fan alone on a row, then both swings side by side;
+             - *Taller*: each list on its own row, the dial as large as on *Default size*;
+             - *Narrow*: each list on its own row.
+        3. **Name too long** (CARD-DEV-2)
+           - *From*: **Start** (Adaptative MULTI *heat*).
+           - *Do*: narrow the window until *Narrow* is at its smallest.
+           - *Expect*: the device line stays on one line; a name that does not fit ends with "…".
+        4. **No device** (CARD-LOOK-2)
+           - *From*: **Start** (Adaptative MULTI *heat*).
+           - *Do*: on *Default size*, press *off*.
+           - *Expect*: the device line is empty but keeps its height: the dial does not move.
 
         </small>
 
@@ -376,18 +799,24 @@ views:
 
       ## Masonry
 
-      - **Masonry**: the card on Adaptative MULTI (`climate.adaptative_multi`, from the dashboard *Tests multi-sources*) in a masonry view: its height is automatic.
-      - **Reference**: the thermostat card of Home Assistant on the same entity, with its features.
-      - **Reset the sources (multi)**: the reset of *Tests multi-sources*.
+      **Who is who**
+      - **Masonry**: the card under test, on Adaptative MULTI (`climate.adaptative_multi`, the entity of *Tests multi-sources*), in a masonry view: its height is automatic.
+      - **Reference**: the thermostat card of Home Assistant, same entity, with its features.
 
-      **Start**: **Reset the sources (multi)**, then Adaptative MULTI *heat* (on *Masonry*).
+      **Start**: press **Reset the sources (multi)**; on *Masonry*, press *heat*.
 
-      1. **Automatic height** (CARD-LOOK-6): from **Start**. *Masonry* packs its lists two per row: the fan alone, then the swing and the horizontal swing side by side. Its dial is as large as on *Reference*.
-      2. **Too narrow** (CARD-LOOK-7): from **Start**. Narrow the window until *Masonry* is too narrow for two lists side by side: each list takes a full row.
+      1. **Automatic height** (CARD-LOOK-6)
+         - *From*: **Start** (Adaptative MULTI *heat*).
+         - *Do*: nothing.
+         - *Expect*: on *Masonry*, the fan alone on a row, then both swings side by side. The dial as large as on *Reference*.
+      2. **Too narrow for two** (CARD-LOOK-7)
+         - *From*: **Start** (Adaptative MULTI *heat*).
+         - *Do*: narrow the window of the browser to the width of a phone.
+         - *Expect*: on *Masonry*, each list on its own row.
 
       </small>
 
-# --- Monitoring ---------------------------------------------------------------------
+# --- Monitoring -------------------------------------------------------------------
 - title: Monitoring
   path: monitoring
   type: sections
@@ -419,7 +848,8 @@ views:
       monitoring: hidden
       grid_options:
         columns: 6
-    - type: glance
+    - &monitor_glance
+      type: glance
       title: Adaptative MONITOR monitoring
       show_state: true
       state_color: true
@@ -429,7 +859,7 @@ views:
       - entity: binary_sensor.adaptative_monitor_monitoring_temperatures
         name: Monitoring temperatures
   - type: grid
-    cards:
+    cards: &monitor_controls
     - type: custom:adaptative-climate-card
       entity: climate.adaptative_monitor
       name: Adaptative MONITOR
@@ -437,7 +867,6 @@ views:
       - type: ac-device
       - type: ac-hvac-modes
     - type: entities
-      title: Monitor helpers
       state_color: true
       entities:
       - entity: input_number.offset_radiator_monitor
@@ -459,17 +888,91 @@ views:
 
         ## Monitoring
 
-        - **always**, **compact**, **errors**, **hidden**: the card on Adaptative MONITOR (`climate.adaptative_monitor`, from the dashboard *Tests monitoring*), with each value of `monitoring`.
+        **Who is who**
+        - **always**, **compact**, **errors**, **hidden**: the card under test, on Adaptative MONITOR (`climate.adaptative_monitor`, the entity of *Tests monitoring*), with that value of `monitoring`. The indicators are at the top left.
         - **Adaptative MONITOR monitoring**: its two monitoring sensors, as Home Assistant shows them.
-        - **Adaptative MONITOR**: the same entity, with its device line and its mode bar, to drive it.
-        - **Monitor helpers**: helpers of *Tests monitoring*. *Offset RADIATOR*: RADIATOR Virtual measures the room plus its offset; more than 2 °C from the room sensor is a problem. *RADIATOR available* off: RADIATOR Virtual is `unavailable`.
-        - **Reset the sources (monitor)**: the reset of *Tests monitoring*.
+        - **Adaptative MONITOR**: the same entity, to change its mode.
+        - **Offset RADIATOR**: RADIATOR Virtual measures the room plus it; 3 makes a temperature problem. **RADIATOR available** off, in *heat*: a sources problem.
 
-        **Start**: **Reset the sources (monitor)**, then Adaptative MONITOR *off*: *Monitoring sources* and *Monitoring temperatures* *OK*.
+        **Start**: press **Reset the sources (monitor)**; on *Adaptative MONITOR*, press *off*; wait until both sensors are *OK*.
 
-        1. **No problem** (CARD-MON-1, CARD-MON-2, CARD-MON-3, CARD-MON-4): from **Start**. *always*: two green indicators, the sync arrows then the thermometer with a check; their tooltips "The devices respond and obey", "The temperatures agree". *compact*: a green dot, its tooltip "No problem". *errors* and *hidden*: nothing.
-        2. **Temperatures** (CARD-MON-1, CARD-MON-2, CARD-MON-3, CARD-MON-4): from **Start**. *Offset RADIATOR* 3: after 15 s, *Monitoring temperatures* goes to *Problem*. *always*: the thermometer with an alert, red; the sync arrows stay green. *compact*: a red dot, its tooltip "The temperatures do not agree". *errors*: the red thermometer alone, on the left. *hidden*: nothing.
-        3. **Both** (CARD-MON-1, CARD-MON-4, CARD-DEV-3): after 2. Adaptative MONITOR to *heat*, wait 12 s. *RADIATOR available* off: after 15 s, *Monitoring sources* goes to *Problem*. *always*: both indicators red, the sync alert and the thermometer alert. *errors*: both, the sources first. *compact*: red, its tooltip gives both problems, one per line. On *Adaptative MONITOR*, the device line: *RADIATOR Virtual (monitor)* in red, with the sync alert.
-        4. **Details** (CARD-MON-5): after 3. On *always*, press the sync alert: the details of *Monitoring sources* open (its *problems* attribute names the source). The thermometer: *Monitoring temperatures*. The dot of *compact*: *Monitoring sources*, the sources first. *RADIATOR available* on, and wait until *Monitoring sources* is *OK*: the dot opens *Monitoring temperatures*.
+        1. **No problem** (CARD-MON-1, CARD-MON-2, CARD-MON-3, CARD-MON-4)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*).
+           - *Do*: hover the indicators of *always*, then the dot of *compact*.
+           - *Expect*:
+             - *always*: two green icons, the sync arrows and the thermometer with a check; tooltips "The devices respond and obey", "The temperatures agree";
+             - *compact*: a green dot, tooltip "No problem";
+             - *errors*, *hidden*: nothing.
+        2. **A temperature problem** (CARD-MON-1, CARD-MON-2, CARD-MON-3, CARD-MON-4)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*).
+           - *Do*: *Offset RADIATOR* 3; wait until *Monitoring temperatures* is *Problem* (15 s).
+           - *Expect*:
+             - *always*: the sync arrows green, the thermometer with an alert red;
+             - *compact*: a red dot, tooltip "The temperatures do not agree";
+             - *errors*: the red thermometer alone;
+             - *hidden*: nothing.
+        3. **Both problems** (CARD-MON-1, CARD-MON-4, CARD-DEV-3)
+           - *From*: after 2 (Adaptative MONITOR *off*; *Monitoring temperatures* *Problem*).
+           - *Do*: on *Adaptative MONITOR*, press *heat*; wait 12 s; *RADIATOR available* off; wait until *Monitoring sources* is *Problem* (15 s).
+           - *Expect*:
+             - *always*: both red, the sync alert and the thermometer alert;
+             - *errors*: both, the sync alert first;
+             - *compact*: a red dot, its tooltip on two lines: "The devices do not respond or do not obey", "The temperatures do not agree";
+             - *Adaptative MONITOR*: the device line *RADIATOR Virtual (monitor)* and the sync alert, in red.
+
+        </small>
+
+# --- Monitoring details -----------------------------------------------------------
+- title: Monitoring details
+  path: monitoring-details
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: custom:adaptative-climate-card
+      entity: climate.adaptative_monitor
+      name: always
+      monitoring: always
+      grid_options:
+        columns: 6
+    - type: custom:adaptative-climate-card
+      entity: climate.adaptative_monitor
+      name: compact
+      monitoring: compact
+      grid_options:
+        columns: 6
+    - *monitor_glance
+  - type: grid
+    cards: *monitor_controls
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Monitoring details
+
+        **Who is who**: as on the view *Monitoring*.
+
+        **Start**: press **Reset the sources (monitor)**; *Offset RADIATOR* 3; on *Adaptative MONITOR*, press *heat*, wait 12 s; *RADIATOR available* off; wait until both sensors are *Problem*.
+
+        1. **The sync alert** (CARD-MON-5)
+           - *From*: **Start** (Adaptative MONITOR *heat*; both sensors *Problem*).
+           - *Do*: on *always*, press the sync alert.
+           - *Expect*: the details of *Monitoring sources* open; its *problems* attribute names RADIATOR Virtual.
+        2. **The thermometer** (CARD-MON-5)
+           - *From*: after 1 (the details of *Monitoring sources* open).
+           - *Do*: close the details; on *always*, press the thermometer alert.
+           - *Expect*: the details of *Monitoring temperatures* open.
+        3. **The dot, both problems** (CARD-MON-5)
+           - *From*: after 2 (the details of *Monitoring temperatures* open).
+           - *Do*: close the details; on *compact*, press the dot.
+           - *Expect*: the details of *Monitoring sources* open (the sources first).
+        4. **The dot, a temperature problem** (CARD-MON-5)
+           - *From*: after 3 (the details of *Monitoring sources* open).
+           - *Do*: close the details; *RADIATOR available* on; wait until *Monitoring sources* is *OK*; press the dot.
+           - *Expect*: the details of *Monitoring temperatures* open.
 
         </small>

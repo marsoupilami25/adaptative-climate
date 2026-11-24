@@ -80,13 +80,22 @@ rules it shows. Its views:
 
 | View | Shows |
 |---|---|
-| Configuration | the errors, every option, "Add card", the visual editor and the YAML |
-| Look | the card next to the thermostat card, in every mode, light and dark, in English, French and another language |
-| Phase and device | the phases of a bi-source `heat_cool`, the device line, the modes not available, the entity `unavailable` |
-| Lists | the lists in `dropdown` and `icons` style, greyed or not |
+| Configuration | the errors, every option |
+| Editor | "Add card", the visual editor |
+| Editor and YAML | the YAML and the editor give the same configuration; a wrong value in the preview |
+| Look | the card next to the thermostat card, in every mode |
+| Theme and language | light and dark; English, French and another language |
+| Phase | the phases of a bi-source `heat_cool` |
+| Modes | the tooltips, the modes not available, the entity `unavailable` |
+| Device line | the device unavailable, a foreign mode |
+| Dropdown, Icons | the lists in each style, greyed or not |
 | Layout | a sections view, at three sizes |
 | Masonry | a masonry view: the height is automatic |
-| Monitoring | the four values of `monitoring` |
+| Monitoring, Monitoring details | the four values of `monitoring`; what a press opens |
+
+Each view fits on one screen. Each scenario gives its starting state
+(**Start** of the view, or after another scenario), the operations, and
+what to expect.
 
 The data are the entities of the manual tests of the integration: its AC
 entities, its virtual sources and their helpers. The card adds no entity.
