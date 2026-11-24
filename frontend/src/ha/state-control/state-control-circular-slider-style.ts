@@ -71,8 +71,17 @@ export const stateControlCircularSliderStyle = css`
   .buttons > * {
     pointer-events: auto;
   }
+  /* AC-PATCH: primary-state-text: the state without a target ("Fan only"),
+     smaller and centered, inside the circle (CARD-DIAL-2) */
   .primary-state {
-    font-size: 36px;
+    font-size: var(--ha-font-size-2xl);
+    line-height: var(--ha-line-height-condensed);
+    text-align: center;
+    max-width: 70%;
+  }
+  .container.sm .primary-state,
+  .container.xs .primary-state {
+    font-size: var(--ha-font-size-l);
   }
   /* AC-PATCH: plus-minus-buttons: the outline of ha-outlined-icon-button, on
      ha-icon-button (48px with its border) */

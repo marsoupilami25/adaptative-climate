@@ -13,11 +13,18 @@ import "../ha/state-control/climate/ha-state-control-climate-temperature";
 import type { HomeAssistant } from "../ha/types";
 import { type AdaptativeClimateCardConfig, CARD_TYPE, checkConfig, stubConfig } from "./config";
 import "./features";
+import { featuresHeight, layOut } from "./features";
 import { localize } from "./localize";
 import "./monitoring";
 import { INDICATOR_WIDTH, indicators, monitoringWidth } from "./monitoring";
 import type { AcClimateEntity } from "./entity";
 import { isAcEntity } from "./registry";
+
+// The layout of the lists (CARD_ARCHITECTURE.md §6)
+const TITLE_HEIGHT = 41; // the title of the thermostat card: 16px x 2, 8px padding
+const DIAL_MAX = 320; // the width of the dial of the thermostat card
+const LIST_MIN_WIDTH = 140; // CARD-ARCH-13
+const PADDING = 12; // around the features
 
 interface GridOptions {
   columns?: number | "full";
@@ -42,6 +49,9 @@ export function phaseEmphasis(stateObj: AcClimateEntity): "low" | "high" | undef
 export class AdaptativeClimateCard extends LitElement {
   @property({ attribute: false }) public hass?: HomeAssistant;
 
+  // "grid" in a section of a dashboard, set by Home Assistant (CARD-ARCH-10)
+  @property({ attribute: false }) public layout?: string;
+
   @state() private _config?: AdaptativeClimateCardConfig;
 
   // The dial gets the height of the container, as on the thermostat card
@@ -50,6 +60,11 @@ export class AdaptativeClimateCard extends LitElement {
       const container = entries[0]?.target.shadowRoot?.querySelector(".container") as HTMLElement | undefined;
       return container?.clientHeight;
     },
+  });
+
+  // The size of the card, for the layout of the lists
+  private _sizeController = new ResizeController(this, {
+    callback: (entries) => entries[0]?.contentRect,
   });
 
   public static getStubConfig(hass: HomeAssistant): AdaptativeClimateCardConfig {
@@ -65,9 +80,31 @@ export class AdaptativeClimateCard extends LitElement {
   }
 
   public getGridOptions(): GridOptions {
-    // As the thermostat card: two thirds of a row per feature (refined in step 6c)
-    const extra = Math.ceil(((this._config?.features?.length ?? 0) * 2) / 3);
+    // The lists counted two per row: the card starts compact (CARD-ARCH-12).
+    // As the thermostat card: two thirds of a grid row per feature row.
+    const stateObj = this._config ? (this.hass?.states[this._config.entity] as AcClimateEntity | undefined) : undefined;
+    const placed = layOut(stateObj, this._config?.features ?? [], true);
+    const featureRows = placed.filter((item) => !item.half).length + placed.filter((item) => item.half).length / 2;
+    const extra = Math.ceil((featureRows * 2) / 3);
     return { columns: 12, rows: 5 + extra, min_columns: 6, min_rows: 2 + extra };
+  }
+
+  /** Lists two per row: when the height is automatic or short, if the width allows (CARD-LOOK-5 to 7). */
+  private _pack(stateObj: AcClimateEntity): boolean {
+    const size = this._sizeController.value;
+    if (!size) {
+      return true;
+    }
+    if ((size.width - 2 * PADDING - 12) / 2 < LIST_MIN_WIDTH) {
+      return false; // too narrow for two (CARD-ARCH-13)
+    }
+    if (this.layout !== "grid" || this._config?.grid_options?.rows === "auto") {
+      return true; // automatic height (CARD-ARCH-10)
+    }
+    // Room in height: the dial at its size, and each list on its own row (CARD-ARCH-11)
+    const oneByRow = featuresHeight(layOut(stateObj, this._config?.features ?? [], false));
+    const dial = Math.min(DIAL_MAX, size.width - 16) + 16;
+    return size.height - TITLE_HEIGHT - PADDING - oneByRow < dial;
   }
 
   private _handleMoreInfo(): void {
@@ -121,7 +158,12 @@ export class AdaptativeClimateCard extends LitElement {
           tabindex="0"
         ></ha-icon-button>
         ${this._config.features?.length
-          ? html`<ac-features .hass=${this.hass} .stateObj=${stateObj} .features=${this._config.features}></ac-features>`
+          ? html`<ac-features
+              .hass=${this.hass}
+              .stateObj=${stateObj}
+              .features=${this._config.features}
+              .pack=${this._pack(stateObj)}
+            ></ac-features>`
           : nothing}
       </ha-card>
     `;

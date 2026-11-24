@@ -159,6 +159,8 @@ Patches, in the order they apply:
 | `emphasis-dial` | `ha-state-control-climate-temperature` | The same property, passed to the slider. | [CARD-PHASE-1](CARD_SPEC.md#card-phase-1) |
 | `compat-labels` | `ha-state-control-climate-temperature` | The labels of the +/− buttons for low and high come after Home Assistant 2026.6. There, `localize` gives "" for them: the generic label is used. The keys are listed in `compat_fallbacks` of `ha-source.json`. | [CARD-GEN-3](CARD_SPEC.md#card-gen-3) |
 | `emphasis-slider` | `ha-control-circular-slider` | A property `emphasis` (`low`, `high`). The handle it names is inverted: its center in its color, its ring white. | [CARD-PHASE-1](CARD_SPEC.md#card-phase-1) |
+| `control-select-dimmed` | `ha-control-select` | An option can be `dimmed`: greyed out, still pressable. | [CARD-MODE-4](CARD_SPEC.md#card-mode-4) |
+| `primary-state-text` | `state-control-circular-slider-style` | The state shown without a target is smaller, centered, inside the circle. | [CARD-DIAL-2](CARD_SPEC.md#card-dial-2) |
 
 **Shims** (written by us, never overwritten by the update script):
 

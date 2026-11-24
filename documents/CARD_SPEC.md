@@ -65,7 +65,8 @@ The integration provides the card ([ENT-CARD-1](SPEC.md#ent-card-1)).
 
 A mono-source `heat`, with a radiator, and all the features in their
 default order ([CARD-CONF-3](#card-conf-3)). Lowercase is a mode not
-selected, capitals the selected one. `*` is the icon of the current mode.
+selected, capitals the selected one. `*` is the icon of the current mode,
+`◇` the icon of a list.
 
 ```text
 ┌────────────────────────────────────────────┐
@@ -80,8 +81,8 @@ selected, capitals the selected one. `*` is the icon of the current mode.
 ├────────────────────────────────────────────┤
 │          * Radiator living room            │  ③ features: ac-device
 │  off │ HEAT │ cool │ h/c │ auto │ dry      │     ac-hvac-modes
-│  Preset  Eco      ▾ │  Fan  Auto        ▾  │     ac-preset-modes, ac-fan-modes
-│  Swing   Off      ▾ │  H. swing  Off    ▾  │     ac-swing-modes, ac-swing-horizontal-modes
+│  ◇ Eco            ▾ │  ◇ Auto           ▾  │     ac-preset-modes, ac-fan-modes
+│  ◇ Off            ▾ │  ◇ Off            ▾  │     ac-swing-modes, ac-swing-horizontal-modes
 └────────────────────────────────────────────┘
 ```
 
@@ -119,6 +120,13 @@ selected, capitals the selected one. `*` is the icon of the current mode.
   details of the entity. This spec only says what differs.
 
   > **Why:** users already know them.
+
+- **CARD-DIAL-2**<a id="card-dial-2"></a> In a mode without a target (for
+  example `fan_only`), the state in the center of the dial is smaller than
+  on the thermostat card, centered, and stays inside the circle.
+
+  > **Why:** on the thermostat card, a long state ("Fan only" in French:
+  > "Ventilation uniquement") fills the dial.
 
 ## 3. Phase
 
@@ -242,11 +250,12 @@ Capitals: the current mode. `( )`: a mode in `unavailable_modes`.
 The lists are the features `ac-preset-modes`, `ac-fan-modes`,
 `ac-swing-modes` and `ac-swing-horizontal-modes`.
 
-In `dropdown` style, a closed list, then an open one:
+In `dropdown` style, a closed list, then an open one. `◇` is the icon of the
+list:
 
 ```text
 ┌──────────────────────┐     ┌──────────────────────┐
-│  Fan  Auto         ▾ │     │  Fan  Auto         ▴ │
+│  ◇ Auto            ▾ │     │  ◇ Auto            ▴ │
 └──────────────────────┘     ├──────────────────────┤
                              │  ✓ Auto              │
                              │    Low               │
@@ -263,16 +272,39 @@ In `icons` style:
 └──────┴──────┴──────┴──────┘
 ```
 
-- **CARD-LIST-1**<a id="card-list-1"></a> A list shows only when the AC
-  entity offers its setting now.
+- **CARD-LIST-1**<a id="card-list-1"></a> A list shows when the AC entity
+  declares its setting ([ENT-FAN-2](SPEC.md#1346-fan-and-swing)). It is
+  greyed out when the current mode offers no option for it.
+
+  > **Why:** the entity keeps the setting in every mode once discovered. The
+  > card keeps the same size from one mode to another.
+
 - **CARD-LIST-2**<a id="card-list-2"></a> In `dropdown` style, a closed list
-  shows its name and the current value.
+  shows the icon of the list and the current value. Its name is in its
+  tooltip.
 - **CARD-LIST-3**<a id="card-list-3"></a> In `dropdown` style, pressing a list
   opens its options, in the order of the AC entity, the current one checked.
   Choosing an option sets it.
 - **CARD-LIST-4**<a id="card-list-4"></a> In `icons` style, a list is a bar
   with one button per option, in the order of the AC entity. The button of
   the current value is filled. Pressing a button sets that option.
+- **CARD-LIST-5**<a id="card-list-5"></a> A greyed list
+  ([CARD-LIST-1](#card-list-1)) is faded, as a mode not available
+  ([CARD-MODE-4](#card-mode-4)). It shows:
+  - the "off" icon of the list when it has one (`fan-off` for the fan,
+    `arrow-oscillating-off` for the swings), else its icon;
+  - "—" as value, and no arrow: it does not open;
+  - in its tooltip, that the current mode does not offer it.
+- **CARD-LIST-6**<a id="card-list-6"></a> The icon of a value is the one Home
+  Assistant gives to that value for a climate entity. The match ignores the
+  case, and knows common synonyms ("quiet", "turbo", "max"...) and numbers
+  ("1", "level 2"...).
+- **CARD-LIST-7**<a id="card-list-7"></a> A value without an icon shows its
+  label only. In `icons` style, when a value has no icon, the whole bar
+  shows the labels.
+
+  > **Why:** devices name their values their own way. A bar of identical
+  > icons cannot be read.
 
 ## 6. Monitoring
 

@@ -50,6 +50,8 @@ export interface AdaptativeClimateCardConfig {
   show_current_as_primary?: boolean;
   monitoring?: MonitoringDisplay;
   features?: FeatureConfig[];
+  // Set by the dashboard, read for the layout of the lists (CARD-ARCH-10)
+  grid_options?: { rows?: number | "auto" };
 }
 
 // The start configuration: all the features, in this order (CARD-CONF-3)

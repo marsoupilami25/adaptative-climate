@@ -61,7 +61,8 @@
     "emphasis-dial",
     "compat-labels",
     "emphasis-slider",
-    "control-select-dimmed"
+    "control-select-dimmed",
+    "primary-state-text"
   ],
   "compat_fallbacks": {
     "ui.components.climate-control.lower_temperature_down": "compat-labels",

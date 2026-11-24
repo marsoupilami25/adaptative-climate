@@ -13,5 +13,8 @@
   "device": {
     "unavailable": "{device} unavailable",
     "foreign": "{device} runs {mode} · not managed"
+  },
+  "list": {
+    "not_offered": "{name}: not offered in this mode"
   }
 }
