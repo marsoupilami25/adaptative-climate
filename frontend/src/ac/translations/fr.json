@@ -16,5 +16,9 @@
   },
   "list": {
     "not_offered": "{name} : non proposé dans ce mode"
+  },
+  "mode": {
+    "not_available": "{mode} : {devices} indisponible",
+    "not_available_unknown": "{mode} : son appareil est indisponible"
   }
 }

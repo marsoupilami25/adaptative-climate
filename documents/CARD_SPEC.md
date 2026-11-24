@@ -49,11 +49,12 @@ The integration provides the card ([ENT-CARD-1](SPEC.md#ent-card-1)).
   card says so.
 - **CARD-GEN-3**<a id="card-gen-3"></a> The card needs Home Assistant 2026.6
   or later ([ENT-HA-3](SPEC.md#ent-ha-3)).
-- **CARD-GEN-4**<a id="card-gen-4"></a> The card shows the AC entity, its
-  monitoring sensors and its source entities. It decides nothing.
+- **CARD-GEN-4**<a id="card-gen-4"></a> The card bases what it shows and
+  how it reacts on the state of the AC entity, of its monitoring sensors and
+  of its source entities. It does not duplicate the logic of the integration.
 
-  > **Why:** the integration owns the behavior. The card stays valid when
-  > the integration changes.
+  > **Why:** the entity is the model, the card the view and the controller.
+  > The card stays valid when the integration changes.
 
 - **CARD-GEN-5**<a id="card-gen-5"></a> Each user action calls a standard
   service of the AC entity: `climate.set_hvac_mode`,
@@ -235,11 +236,12 @@ Capitals: the current mode. `( )`: a mode in `unavailable_modes`.
 - **CARD-MODE-3**<a id="card-mode-3"></a> The button of the current mode is
   filled with the color of the mode.
 - **CARD-MODE-4**<a id="card-mode-4"></a> The button of a mode in
-  `unavailable_modes` is greyed out. It can still be pressed.
+  `unavailable_modes` is greyed out. Pressing it does not ask for the mode: a
+  bubble says that the device of the mode is not available.
 
-  > **Why:** the card decides nothing ([CARD-GEN-4](#card-gen-4)). The
-  > integration answers the request
-  > ([ENT-STATE-4](SPEC.md#1321-state-machine)).
+  > **Why:** the entity tells that it would refuse the mode
+  > ([ENT-STATE-4](SPEC.md#1321-state-machine)). The bubble says why, where a
+  > refused request would only leave an error in the logs.
 
 - **CARD-MODE-5**<a id="card-mode-5"></a> The tooltip of a mode button gives
   the mode and its device (`mode_entity_ids`). For a bi-source `heat_cool`,
