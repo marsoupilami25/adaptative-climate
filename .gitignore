@@ -222,3 +222,5 @@ __marimo__/
 frontend/node_modules/
 custom_components/adaptative_climate/frontend/
 frontend/.cache/
+# The screenshots of the failed component tests of the card (tests/card)
+frontend/.vitest/

@@ -83,3 +83,7 @@ sake of it. Threshold: 95 % of lines and branches, all suites together.
 A Home Assistant configuration with virtual devices (template climates
 driven by helpers) and one dashboard per case, whose scenarios cite the
 rules they show. A change of behavior updates the scenarios too.
+
+The manual tests of the card share this dev instance and its entities, with
+their own dashboard ([CARD_TESTS.md §5](CARD_TESTS.md#5-manual-tests)). The
+card has its own tests: [CARD_TESTS.md](CARD_TESTS.md).

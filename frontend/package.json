@@ -12,7 +12,10 @@
     "build": "vite build",
     "build:debug": "vite build --mode debug",
     "watch": "vite build --watch --mode debug",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p ../tests/card",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:component": "vitest run --project component"
   },
   "dependencies": {
     "@egjs/hammerjs": "2.0.17",
@@ -25,6 +28,7 @@
   },
   "devDependencies": {
     "@vitest/browser-playwright": "^5.1.1",
+    "happy-dom": "^21.0.4",
     "playwright": "^1.65.1",
     "typescript": "6.0.3",
     "vite": "^8.3.8",

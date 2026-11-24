@@ -1,0 +1,13 @@
+{
+  "extends": "../../frontend/tsconfig.json",
+  "compilerOptions": {
+    "types": ["vitest/globals"],
+    "typeRoots": ["../../frontend/node_modules"],
+    "paths": {
+      "lit/decorators": ["../../frontend/node_modules/lit/decorators.js"],
+      "lit/directives/*": ["../../frontend/node_modules/lit/directives/*.js"],
+      "@lit-labs/observers/resize-controller": ["../../frontend/node_modules/@lit-labs/observers/resize-controller.js"]
+    }
+  },
+  "include": ["**/*.ts", "../../frontend/src"]
+}

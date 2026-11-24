@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Link the manual test config and the integration into a Home Assistant
 # config folder. Existing files are moved to <name>.bak first; existing links
-# are replaced.
+# are replaced. packages/ and dashboards/ are folders of links, one per file:
+# the manual tests of the card add their own files there
+# (tests/card/manual/link_config.sh).
 #
 # Usage: tests/integration/manual/link_config.sh [HA_CONFIG_DIR]   (default: ~/ha-dev/config)
 set -euo pipefail
@@ -22,10 +24,27 @@ link() {
   echo "$dest -> $src"
 }
 
+# One link per file of $1 in the folder $2 (a link to a whole folder is
+# replaced); the links to files of $1 that no longer exist are removed.
+link_files() {
+  local src="$1" dest="$2" file
+  [ -L "$dest" ] && rm "$dest"
+  mkdir -p "$dest"
+  for file in "$src"/*.yaml; do
+    link "$file" "$dest/$(basename "$file")"
+  done
+  for file in "$dest"/*.yaml; do
+    if [ -L "$file" ] && [ ! -e "$file" ] && [[ "$(readlink "$file")" == "$src"/* ]]; then
+      rm "$file"
+      echo "Removed $file (its target is gone)"
+    fi
+  done
+}
+
 mkdir -p "$target/custom_components"
 link "$config/configuration.yaml" "$target/configuration.yaml"
-link "$config/packages" "$target/packages"
-link "$config/dashboards" "$target/dashboards"
+link_files "$config/packages" "$target/packages"
+link_files "$config/dashboards" "$target/dashboards"
 link "$repo/custom_components/adaptative_climate" "$target/custom_components/adaptative_climate"
 
 # Files included by configuration.yaml but kept local (edited from the UI).

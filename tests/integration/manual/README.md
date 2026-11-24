@@ -22,7 +22,9 @@ tests/integration/manual/
    tests/integration/manual/link_config.sh ~/ha-dev/config
    ```
 
-   The script links `configuration.yaml`, `packages/`, `dashboards/` and
+   The script links `configuration.yaml`, the files of `packages/` and of
+   `dashboards/` (one link per file: the manual tests of the card add theirs,
+   see [tests/card/README.md](../../card/README.md#manual-tests)) and
    `custom_components/adaptative_climate`. An existing file is first renamed
    to `.bak`. It also downloads [UIX](https://github.com/Lint-Free-Technology/uix)
    (UI eXtension, the maintained successor of card-mod; version pinned in

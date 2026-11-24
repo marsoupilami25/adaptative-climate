@@ -1,0 +1,13 @@
+# The dashboard of the manual tests of the card (tests/card/README.md).
+# Linked into the packages/ folder of the dev config by
+# tests/card/manual/link_config.sh: Home Assistant merges this package into the
+# lovelace config of configuration.yaml, which the card does not touch.
+# The data are the entities of the manual tests of the integration.
+lovelace:
+  dashboards:
+    tests-card:
+      mode: yaml
+      filename: dashboards/card_tests.yaml
+      title: Tests card
+      icon: mdi:thermostat-box
+      show_in_sidebar: true
