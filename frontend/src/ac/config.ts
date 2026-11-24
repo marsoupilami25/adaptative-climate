@@ -54,8 +54,8 @@ export interface AdaptativeClimateCardConfig {
   grid_options?: { rows?: number | "auto" };
 }
 
-// The start configuration: all the features, in this order (CARD-CONF-3)
-export const DEFAULT_FEATURES: FeatureConfig[] = [
+// The features, in the order the editor proposes them (CARD-CONF-4)
+export const FEATURE_ORDER: FeatureConfig[] = [
   { type: "ac-device" },
   { type: "ac-hvac-modes" },
   ...LIST_TYPES.map((type) => ({ type })),
@@ -87,11 +87,10 @@ export function checkConfig(config: unknown): AdaptativeClimateCardConfig {
   return config as AdaptativeClimateCardConfig;
 }
 
-/** The first AC entity, with all the features (CARD-CONF-3). */
+/** The first AC entity, without feature, as the thermostat card (CARD-CONF-3). */
 export function stubConfig(hass: HomeAssistant): AdaptativeClimateCardConfig {
   return {
     type: `custom:${CARD_TYPE}`,
     entity: acClimateEntities(hass)[0] ?? "",
-    features: DEFAULT_FEATURES.map((feature) => ({ ...feature })),
   };
 }

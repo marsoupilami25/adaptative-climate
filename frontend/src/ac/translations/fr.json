@@ -20,5 +20,31 @@
   "mode": {
     "not_available": "{mode} : {devices} indisponible",
     "not_available_unknown": "{mode} : son appareil est indisponible"
+  },
+  "editor": {
+    "entity": "Entité",
+    "name": "Nom",
+    "monitoring": "Surveillance",
+    "show_current_as_primary": "Température actuelle en grand",
+    "monitoring_always": "Toujours",
+    "monitoring_compact": "Compacte (un point)",
+    "monitoring_errors": "Seulement les problèmes",
+    "monitoring_hidden": "Masquée",
+    "features": "Fonctionnalités",
+    "options": "Options",
+    "move_up": "Monter",
+    "move_down": "Descendre",
+    "remove": "Supprimer",
+    "add": "Ajouter une fonctionnalité",
+    "ac-device": "Ligne appareil",
+    "ac-hvac-modes": "Modes",
+    "ac-preset-modes": "Préréglages",
+    "ac-fan-modes": "Ventilation",
+    "ac-swing-modes": "Oscillation",
+    "ac-swing-horizontal-modes": "Oscillation horizontale",
+    "hvac_modes": "Modes affichés",
+    "style": "Style",
+    "style_dropdown": "Liste",
+    "style_icons": "Icônes"
   }
 }

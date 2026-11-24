@@ -46,6 +46,7 @@
   ],
   "used_as_is": {
     "ha-card": "src/components/ha-card.ts",
+    "ha-form": "src/components/ha-form/ha-form.ts",
     "ha-icon": "src/components/ha-icon.ts",
     "ha-icon-button": "src/components/ha-icon-button.ts",
     "ha-svg-icon": "src/components/ha-svg-icon.ts"

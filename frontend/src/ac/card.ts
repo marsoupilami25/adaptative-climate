@@ -12,6 +12,8 @@ import { fireEvent } from "../ha/common/dom/fire_event";
 import "../ha/state-control/climate/ha-state-control-climate-temperature";
 import type { HomeAssistant } from "../ha/types";
 import { type AdaptativeClimateCardConfig, CARD_TYPE, checkConfig, stubConfig } from "./config";
+import "./editor";
+import { loadHaForm } from "./editor";
 import "./features";
 import { featuresHeight, layOut } from "./features";
 import { localize } from "./localize";
@@ -66,6 +68,11 @@ export class AdaptativeClimateCard extends LitElement {
   private _sizeController = new ResizeController(this, {
     callback: (entries) => entries[0]?.contentRect,
   });
+
+  public static async getConfigElement(): Promise<HTMLElement> {
+    await loadHaForm();
+    return document.createElement("adaptative-climate-card-editor");
+  }
 
   public static getStubConfig(hass: HomeAssistant): AdaptativeClimateCardConfig {
     return stubConfig(hass);

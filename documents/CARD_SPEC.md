@@ -64,8 +64,8 @@ The integration provides the card ([ENT-CARD-1](SPEC.md#ent-card-1)).
 
 ## 2. Layout and look
 
-A mono-source `heat`, with a radiator, and all the features in their
-default order ([CARD-CONF-3](#card-conf-3)). Lowercase is a mode not
+A mono-source `heat`, with a radiator, and all the features, in the order
+the editor proposes them ([CARD-CONF-4](#card-conf-4)). Lowercase is a mode not
 selected, capitals the selected one. `*` is the icon of the current mode,
 `◇` the icon of a list.
 
@@ -401,12 +401,13 @@ The AC entity `unavailable`, with a sources problem:
   | `ac-preset-modes`, `ac-fan-modes`, `ac-swing-modes`, `ac-swing-horizontal-modes` | `style` | `dropdown` | `dropdown` or `icons` ([§5.2](#52-lists)). |
 
 - **CARD-CONF-3**<a id="card-conf-3"></a> The card is listed in "Add card".
-  It starts with the first AC entity found, and all the features in this
-  order: `ac-device`, `ac-hvac-modes`, `ac-preset-modes`, `ac-fan-modes`,
-  `ac-swing-modes`, `ac-swing-horizontal-modes`.
+  It starts with the first AC entity found, and no feature, as the thermostat
+  card.
 - **CARD-CONF-4**<a id="card-conf-4"></a> A visual editor sets every option.
   It adds, removes and orders the features, and sets their options, as for
-  the thermostat card.
+  the thermostat card. It proposes the features in this order: `ac-device`,
+  `ac-hvac-modes`, `ac-preset-modes`, `ac-fan-modes`, `ac-swing-modes`,
+  `ac-swing-horizontal-modes`. Each feature can be added once.
 - **CARD-CONF-5**<a id="card-conf-5"></a> The editor and the YAML give the
   same configuration.
 - **CARD-CONF-6**<a id="card-conf-6"></a> An option with a wrong value gives

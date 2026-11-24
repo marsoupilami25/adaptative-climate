@@ -20,5 +20,31 @@
   "mode": {
     "not_available": "{mode}: {devices} unavailable",
     "not_available_unknown": "{mode}: its device is unavailable"
+  },
+  "editor": {
+    "entity": "Entity",
+    "name": "Name",
+    "monitoring": "Monitoring",
+    "show_current_as_primary": "Current temperature in large",
+    "monitoring_always": "Always",
+    "monitoring_compact": "Compact (a dot)",
+    "monitoring_errors": "Only the problems",
+    "monitoring_hidden": "Hidden",
+    "features": "Features",
+    "options": "Options",
+    "move_up": "Move up",
+    "move_down": "Move down",
+    "remove": "Remove",
+    "add": "Add a feature",
+    "ac-device": "Device line",
+    "ac-hvac-modes": "Modes",
+    "ac-preset-modes": "Presets",
+    "ac-fan-modes": "Fan",
+    "ac-swing-modes": "Swing",
+    "ac-swing-horizontal-modes": "Horizontal swing",
+    "hvac_modes": "Modes shown",
+    "style": "Style",
+    "style_dropdown": "List",
+    "style_icons": "Icons"
   }
 }
