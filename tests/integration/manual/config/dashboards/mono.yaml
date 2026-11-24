@@ -2,21 +2,23 @@
 # YAML dashboard: after editing this file, refresh the page in the browser.
 title: Tests mono-mode
 views:
-- title: HEAT
+- title: HEAT 1
   path: heat
   type: sections
   max_columns: 3
   sections:
-  - type: grid
+  - &heat_1
+    type: grid
     cards:
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_heat
       name: Adaptative HEAT
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative HEAT monitoring
       show_state: true
@@ -50,7 +52,8 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-  - type: grid
+  - &heat_2
+    type: grid
     cards:
     - type: entities
       title: HEAT Virtual
@@ -129,43 +132,241 @@ views:
       content: |-
         <small>
 
-        ## Adaptative HEAT
+        ## Adaptative HEAT — on, off, target
 
-        HEAT Virtual: *heat*, 8–30 °C, fan *low*/*high*. Adaptative HEAT: `max_temp` 25.
+        **Who is who**
+        - **Adaptative HEAT**: the entity under test, `max_temp` 25. Its source: HEAT Virtual.
+        - **HEAT Virtual**: *heat*, 8–30 °C, fan *low*/*high*. Its helpers play its remote (*Mode*, *Target*, *Fan*) and its failures (*Available*, *Unknown*, *Obeys the mode*, *Applies settings*, *Offers heat*).
 
-        **Start**: **Reset the sources** (every source of this dashboard): HEAT Virtual *off*, *Target* 20, *Temperature* 20, fan *low*; then Adaptative HEAT *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**
+        - Press **Reset the sources**: HEAT Virtual *off*, *Target* 20, *Temperature* 20, fan *low*, every switch back to normal.
+        - On *Adaptative HEAT*, press *heat*, set the target to 20 and the fan to *low*, then press *off*.
 
-        1. **On, off** (ENT-STATE-3, SRC-REQ-2): from **Start**. Adaptative HEAT to *heat*: on HEAT Virtual, *Mode* goes to *heat*. Adaptative HEAT to *off*: *Mode* goes back to *off*.
-        2. **Range and limit** (ENT-RANGE-1, ENT-RANGE-3): from **Start**. Adaptative HEAT to *heat*: *Min / max* 8 / 25 (HEAT Virtual goes up to 30, `max_temp` narrows it).
-        3. **Target** (ENT-TGT-7, SRC-SET-2): after 2 (*heat*). Target 22 on Adaptative HEAT (23 if it already shows 22): *Target* of HEAT Virtual follows.
-        4. **Turned on on the device** (SRC-STATE-5, SRC-SET-11): from **Start**. On HEAT Virtual, *Target* 19, then *Mode* *heat*: Adaptative HEAT goes to *heat* and shows 19; nothing is sent to HEAT Virtual.
-        5. **Target changed on the device** (SRC-SET-11, ENT-TGT-9): after 4 (*heat*), wait 12 s. On HEAT Virtual, *Target* 23: Adaptative HEAT shows 23.
-        6. **Beyond the limit** (ENT-TGT-3, ENT-TGT-12, ENT-TGT-13): after 5 (*heat*). On HEAT Virtual, *Target* 28: Adaptative HEAT shows 25; *Target gaps*: saved 28, shown 25; *Saved targets*: single 28 (T, the target of *heat*; low and high are not used by Adaptative HEAT). Target 22 on Adaptative HEAT: the gap is gone.
-        7. **Own value during the settle time** (SRC-SET-5, SRC-SET-6, §5.3): from **Start**. Target 21 on Adaptative HEAT (in *off*, it sets T, the target of *heat*). Adaptative HEAT to *heat*, then within 12 s, on HEAT Virtual, *Target* 26: Adaptative HEAT stays at 21; after the 12 s, *Target* of HEAT Virtual goes back to 21.
-        8. **Fan** (ENT-FANV-5, ENT-FANV-1, ENT-FANV-6): from **Start**. Adaptative HEAT to *heat*: with no fan remembered for *heat* (memory forgotten), it takes the fan of HEAT Virtual, *low*. Fan *high* on Adaptative HEAT. Adaptative HEAT *off*; on HEAT Virtual, *Fan* *low*; Adaptative HEAT to *heat*: *Fan* of HEAT Virtual goes back to *high*.
-        9. **Source unavailable** (ENT-NOSRC-2, SRC-STATE-7, SRC-STATE-10, MON-SRC-2): from **Start**. Adaptative HEAT to *heat*. On HEAT Virtual, turn *Available* off: Adaptative HEAT is unavailable (its only source); *Monitoring sources* stays *OK*: the unavailable entity already says it. On HEAT Virtual, *Mode* *off*, then *Available* on: *Mode* goes back to *heat* (Home Assistant wins), Adaptative HEAT too.
-        10. **Source unknown** (SRC-STATE-6): from **Start**, as 9, with *Unknown* (on, then off at the end).
-        11. **Device that does not obey** (SRC-REQ-5, SRC-REQ-6, MON-SRC-3): from **Start**. On HEAT Virtual, turn *Obeys the mode* off. Adaptative HEAT to *heat*: it shows *heat*, *Mode* of HEAT Virtual stays *off*. After 10 s, *Monitoring sources* goes to *Problem* (out of sync). On HEAT Virtual, *Obeys the mode* on: at the next try (30 s at most), *Mode* goes to *heat*, *Monitoring sources* back to *OK*.
-        12. **Mode lost** (SRC-UNUS-2, ENT-HVAC-5): from **Start**. On HEAT Virtual, turn *Offers heat* off: after 20 s (removal confirmation), Adaptative HEAT is unavailable and a repair shows up (*Settings > Repairs*), with a warning in the log. *Offers heat* on: the repair is gone, with an info in the log (`Repairs issue mode_not_supported resolved`).
-        13. **Restart** (ENT-STATE-1, END-2): from **Start**. Adaptative HEAT to *heat*, target 22; restart Home Assistant: Adaptative HEAT resumes *heat* at 22.
-        14. **Fan in off, a single mode** (ENT-FAN-3, ENT-FANV-9): from **Start**. On HEAT Virtual, *Fan* *high*: ignored, Adaptative HEAT is *off*. Adaptative HEAT shows the fan of *heat*, its only mode, even if *heat* never ran (the options HEAT Virtual shows, provisional): fan *low* on it: nothing is sent (HEAT Virtual stays *high*). Adaptative HEAT to *heat*: *Fan* of HEAT Virtual goes to *low*.
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **On** (ENT-STATE-3, SRC-REQ-2)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: on *Adaptative HEAT*, press *heat*.
+           - *Expect*: HEAT Virtual: *Mode* *heat*. The device line of *Adaptative HEAT*: *HEAT Virtual*.
+        2. **Off** (ENT-STATE-3)
+           - *From*: after 1 (Adaptative HEAT *heat*).
+           - *Do*: press *off*.
+           - *Expect*: HEAT Virtual: *Mode* *off*.
+        3. **Range and limit** (ENT-RANGE-1, ENT-RANGE-3)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: press *heat*.
+           - *Expect*: *Min / max* 8 / 25: HEAT Virtual goes up to 30, `max_temp` narrows it.
+        4. **Target** (ENT-TGT-7, SRC-SET-2)
+           - *From*: after 3 (*heat*, target 20).
+           - *Do*: set the target to 22.
+           - *Expect*: HEAT Virtual: *Target* 22.
+        5. **Own value during the settle time** (SRC-SET-5, SRC-SET-6, §5.3)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: set the target to 21 (in *off*, it sets the target of *heat*). Press *heat*; within 12 s, on HEAT Virtual, *Target* 26.
+           - *Expect*: Adaptative HEAT stays at 21. After the 12 s, HEAT Virtual: *Target* back to 21.
 
         </small>
-- title: COOL
+- title: HEAT 2
+  path: heat-2
+  type: sections
+  max_columns: 3
+  sections:
+  - *heat_1
+  - *heat_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative HEAT — takeover on the device
+
+        **Who is who**
+        - **Adaptative HEAT**: the entity under test, `max_temp` 25. Its source: HEAT Virtual.
+        - **HEAT Virtual**: *heat*, 8–30 °C, fan *low*/*high*. Its helpers play its remote (*Mode*, *Target*, *Fan*) and its failures (*Available*, *Unknown*, *Obeys the mode*, *Applies settings*, *Offers heat*).
+
+        **Start**
+        - Press **Reset the sources**: HEAT Virtual *off*, *Target* 20, *Temperature* 20, fan *low*, every switch back to normal.
+        - On *Adaptative HEAT*, press *heat*, set the target to 20 and the fan to *low*, then press *off*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **Turned on on the device** (SRC-STATE-5, SRC-SET-11)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: on HEAT Virtual, *Target* 19, then *Mode* *heat*.
+           - *Expect*: Adaptative HEAT goes to *heat* and shows 19. Nothing is sent to HEAT Virtual.
+        2. **Target changed on the device** (SRC-SET-11, ENT-TGT-9)
+           - *From*: after 1 (*heat*, 19).
+           - *Do*: wait 12 s; on HEAT Virtual, *Target* 23.
+           - *Expect*: Adaptative HEAT shows 23.
+        3. **Beyond the limit** (ENT-TGT-3, ENT-TGT-12, ENT-TGT-13)
+           - *From*: after 2 (*heat*, 23).
+           - *Do*: on HEAT Virtual, *Target* 28.
+           - *Expect*: Adaptative HEAT shows 25. *Target gaps*: saved 28, shown 25. *Saved targets*: single 28 (T, the target of *heat*; Adaptative HEAT uses no low/high).
+        4. **Gap gone** (ENT-TGT-13)
+           - *From*: after 3 (*heat*, 25 shown, 28 saved).
+           - *Do*: on *Adaptative HEAT*, set the target to 22.
+           - *Expect*: *Target gaps* empty. HEAT Virtual: *Target* 22.
+
+        </small>
+- title: HEAT 3
+  path: heat-3
+  type: sections
+  max_columns: 3
+  sections:
+  - *heat_1
+  - *heat_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative HEAT — fan
+
+        **Who is who**
+        - **Adaptative HEAT**: the entity under test, `max_temp` 25. Its source: HEAT Virtual.
+        - **HEAT Virtual**: *heat*, 8–30 °C, fan *low*/*high*. Its helpers play its remote (*Mode*, *Target*, *Fan*) and its failures (*Available*, *Unknown*, *Obeys the mode*, *Applies settings*, *Offers heat*).
+
+        **Start**
+        - Press **Reset the sources**: HEAT Virtual *off*, *Target* 20, *Temperature* 20, fan *low*, every switch back to normal.
+        - On *Adaptative HEAT*, press *heat*, set the target to 20 and the fan to *low*, then press *off*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **Fan of the source** (ENT-FANV-5)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: stop Home Assistant; `tests/integration/manual/reset_memory.sh heat`; start Home Assistant; on *Adaptative HEAT*, press *heat*.
+           - *Expect*: nothing remembered: Adaptative HEAT takes the fan of HEAT Virtual, *low*.
+        2. **Fan remembered** (ENT-FANV-1, ENT-FANV-6)
+           - *From*: after 1 (*heat*, fan *low*).
+           - *Do*: fan *high*; press *off*; on HEAT Virtual, *Fan* *low*; on *Adaptative HEAT*, press *heat*.
+           - *Expect*: HEAT Virtual: *Fan* back to *high*.
+        3. **Fan of the device ignored in off** (ENT-FAN-3)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: on HEAT Virtual, *Fan* *high*.
+           - *Expect*: ignored: Adaptative HEAT, *off*, still shows the fan *low* (the fan of *heat*, its only mode).
+        4. **Fan chosen in off** (ENT-FAN-3, ENT-FANV-9)
+           - *From*: after 3 (Adaptative HEAT *off*, fan *low*; HEAT Virtual fan *high*).
+           - *Do*: on HEAT Virtual, *Fan* *low*; on *Adaptative HEAT*, fan *high*.
+           - *Expect*: Adaptative HEAT shows *high*. Nothing is sent: HEAT Virtual stays *low*.
+        5. **Sent with the mode** (ENT-FANV-9)
+           - *From*: after 4 (Adaptative HEAT *off*, fan *high*; HEAT Virtual fan *low*).
+           - *Do*: press *heat*.
+           - *Expect*: HEAT Virtual: *Fan* *high*.
+
+        </small>
+- title: HEAT 4
+  path: heat-4
+  type: sections
+  max_columns: 3
+  sections:
+  - *heat_1
+  - *heat_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative HEAT — source away, restart
+
+        **Who is who**
+        - **Adaptative HEAT**: the entity under test, `max_temp` 25. Its source: HEAT Virtual.
+        - **HEAT Virtual**: *heat*, 8–30 °C, fan *low*/*high*. Its helpers play its remote (*Mode*, *Target*, *Fan*) and its failures (*Available*, *Unknown*, *Obeys the mode*, *Applies settings*, *Offers heat*).
+
+        **Start**
+        - Press **Reset the sources**: HEAT Virtual *off*, *Target* 20, *Temperature* 20, fan *low*, every switch back to normal.
+        - On *Adaptative HEAT*, press *heat*, set the target to 20 and the fan to *low*, then press *off*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **Source unavailable** (ENT-NOSRC-2, MON-SRC-2)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: press *heat*; on HEAT Virtual, *Available* off.
+           - *Expect*: Adaptative HEAT is unavailable: its only source is away. *Monitoring sources* stays *OK*: the unavailable entity already says it.
+        2. **Source back** (SRC-STATE-7, SRC-STATE-10)
+           - *From*: after 1 (Adaptative HEAT unavailable; HEAT Virtual unavailable).
+           - *Do*: on HEAT Virtual, *Mode* *off*, then *Available* on.
+           - *Expect*: HEAT Virtual: *Mode* back to *heat* (Home Assistant wins). Adaptative HEAT back to *heat*.
+        3. **Source unknown** (SRC-STATE-6)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: press *heat*; on HEAT Virtual, *Unknown* on.
+           - *Expect*: Adaptative HEAT is unavailable. *Monitoring sources* stays *OK*.
+        4. **Source known again** (SRC-STATE-7, SRC-STATE-10)
+           - *From*: after 3 (Adaptative HEAT unavailable; HEAT Virtual unknown).
+           - *Do*: on HEAT Virtual, *Mode* *off*, then *Unknown* off.
+           - *Expect*: HEAT Virtual: *Mode* back to *heat*. Adaptative HEAT back to *heat*.
+        5. **Restart** (ENT-STATE-1, END-2)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: press *heat*, set the target to 22; restart Home Assistant.
+           - *Expect*: Adaptative HEAT resumes *heat* at 22.
+
+        </small>
+- title: HEAT 5
+  path: heat-5
+  type: sections
+  max_columns: 3
+  sections:
+  - *heat_1
+  - *heat_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative HEAT — device that fails
+
+        **Who is who**
+        - **Adaptative HEAT**: the entity under test, `max_temp` 25. Its source: HEAT Virtual.
+        - **HEAT Virtual**: *heat*, 8–30 °C, fan *low*/*high*. Its helpers play its remote (*Mode*, *Target*, *Fan*) and its failures (*Available*, *Unknown*, *Obeys the mode*, *Applies settings*, *Offers heat*).
+
+        **Start**
+        - Press **Reset the sources**: HEAT Virtual *off*, *Target* 20, *Temperature* 20, fan *low*, every switch back to normal.
+        - On *Adaptative HEAT*, press *heat*, set the target to 20 and the fan to *low*, then press *off*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **Device that does not obey** (SRC-REQ-5, MON-SRC-3)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: on HEAT Virtual, *Obeys the mode* off; on *Adaptative HEAT*, press *heat*.
+           - *Expect*: Adaptative HEAT shows *heat*; HEAT Virtual: *Mode* stays *off*. After 10 s, *Monitoring sources* goes to *Problem* (out of sync).
+        2. **Next try** (SRC-REQ-6)
+           - *From*: after 1 (*Monitoring sources* *Problem*).
+           - *Do*: on HEAT Virtual, *Obeys the mode* on.
+           - *Expect*: at the next try (30 s at most), HEAT Virtual: *Mode* *heat*. *Monitoring sources* back to *OK*.
+        3. **Mode lost** (SRC-UNUS-2, ENT-HVAC-5)
+           - *From*: **Start** (Adaptative HEAT *off*, target 20, fan *low*; HEAT Virtual *off*, *Target* 20, fan *low*).
+           - *Do*: on HEAT Virtual, *Offers heat* off; wait 20 s (removal confirmation).
+           - *Expect*: Adaptative HEAT is unavailable. A repair shows up (*Settings > Repairs*), with a warning in the log.
+        4. **Mode back** (ENT-HVAC-5)
+           - *From*: after 3 (the repair shown).
+           - *Do*: on HEAT Virtual, *Offers heat* on.
+           - *Expect*: the repair is gone, with an info in the log: `Repairs issue mode_not_supported resolved`.
+
+        </small>
+- title: COOL 1
   path: cool
   type: sections
   max_columns: 3
   sections:
-  - type: grid
+  - &cool_1
+    type: grid
     cards:
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_cool
       name: Adaptative COOL
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative COOL monitoring
       show_state: true
@@ -199,7 +400,8 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-  - type: grid
+  - &cool_2
+    type: grid
     cards:
     - type: entities
       title: COOL Virtual
@@ -289,18 +491,75 @@ views:
       content: |-
         <small>
 
-        ## Adaptative COOL
+        ## Adaptative COOL — step, fan, swing
 
-        COOL Virtual: *cool*, 16–32 °C by steps of 1 °C, fan *auto*/*low*/*high*, swing *off*/*on*.
+        **Who is who**
+        - **Adaptative COOL**: the entity under test. Its source: COOL Virtual.
+        - **COOL Virtual**: *cool*, 16–32 °C by steps of 1 °C, fan *auto*/*low*/*high*, swing *off*/*on*. Its helpers play its remote and its failures; *Fan without high* on: *high* leaves its fan; *Swing on* off: its swing has no option.
 
-        **Start**: **Reset the sources** (every source of this dashboard): COOL Virtual *off*, *Target* 20, fan *auto*, swing *off*, every option offered; then Adaptative COOL *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**
+        - Press **Reset the sources**: COOL Virtual *off*, *Target* 20, fan *auto*, swing *off*, every option offered.
+        - On *Adaptative COOL*, press *cool*, set the target to 20, the fan to *auto* and the swing to *off*, then press *off*.
 
-        1. **Step** (ENT-STEP-1): from **Start**. Adaptative COOL to *cool*: its target moves by steps of 1 °C.
-        2. **Fan and swing of the source** (ENT-FANV-5, SRC-SET-12): after 1, on the first *cool* after the memory was forgotten only: Adaptative COOL shows the fan (*auto*) and the swing (*off*) of COOL Virtual.
-        3. **Memory** (ENT-FANV-1, ENT-FANV-6): after 1 (*cool*). Fan *low* on Adaptative COOL. Adaptative COOL *off*; on COOL Virtual, *Fan* *high*; Adaptative COOL to *cool*: *Fan* of COOL Virtual goes back to *low*.
-        4. **Option removed** (SRC-DATA-10): after 3 (*cool*, fan *low*). On COOL Virtual, turn *Fan without high* on: Adaptative COOL still offers *high* for 20 s, then no longer.
-        5. **No option left** (ENT-FAN-2, ENT-FAN-4): from **Start**. Adaptative COOL to *cool*. On COOL Virtual, turn *Swing on* off: Adaptative COOL keeps its swing, with no option; a swing asked from *Developer tools > Actions* is refused. ⚠️ *Swing on* only empties the options: COOL Virtual still has the swing (its `SWING_MODE` feature stays, a template climate cannot drop it), so the swing does not disappear. A setting that disappears is tested in the automated tests.
-        6. **Setting not applied** (SRC-SET-9, SRC-SET-10, MON-SRC-4): from **Start**. Adaptative COOL to *cool*, wait 12 s. On COOL Virtual, turn *Applies settings* off. Target one degree higher on Adaptative COOL: it keeps it, *Target* of COOL Virtual does not move. After 30 s (the shortest delay for a setting), *Monitoring sources* goes to *Problem* (setting not applied). On COOL Virtual, *Target* to the same value: back to *OK*.
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **Step** (ENT-STEP-1)
+           - *From*: **Start** (Adaptative COOL *off*, target 20, fan *auto*, swing *off*; COOL Virtual *off*).
+           - *Do*: press *cool*; press + once.
+           - *Expect*: the target goes from 20 to 21: steps of 1 °C.
+        2. **Fan and swing of the source** (ENT-FANV-5, SRC-SET-12)
+           - *From*: **Start** (Adaptative COOL *off*, target 20, fan *auto*, swing *off*; COOL Virtual *off*).
+           - *Do*: stop Home Assistant; `tests/integration/manual/reset_memory.sh cool`; start Home Assistant; on *Adaptative COOL*, press *cool*.
+           - *Expect*: nothing remembered: Adaptative COOL shows the fan (*auto*) and the swing (*off*) of COOL Virtual.
+        3. **Fan remembered** (ENT-FANV-1, ENT-FANV-6)
+           - *From*: **Start** (Adaptative COOL *off*, target 20, fan *auto*, swing *off*; COOL Virtual *off*).
+           - *Do*: press *cool*, fan *low*; press *off*; on COOL Virtual, *Fan* *high*; on *Adaptative COOL*, press *cool*.
+           - *Expect*: COOL Virtual: *Fan* back to *low*.
+        4. **Option removed** (SRC-DATA-10)
+           - *From*: after 3 (*cool*, fan *low*).
+           - *Do*: on COOL Virtual, *Fan without high* on.
+           - *Expect*: Adaptative COOL still offers *high* for 20 s, then no longer.
+
+        </small>
+- title: COOL 2
+  path: cool-2
+  type: sections
+  max_columns: 3
+  sections:
+  - *cool_1
+  - *cool_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative COOL — no option, setting not applied
+
+        **Who is who**
+        - **Adaptative COOL**: the entity under test. Its source: COOL Virtual.
+        - **COOL Virtual**: *cool*, 16–32 °C by steps of 1 °C, fan *auto*/*low*/*high*, swing *off*/*on*. Its helpers play its remote and its failures; *Fan without high* on: *high* leaves its fan; *Swing on* off: its swing has no option.
+
+        **Start**
+        - Press **Reset the sources**: COOL Virtual *off*, *Target* 20, fan *auto*, swing *off*, every option offered.
+        - On *Adaptative COOL*, press *cool*, set the target to 20, the fan to *auto* and the swing to *off*, then press *off*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **No option left** (ENT-FAN-2, ENT-FAN-4)
+           - *From*: **Start** (Adaptative COOL *off*, target 20, fan *auto*, swing *off*; COOL Virtual *off*).
+           - *Do*: press *cool*; on COOL Virtual, *Swing on* off; wait 20 s. From *Developer tools > Actions*, ask a swing of Adaptative COOL.
+           - *Expect*: Adaptative COOL keeps its swing, greyed out, with no option. The swing asked is refused.
+           - ⚠️ *Swing on* only empties the options: a template climate cannot drop its swing. A setting that disappears is tested in the automated tests.
+        2. **Setting not applied** (SRC-SET-9, SRC-SET-10, MON-SRC-4)
+           - *From*: **Start** (Adaptative COOL *off*, target 20, fan *auto*, swing *off*; COOL Virtual *off*).
+           - *Do*: press *cool*, wait 12 s; on COOL Virtual, *Applies settings* off; on *Adaptative COOL*, press + once.
+           - *Expect*: Adaptative COOL keeps 21; COOL Virtual: *Target* stays 20. After 30 s (the shortest delay for a setting), *Monitoring sources* goes to *Problem* (setting not applied).
+        3. **Setting applied on the device** (MON-SRC-4)
+           - *From*: after 2 (*Monitoring sources* *Problem*).
+           - *Do*: on COOL Virtual, *Target* 21.
+           - *Expect*: *Monitoring sources* back to *OK*.
 
         </small>
 - title: DEHUM
@@ -308,16 +567,18 @@ views:
   type: sections
   max_columns: 3
   sections:
-  - type: grid
+  - &dehum_1
+    type: grid
     cards:
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_dehum
       name: Adaptative DEHUM
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative DEHUM monitoring
       show_state: true
@@ -351,7 +612,8 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-  - type: grid
+  - &dehum_2
+    type: grid
     cards:
     - type: entities
       title: DEHUM Virtual
@@ -429,12 +691,28 @@ views:
 
         ## Adaptative DEHUM
 
-        DEHUM Virtual: *dry*, no target, fan *low*/*high*.
+        **Who is who**
+        - **Adaptative DEHUM**: the entity under test. Its source: DEHUM Virtual.
+        - **DEHUM Virtual**: *dry*, no target, fan *low*/*high*.
 
-        **Start**: **Reset the sources** (every source of this dashboard): DEHUM Virtual *off*, fan *low*; then Adaptative DEHUM *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**
+        - Press **Reset the sources**: DEHUM Virtual *off*, fan *low*.
+        - On *Adaptative DEHUM*, press *dry*, set the fan to *low*, then press *off*.
 
-        1. **No target** (ENT-FEAT-1, §1.3.4.3): from **Start**. Adaptative DEHUM to *dry*: no target shown, none is sent.
-        2. **Fan** (ENT-FANV-5): after 1 (*dry*). On the first *dry* after the memory was forgotten, Adaptative DEHUM shows the fan of DEHUM Virtual, *low*. Fan *high* on Adaptative DEHUM (*low* if it already shows *high*): *Fan* of DEHUM Virtual follows.
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **No target** (ENT-FEAT-1, §1.3.4.3)
+           - *From*: **Start** (Adaptative DEHUM *off*, fan *low*).
+           - *Do*: press *dry*.
+           - *Expect*: no target shown, none sent.
+        2. **Fan of the source** (ENT-FANV-5)
+           - *From*: **Start** (Adaptative DEHUM *off*, fan *low*).
+           - *Do*: stop Home Assistant; `tests/integration/manual/reset_memory.sh dehum`; start Home Assistant; on *Adaptative DEHUM*, press *dry*.
+           - *Expect*: nothing remembered: Adaptative DEHUM shows the fan of DEHUM Virtual, *low*.
+        3. **Fan sent** (ENT-FANV-1)
+           - *From*: after 2 (*dry*, fan *low*).
+           - *Do*: fan *high*.
+           - *Expect*: DEHUM Virtual: *Fan* *high*.
 
         </small>
 - title: FAN_ONLY
@@ -442,16 +720,18 @@ views:
   type: sections
   max_columns: 3
   sections:
-  - type: grid
+  - &fan_only_1
+    type: grid
     cards:
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_fan_only
       name: Adaptative FAN_ONLY
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative FAN_ONLY monitoring
       show_state: true
@@ -485,7 +765,8 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-  - type: grid
+  - &fan_only_2
+    type: grid
     cards:
     - type: entities
       title: FAN_ONLY Virtual
@@ -563,11 +844,28 @@ views:
 
         ## Adaptative FAN_ONLY
 
-        FAN_ONLY Virtual: *fan_only*, fan *low*/*medium*/*high*.
+        **Who is who**
+        - **Adaptative FAN_ONLY**: the entity under test. Its source: FAN_ONLY Virtual.
+        - **FAN_ONLY Virtual**: *fan_only*, fan *low*/*medium*/*high*.
 
-        **Start**: **Reset the sources** (every source of this dashboard): FAN_ONLY Virtual *off*, fan *low*; then Adaptative FAN_ONLY *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**
+        - Press **Reset the sources**: FAN_ONLY Virtual *off*, fan *low*.
+        - On *Adaptative FAN_ONLY*, press *fan_only*, set the fan to *low*, then press *off*.
 
-        1. **Fan only** (§1.3.4.3, ENT-FANV-1): from **Start**. Adaptative FAN_ONLY to *fan_only*: no target. Fan *medium* on Adaptative FAN_ONLY (*high* if it already shows *medium*): *Fan* of FAN_ONLY Virtual follows; Adaptative FAN_ONLY *off*, then *fan_only*: that fan comes back.
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **No target** (§1.3.4.3)
+           - *From*: **Start** (Adaptative FAN_ONLY *off*, fan *low*).
+           - *Do*: press *fan_only*.
+           - *Expect*: no target shown.
+        2. **Fan sent** (ENT-FANV-1)
+           - *From*: after 1 (*fan_only*, fan *low*).
+           - *Do*: fan *medium*.
+           - *Expect*: FAN_ONLY Virtual: *Fan* *medium*.
+        3. **Fan remembered** (ENT-FANV-1)
+           - *From*: after 2 (*fan_only*, fan *medium*).
+           - *Do*: press *off*, then *fan_only*.
+           - *Expect*: FAN_ONLY Virtual: *Fan* *medium*.
 
         </small>
 - title: AUTO
@@ -575,16 +873,18 @@ views:
   type: sections
   max_columns: 3
   sections:
-  - type: grid
+  - &auto_1
+    type: grid
     cards:
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_auto
       name: Adaptative AUTO
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative AUTO monitoring
       show_state: true
@@ -618,7 +918,8 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-  - type: grid
+  - &auto_2
+    type: grid
     cards:
     - type: entities
       title: AUTO Virtual
@@ -692,28 +993,39 @@ views:
 
         ## Adaptative AUTO
 
-        AUTO Virtual: *auto*, single target, 10–30 °C.
+        **Who is who**
+        - **Adaptative AUTO**: the entity under test. Its source: AUTO Virtual.
+        - **AUTO Virtual**: *auto*, a single target, 10–30 °C.
 
-        **Start**: **Reset the sources** (every source of this dashboard): AUTO Virtual *off*, *Target* 20; then Adaptative AUTO *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**
+        - Press **Reset the sources**: AUTO Virtual *off*, *Target* 20.
+        - On *Adaptative AUTO*, press *auto*, set the target to 20, then press *off*.
 
-        1. **Single target** (ENT-TGT-7): from **Start**. Adaptative AUTO to *auto*, target 23 (24 if it already shows 23): *Target* of AUTO Virtual follows.
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **Single target** (ENT-TGT-7)
+           - *From*: **Start** (Adaptative AUTO *off*, target 20).
+           - *Do*: press *auto*; set the target to 23.
+           - *Expect*: Adaptative AUTO shows a single target. AUTO Virtual: *Target* 23.
 
         </small>
-- title: HEAT_COOL
+- title: HEAT_COOL 1
   path: heat_cool
   type: sections
   max_columns: 3
   sections:
-  - type: grid
+  - &heat_cool_1
+    type: grid
     cards:
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_heat_cool
       name: Adaptative HEAT_COOL
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative HEAT_COOL monitoring
       show_state: true
@@ -748,7 +1060,8 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-  - type: grid
+  - &heat_cool_2
+    type: grid
     cards:
     - type: entities
       title: HEAT_COOL Virtual
@@ -822,17 +1135,82 @@ views:
       content: |-
         <small>
 
-        ## Adaptative HEAT_COOL
+        ## Adaptative HEAT_COOL — low and high, minimum gap
 
-        HEAT_COOL Virtual: *heat_cool* with a low/high target, 16–30 °C. Adaptative HEAT_COOL: `min_gap` 2.
+        **Who is who**
+        - **Adaptative HEAT_COOL**: the entity under test, `min_gap` 2. Its source: HEAT_COOL Virtual.
+        - **HEAT_COOL Virtual**: *heat_cool* with a low/high target, 16–30 °C.
 
-        **Start**: **Reset the sources** (every source of this dashboard): HEAT_COOL Virtual *off*, 19–25; then Adaptative HEAT_COOL *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**
+        - Press **Reset the sources**: HEAT_COOL Virtual *off*, *Target low* 19, *Target high* 25.
+        - On *Adaptative HEAT_COOL*, press *heat_cool*, set 19–24 (raise high first if needed), then press *off*.
 
-        1. **Low and high** (§1.3.4.3): from **Start**. Adaptative HEAT_COOL to *heat_cool*: it shows a range; set 19–24: *Target low* of HEAT_COOL Virtual 19, *Target high* 24.
-        2. **Minimum gap** (ENT-TGT-6, §2.2): after 1 (19–24). *Min gap* shows 2. Raise low to 22 (22–24). Raise low to 23: high goes to 25, HEAT_COOL Virtual gets 23–25. Lower high to 24: low goes to 22, HEAT_COOL Virtual gets 22–24. While dragging, the card stops low at high (and high at low): it does not know the gap, and only sends on release; to go from 22–24 to 25–27, raise high first.
-        3. **Gap at the end of the range** (ENT-TGT-6, ENT-TGT-7): after 2 (*heat_cool*). Set 28–30 (high first). Raise low to 29: the card goes back to 28–30; again: back to 28–30 again. Set 16–18 (low first), lower high to 17: the card goes back to 16–18.
-        4. **Takeover** (ENT-TGT-9): after 3 (*heat_cool*). Set 19–24 (high first), wait 12 s. On HEAT_COOL Virtual, *Target low* 23: Adaptative HEAT_COOL shows 23–25, *Target high* of HEAT_COOL Virtual goes to 25. *Target high* 22: Adaptative HEAT_COOL shows 20–22, *Target low* of HEAT_COOL Virtual goes to 20.
-        5. **Takeover at the end of the range** (ENT-TGT-9): after 4 (20–22). On HEAT_COOL Virtual, *Target high* 30, then *Target low* 29.5: Adaptative HEAT_COOL shows 29.5–30 (the source wins, the gap is broken); HEAT_COOL Virtual keeps 29.5–30.
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        The card only knows the gap on release: while dragging, it stops low at high, and high at low.
+
+        1. **Low and high** (§1.3.4.3)
+           - *From*: **Start** (Adaptative HEAT_COOL *off*, range 19–24).
+           - *Do*: press *heat_cool*.
+           - *Expect*: a range, 19–24. HEAT_COOL Virtual: *Target low* 19, *Target high* 24.
+        2. **Gap kept by low** (ENT-TGT-6, §2.2)
+           - *From*: after 1 (*heat_cool*, 19–24).
+           - *Do*: raise low to 22, then to 23.
+           - *Expect*: *Min gap* 2. At 23, high goes to 25: 23–25; HEAT_COOL Virtual gets 23–25.
+        3. **Gap kept by high** (ENT-TGT-6)
+           - *From*: after 2 (*heat_cool*, 23–25).
+           - *Do*: lower high to 24.
+           - *Expect*: low goes to 22: 22–24; HEAT_COOL Virtual gets 22–24.
+        4. **Gap at the top of the range** (ENT-TGT-6, ENT-TGT-7)
+           - *From*: after 3 (*heat_cool*, 22–24).
+           - *Do*: set 28–30 (high first); raise low to 29.
+           - *Expect*: the card goes back to 28–30.
+        5. **Gap at the bottom of the range** (ENT-TGT-6, ENT-TGT-7)
+           - *From*: after 4 (*heat_cool*, 28–30).
+           - *Do*: set 16–18 (low first); lower high to 17.
+           - *Expect*: the card goes back to 16–18.
+
+        </small>
+- title: HEAT_COOL 2
+  path: heat_cool-2
+  type: sections
+  max_columns: 3
+  sections:
+  - *heat_cool_1
+  - *heat_cool_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative HEAT_COOL — takeover
+
+        **Who is who**
+        - **Adaptative HEAT_COOL**: the entity under test, `min_gap` 2. Its source: HEAT_COOL Virtual.
+        - **HEAT_COOL Virtual**: *heat_cool* with a low/high target, 16–30 °C.
+
+        **Start**
+        - Press **Reset the sources**: HEAT_COOL Virtual *off*, *Target low* 19, *Target high* 25.
+        - On *Adaptative HEAT_COOL*, press *heat_cool*, set 19–24 (raise high first if needed), then press *off*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        The card only knows the gap on release: while dragging, it stops low at high, and high at low.
+
+        1. **Low changed on the device** (ENT-TGT-9)
+           - *From*: **Start** (Adaptative HEAT_COOL *off*, range 19–24).
+           - *Do*: press *heat_cool*, wait 12 s; on HEAT_COOL Virtual, *Target low* 23.
+           - *Expect*: Adaptative HEAT_COOL shows 23–25. HEAT_COOL Virtual: *Target high* goes to 25.
+        2. **High changed on the device** (ENT-TGT-9)
+           - *From*: after 1 (*heat_cool*, 23–25).
+           - *Do*: on HEAT_COOL Virtual, *Target high* 22.
+           - *Expect*: Adaptative HEAT_COOL shows 20–22. HEAT_COOL Virtual: *Target low* goes to 20.
+        3. **Takeover at the end of the range** (ENT-TGT-9)
+           - *From*: after 2 (*heat_cool*, 20–22).
+           - *Do*: on HEAT_COOL Virtual, *Target high* 30, then *Target low* 29.5.
+           - *Expect*: Adaptative HEAT_COOL shows 29.5–30: the source wins, the gap is broken. HEAT_COOL Virtual keeps 29.5–30.
 
         </small>
 - title: OFFSET
@@ -840,16 +1218,18 @@ views:
   type: sections
   max_columns: 3
   sections:
-  - type: grid
+  - &offset_1
+    type: grid
     cards:
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_offset
       name: Adaptative OFFSET
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative OFFSET monitoring
       show_state: true
@@ -883,7 +1263,8 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-  - type: grid
+  - &offset_2
+    type: grid
     cards:
     - type: entities
       title: HEATPUMP Virtual
@@ -957,15 +1338,32 @@ views:
 
         ## Adaptative OFFSET
 
-        HEATPUMP Virtual: *heat* and *dry*, 10–30 °C, reads 2 °C warmer than the room. Adaptative OFFSET: `heat_offset` = `dry_offset` = 2, `max_temp` 26.
+        **Who is who**
+        - **Adaptative OFFSET**: the entity under test, `heat_offset` = `dry_offset` = 2, `max_temp` 26. Its source: HEATPUMP Virtual, in *heat* and *dry*.
+        - **HEATPUMP Virtual**: *heat* and *dry*, 10–30 °C. It reads 2 °C warmer than the room: Adaptative OFFSET shows its temperature minus 2, and sends its targets plus 2.
 
-        **Start**: **Reset the sources** (every source of this dashboard): HEATPUMP Virtual *off*, *Target* 20, *Temperature* 20; then Adaptative OFFSET *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**
+        - Press **Reset the sources**: HEATPUMP Virtual *off*, *Target* 20, *Temperature* 20.
+        - On *Adaptative OFFSET*, press *heat*, set the target to 20, then press *off*.
 
-        1. **Reading** (ENT-REF-5, CFG-SENS-1): from **Start**. On HEATPUMP Virtual, *Temperature* 22; Adaptative OFFSET to *heat*: it shows 20.
-        2. **Target sent** (CFG-SENS-1, ENT-TGT-8): after 1 (*heat*). Target 21 on Adaptative OFFSET: *Target* of HEATPUMP Virtual goes to 23 (22 and 24 if it already shows 21).
-        3. **Range** (ENT-RANGE-1, ENT-RANGE-3): after 1 (*heat*). *Min / max* 8 / 26 (10–30 minus 2, narrowed to 26).
-        4. **Takeover** (ENT-TGT-9): after 2 (*heat*), wait 12 s. On HEATPUMP Virtual, *Target* 25: Adaptative OFFSET shows 23.
-        5. **Same offset in dry** (CFG-SENS-4): after 4. Adaptative OFFSET to *dry*, target 20: *Target* of HEATPUMP Virtual goes to 22.
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **Reading and range** (ENT-REF-5, CFG-SENS-1, ENT-RANGE-1, ENT-RANGE-3)
+           - *From*: **Start** (Adaptative OFFSET *off*, target 20).
+           - *Do*: on HEATPUMP Virtual, *Temperature* 22; on *Adaptative OFFSET*, press *heat*.
+           - *Expect*: Adaptative OFFSET shows 20 as current temperature. *Min / max* 8 / 26: 10–30 minus 2, narrowed to 26.
+        2. **Target sent** (CFG-SENS-1, ENT-TGT-8)
+           - *From*: after 1 (*heat*, target 20).
+           - *Do*: set the target to 21.
+           - *Expect*: HEATPUMP Virtual: *Target* 23.
+        3. **Takeover** (ENT-TGT-9)
+           - *From*: after 2 (*heat*, 21).
+           - *Do*: wait 12 s; on HEATPUMP Virtual, *Target* 25.
+           - *Expect*: Adaptative OFFSET shows 23.
+        4. **Same offset in dry** (CFG-SENS-4)
+           - *From*: after 3 (*heat*, 23).
+           - *Do*: press *dry*; set the target to 20.
+           - *Expect*: HEATPUMP Virtual: *Target* 22.
 
         </small>
 - title: TRV
@@ -973,16 +1371,18 @@ views:
   type: sections
   max_columns: 3
   sections:
-  - type: grid
+  - &trv_1
+    type: grid
     cards:
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_trv
       name: Adaptative TRV
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative TRV monitoring
       show_state: true
@@ -1016,7 +1416,8 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-  - type: grid
+  - &trv_2
+    type: grid
     cards:
     - type: entities
       title: TRV Virtual
@@ -1102,15 +1503,32 @@ views:
 
         ## Adaptative TRV
 
-        A radiator valve measures the temperature next to the radiator, too warm; it can take the room temperature instead, written into it from outside.
+        **Who is who**
+        - **Adaptative TRV**: the entity under test. Its source: TRV Virtual, a radiator valve; it measures next to the radiator, too warm.
+        - **TRV Virtual**: *Temperature (measured by the valve)*: its own reading. *External temperature (written by Adaptative TRV)*: the room temperature Adaptative TRV writes into it (`heat_external_sensor`, step 0.5, written again every 60 s).
+        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative TRV. *Room temperature* sets it; *Room sensor available* off makes it unavailable; *Read by Adaptative TRV*: what the entity sees.
 
-        - **TRV Virtual**: the valve, `heat_entity` of Adaptative TRV. *Temperature (measured by the valve)*: its own reading. *External temperature (written by Adaptative TRV)*: the room temperature it gets (`heat_external_sensor`, step 0.5, written again every 60 s).
-        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative TRV. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable; *Read by Adaptative TRV* is what the entity sees.
+        **Start**
+        - Press **Reset the sources**: TRV Virtual *off*, *Temperature* 20; *Room temperature* 20, room sensor available.
+        - On *Adaptative TRV*, press *off*.
 
-        **Start**: **Reset the sources** (every source of this dashboard): TRV Virtual *off*, *Temperature* 20; *Room temperature* 20, room sensor available; then Adaptative TRV *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
 
-        1. **Write** (ENT-EXT-1, ENT-EXT-2): from **Start**. On Room sensor, *Room temperature* 21.3: on TRV Virtual, *External temperature* goes to 21.5 (the step of the valve), even with Adaptative TRV *off*.
-        2. **Reference** (ENT-REF-1): after 1. Adaptative TRV shows 21.3 (*Reference temperature*), the room temperature, not the *Temperature* measured by TRV Virtual.
-        3. **Sensor without value** (ENT-EXT-5, MON-TEMP-4, ENT-REF-2): after 2. On Room sensor, turn *Room sensor available* off: *External temperature* no longer changes; Adaptative TRV to *heat*: it shows the *Temperature* measured by TRV Virtual. After 15 s, *Monitoring temperatures* goes to *Problem*. *Room sensor available* on: *External temperature* is written at once, back to *OK*.
+        1. **Written** (ENT-EXT-1, ENT-EXT-2)
+           - *From*: **Start** (Adaptative TRV *off*; room 20).
+           - *Do*: *Room temperature* 21.3.
+           - *Expect*: TRV Virtual: *External temperature* 21.5 (the step of the valve), even with Adaptative TRV *off*.
+        2. **Reference** (ENT-REF-1)
+           - *From*: after 1 (room 21.3).
+           - *Do*: nothing.
+           - *Expect*: Adaptative TRV shows 21.3 as current temperature (*Reference temperature*): the room, not the valve.
+        3. **Sensor without value** (ENT-EXT-5, MON-TEMP-4, ENT-REF-2)
+           - *From*: after 2 (room 21.3).
+           - *Do*: *Room sensor available* off; on *Adaptative TRV*, press *heat*.
+           - *Expect*: *External temperature* no longer changes. Adaptative TRV shows the *Temperature* measured by TRV Virtual. After 15 s, *Monitoring temperatures* goes to *Problem*.
+        4. **Sensor back** (ENT-EXT-1, MON-TEMP-4)
+           - *From*: after 3 (*heat*; room sensor unavailable).
+           - *Do*: *Room sensor available* on.
+           - *Expect*: *External temperature* is written at once. *Monitoring temperatures* back to *OK*.
 
         </small>

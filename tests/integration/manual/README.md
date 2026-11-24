@@ -127,19 +127,32 @@ device). Every entity shares the short delays of the tests (anchor
 confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s. A
 setting not applied is still reported after 30 s at least (MON-SRC-4).
 
-Each view fits on one screen: the entity (thermostat; its monitoring card with
-`binary_sensor.<name>_monitoring_sources` and `_monitoring_temperatures`, *OK*
-or *Problem*; then its problems and attributes), its sources, then its
-scenarios, in columns. *Tests multi-sources*
-and *Tests manual* have their sources on a second view.
+The entity is shown by the card of Adaptative Climate
+([CARD_SPEC.md](../../../documents/CARD_SPEC.md)), with its device line, its
+mode bar, its fan and its swings. Build the card first (`cd frontend && npm
+run build`, or `npm run watch`, see [dev/README.md](../../../dev/README.md#card)).
+The sources keep the cards of Home Assistant: the card of Adaptative Climate
+shows AC entities only.
 
-Each view defines its **Start**: **Reset the sources**, the state of the
-entity under test, and the targets it needs. Each step says where it starts
-from: "from **Start**", or "after N" when it goes on from step N; a step never
-relies on another one without saying so. A step that depends on the memory of
-the entity (a value it may already hold, a first discovery) says what to do
-when that memory differs (another value, or the memory forgotten with
-`reset_memory.sh`).
+Each view fits on one screen, in columns: the entity (its card; its
+monitoring card with `binary_sensor.<name>_monitoring_sources` and
+`_monitoring_temperatures`, *OK* or *Problem*; then its problems and
+attributes), its sources, then a few scenarios. A case with more scenarios
+has several views (*BI 1*, *BI 2*...), with the same cards. *Tests
+multi-sources* and *Tests manual* have their sources on a view of their own.
+
+Each view gives its **Start**: **Reset the sources**, then what to set on
+the entity under test, including what it remembers (targets, fan), which
+the reset does not touch. Each scenario has three parts:
+
+- *From*: the state it starts from, **Start** or "after N" (a scenario of
+  the same view), with the values that matter (mode, targets, phase,
+  helpers);
+- *Do*: the operations;
+- *Expect*: what to see.
+
+A scenario that needs the memory of the entity forgotten says so in its
+*Do* (`reset_memory.sh`, Home Assistant stopped).
 
 ## When the behavior changes
 

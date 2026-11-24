@@ -82,7 +82,9 @@ sake of it. Threshold: 95 % of lines and branches, all suites together.
 
 A Home Assistant configuration with virtual devices (template climates
 driven by helpers) and one dashboard per case, whose scenarios cite the
-rules they show. A change of behavior updates the scenarios too.
+rules they show. A change of behavior updates the scenarios too. The
+dashboards show the entities under test with the card of Adaptative Climate:
+it must be built first (`tests/integration/manual/README.md`).
 
 The manual tests of the card share this dev instance and its entities, with
 their own dashboard ([CARD_TESTS.md §5](CARD_TESTS.md#5-manual-tests)). The

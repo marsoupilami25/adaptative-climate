@@ -2,21 +2,23 @@
 # YAML dashboard: after editing this file, refresh the page in the browser.
 title: Tests single source
 views:
-- title: ALL
+- title: ALL 1
   path: pilotage
   type: sections
   max_columns: 3
   sections:
-  - type: grid
+  - &all_1
+    type: grid
     cards:
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_all
       name: Adaptative ALL
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative ALL monitoring
       show_state: true
@@ -51,7 +53,8 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-  - type: grid
+  - &all_2
+    type: grid
     cards:
     - type: entities
       title: ALL Virtual
@@ -149,19 +152,168 @@ views:
       content: |-
         <small>
 
-        ## Single source
+        ## Adaptative ALL — one device
 
-        Adaptative ALL: every mode on ALL Virtual, which shows its low/high target in *heat_cool* and *auto*. Synchronized modes (`sync_modes`): *heat*, *cool*, *dry*, which share one fan/swing memory; *fan_only*, *auto* and *heat_cool* each have their own.
+        **Who is who**
+        - **Adaptative ALL**: the entity under test, every mode on one source, ALL Virtual. Synchronized modes (`sync_modes`): *heat*, *cool* and *dry* share one fan/swing memory; *fan_only*, *auto* and *heat_cool* each have their own.
+        - **ALL Virtual**: every mode; a single target, and a low/high target in *heat_cool* and *auto*. Its helpers play its remote and its failures.
 
-        **Start**: **Reset the sources**: ALL Virtual *off*, *Target* 20, low/high 19–25, fan *auto*, swings *off*; then Adaptative ALL *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**
+        - Press **Reset the sources**: ALL Virtual *off*, *Target* 20, low/high 19–25, fan *auto*, swings *off*, *Delay before obeying* 0.
+        - On *Adaptative ALL*: press *heat*, set the target to 20 and the fan to *auto*; press *heat_cool*, set 19–24 (raise high first if needed); press *off*.
 
-        1. **One device** (ENT-TYPE-2): from **Start**. Adaptative ALL to *heat*, then *cool*: *Mode* of ALL Virtual follows; nothing else is turned off.
-        2. **First start** (ENT-CAP-4, SRC-DATA-13, ENT-TGT-7): from **Start**, memory forgotten (`reset_memory.sh`), Home Assistant restarted: no mode ran yet. Adaptative ALL, *off*, already shows a target and the range 8–32: what ALL Virtual shows, off (provisional). Target 23 on Adaptative ALL: kept, nothing is sent (*Target* of ALL Virtual stays 20).
-        3. **Mode discovered** (ENT-CAP-5, ENT-CAP-6, §5.4): after 2 (no mode ran yet). On ALL Virtual, *Delay before obeying* 5. Adaptative ALL to *dry*: it shows *dry* and 23 at once; for 5 s, ALL Virtual stays *off* and its *Target* stays 20: only the mode is sent. Then ALL Virtual goes to *dry* (*dry* is discovered): its *Target* goes to 23, and Adaptative ALL shows the fan of ALL Virtual, *auto* (nothing remembered yet). *Delay before obeying* back to 0.
-        4. **Targets per mode** (§1.3.4.3, ENT-FEAT-4): from **Start**. Adaptative ALL to *heat*, target 20; to *cool*: it shows 20 too (*heat*, *cool*, *dry* share one target); target 26: back in *heat*, 26. In *heat_cool*, set 19–24: in *auto*, Adaptative ALL shows 19–24 and ALL Virtual gets 19 / 24; in *dry*: 26.
-        5. **Mode taken over on the device** (§5.2): from **Start**. Adaptative ALL to *cool*. On ALL Virtual, *Mode* *dry* and *Target* 22: Adaptative ALL goes to *dry* and shows 22.
-        6. **Shared memory** (ENT-FANV-2): from **Start**. *heat*, *cool* and *dry* are synchronized: one memory for the three; *fan_only* has its own. Adaptative ALL to *fan_only*, fan *low*. To *cool*, fan *high*; to *heat*: *high* (the shared memory); to *dry*: *high*. Back to *fan_only*: *Fan* of ALL Virtual goes back to *low*, its own memory.
-        7. **No fan in off** (ENT-FAN-3, ENT-FAN-4): a fan chosen in *off* must go to one memory, so in *off* the entity shows fan and swing only when all its modes share one memory (or with a single mode). Here *fan_only*, *auto* and *heat_cool* each have their own. From **Start** (Adaptative ALL *off*): its fan and swing show no option, and a fan asked from *Developer tools > Actions* is refused.
-        8. **Restart, device changed meanwhile** (SRC-STATE-10, §5.6): from **Start**. Adaptative ALL to *cool*, fan *low*, wait 12 s. On ALL Virtual, *Available* off, then *Fan* *auto* (not seen: the source is away). Restart Home Assistant (*Available* is back on at start): *Fan* of ALL Virtual goes back to *low*, the mode is not sent again.
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **One device** (ENT-TYPE-2)
+           - *From*: **Start** (Adaptative ALL *off*; target 20, low/high 19–24, shared fan *auto*).
+           - *Do*: on *Adaptative ALL*, press *heat*.
+           - *Expect*: ALL Virtual: *Mode* *heat*.
+        2. **Mode changed on the same device** (ENT-TYPE-2)
+           - *From*: after 1 (*heat*).
+           - *Do*: press *cool*.
+           - *Expect*: ALL Virtual: *Mode* *cool*. Nothing is turned *off* first.
+        3. **Mode taken over on the device** (§5.2)
+           - *From*: **Start** (Adaptative ALL *off*; target 20, low/high 19–24, shared fan *auto*).
+           - *Do*: press *cool*; on ALL Virtual, *Mode* *dry* and *Target* 22.
+           - *Expect*: Adaptative ALL goes to *dry* and shows 22.
+        4. **Restart, device changed meanwhile** (SRC-STATE-10, §5.6)
+           - *From*: **Start** (Adaptative ALL *off*; target 20, low/high 19–24, shared fan *auto*).
+           - *Do*: press *cool*, fan *low*, wait 12 s. On ALL Virtual, *Available* off, then *Fan* *auto* (not seen: the source is away). Restart Home Assistant (*Available* is back on at start).
+           - *Expect*: ALL Virtual: *Fan* back to *low*. The mode is not sent again.
+
+        </small>
+- title: ALL 2
+  path: targets
+  type: sections
+  max_columns: 3
+  sections:
+  - *all_1
+  - *all_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative ALL — targets per mode
+
+        **Who is who**
+        - **Adaptative ALL**: the entity under test, every mode on one source, ALL Virtual. Synchronized modes (`sync_modes`): *heat*, *cool* and *dry* share one fan/swing memory; *fan_only*, *auto* and *heat_cool* each have their own.
+        - **ALL Virtual**: every mode; a single target, and a low/high target in *heat_cool* and *auto*. Its helpers play its remote and its failures.
+
+        **Start**
+        - Press **Reset the sources**: ALL Virtual *off*, *Target* 20, low/high 19–25, fan *auto*, swings *off*, *Delay before obeying* 0.
+        - On *Adaptative ALL*: press *heat*, set the target to 20 and the fan to *auto*; press *heat_cool*, set 19–24 (raise high first if needed); press *off*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **heat and cool share one target** (ENT-FEAT-4)
+           - *From*: **Start** (Adaptative ALL *off*; target 20, low/high 19–24, shared fan *auto*).
+           - *Do*: press *heat*, then *cool*.
+           - *Expect*: *cool* shows 20 too: *heat*, *cool* and *dry* share one target.
+        2. **Changed in cool, seen in heat** (ENT-FEAT-4)
+           - *From*: after 1 (*cool*, 20).
+           - *Do*: set the target to 26; press *heat*.
+           - *Expect*: *heat* shows 26.
+        3. **auto shares the range of heat_cool** (§1.3.4.3)
+           - *From*: after 2 (*heat*, 26; low/high 19–24).
+           - *Do*: press *auto*.
+           - *Expect*: Adaptative ALL shows 19–24; ALL Virtual gets 19 / 24.
+        4. **dry keeps the single target** (ENT-FEAT-4)
+           - *From*: after 3 (*auto*, 19–24).
+           - *Do*: press *dry*.
+           - *Expect*: 26.
+
+        </small>
+- title: ALL 3
+  path: first-start
+  type: sections
+  max_columns: 3
+  sections:
+  - *all_1
+  - *all_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative ALL — first start, mode discovered
+
+        **Who is who**
+        - **Adaptative ALL**: the entity under test, every mode on one source, ALL Virtual. Synchronized modes (`sync_modes`): *heat*, *cool* and *dry* share one fan/swing memory; *fan_only*, *auto* and *heat_cool* each have their own.
+        - **ALL Virtual**: every mode; a single target, and a low/high target in *heat_cool* and *auto*. Its helpers play its remote and its failures.
+
+        **Start**
+        - Press **Reset the sources**: ALL Virtual *off*, *Target* 20, low/high 19–25, fan *auto*, swings *off*, *Delay before obeying* 0.
+        - On *Adaptative ALL*: press *heat*, set the target to 20 and the fan to *auto*; press *heat_cool*, set 19–24 (raise high first if needed); press *off*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **First start** (ENT-CAP-4, SRC-DATA-13)
+           - *From*: **Start** (Adaptative ALL *off*; target 20, low/high 19–24, shared fan *auto*).
+           - *Do*: stop Home Assistant; `tests/integration/manual/reset_memory.sh "Adaptative ALL"`; start Home Assistant.
+           - *Expect*: no mode ran yet. Adaptative ALL, *off*, already shows a target and the range 8–32: what ALL Virtual shows, *off* (provisional).
+        2. **Target before any mode** (ENT-TGT-7)
+           - *From*: after 1 (no mode ran yet).
+           - *Do*: set the target to 23.
+           - *Expect*: kept; nothing is sent: ALL Virtual *Target* stays 20.
+        3. **Mode discovered** (ENT-CAP-5, ENT-CAP-6, §5.4)
+           - *From*: after 2 (no mode ran yet; target 23).
+           - *Do*: on ALL Virtual, *Delay before obeying* 5; on *Adaptative ALL*, press *dry*.
+           - *Expect*:
+             - at once, Adaptative ALL shows *dry* and 23;
+             - for 5 s, ALL Virtual stays *off* with *Target* 20: only the mode is sent;
+             - then ALL Virtual goes to *dry* (*dry* is discovered): its *Target* goes to 23, and Adaptative ALL shows the fan of ALL Virtual, *auto* (nothing remembered yet).
+
+        </small>
+- title: ALL 4
+  path: fan
+  type: sections
+  max_columns: 3
+  sections:
+  - *all_1
+  - *all_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Adaptative ALL — fan memory
+
+        **Who is who**
+        - **Adaptative ALL**: the entity under test, every mode on one source, ALL Virtual. Synchronized modes (`sync_modes`): *heat*, *cool* and *dry* share one fan/swing memory; *fan_only*, *auto* and *heat_cool* each have their own.
+        - **ALL Virtual**: every mode; a single target, and a low/high target in *heat_cool* and *auto*. Its helpers play its remote and its failures.
+
+        **Start**
+        - Press **Reset the sources**: ALL Virtual *off*, *Target* 20, low/high 19–25, fan *auto*, swings *off*, *Delay before obeying* 0.
+        - On *Adaptative ALL*: press *heat*, set the target to 20 and the fan to *auto*; press *heat_cool*, set 19–24 (raise high first if needed); press *off*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **Own memory of fan_only** (ENT-FANV-2)
+           - *From*: **Start** (Adaptative ALL *off*; target 20, low/high 19–24, shared fan *auto*).
+           - *Do*: press *fan_only*; fan *low*.
+           - *Expect*: ALL Virtual: *Fan* *low*.
+        2. **Fan set in cool** (ENT-FANV-2)
+           - *From*: after 1 (*fan_only*, *low*).
+           - *Do*: press *cool*; fan *high*.
+           - *Expect*: ALL Virtual: *Fan* *high*.
+        3. **Shared by heat and dry** (ENT-FANV-2)
+           - *From*: after 2 (*cool*, shared fan *high*).
+           - *Do*: press *heat*, then *dry*.
+           - *Expect*: each time, *high*: the shared memory.
+        4. **fan_only keeps its own** (ENT-FANV-2)
+           - *From*: after 3 (*dry*, *high*).
+           - *Do*: press *fan_only*.
+           - *Expect*: ALL Virtual: *Fan* back to *low*, its own memory.
+        5. **No fan in off** (ENT-FAN-3, ENT-FAN-4)
+           - *From*: **Start** (Adaptative ALL *off*; target 20, low/high 19–24, shared fan *auto*).
+           - *Do*: from *Developer tools > Actions*, `climate.set_fan_mode` *auto* on Adaptative ALL.
+           - *Expect*: refused. In *off*, the fan and swing lists of the card are greyed out: a fan chosen in *off* must go to one memory, and *fan_only*, *auto* and *heat_cool* each have their own.
 
         </small>

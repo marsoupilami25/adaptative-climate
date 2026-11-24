@@ -2,21 +2,23 @@
 # YAML dashboard: after editing this file, refresh the page in the browser.
 title: Tests monitoring
 views:
-- title: Monitoring
+- title: Monitoring 1
   path: pilotage
   type: sections
   max_columns: 3
   sections:
-  - type: grid
+  - &monitoring_1
+    type: grid
     cards:
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_monitor
       name: Adaptative MONITOR
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative MONITOR monitoring
       show_state: true
@@ -51,14 +53,15 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-    - type: thermostat
+    - type: custom:adaptative-climate-card
       entity: climate.adaptative_ghost
       name: Adaptative GHOST
       features:
-      - type: climate-hvac-modes
-      - type: climate-fan-modes
-      - type: climate-swing-modes
-      - type: climate-swing-horizontal-modes
+      - type: ac-device
+      - type: ac-hvac-modes
+      - type: ac-fan-modes
+      - type: ac-swing-modes
+      - type: ac-swing-horizontal-modes
     - type: glance
       title: Adaptative GHOST monitoring
       show_state: true
@@ -92,7 +95,8 @@ views:
         | Target gaps | {{ state_attr(e, 'target_gaps') }} |
         | Saved targets | {{ state_attr(e, 'saved_targets') }} |
         | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
-  - type: grid
+  - &monitoring_2
+    type: grid
     cards:
     - type: entities
       title: RADIATOR Virtual
@@ -238,26 +242,149 @@ views:
       content: |-
         <small>
 
-        ## Monitoring
+        ## Monitoring — sources
 
-        - **Adaptative MONITOR**: RADIATOR Virtual for *heat*, AIRCON Virtual for *cool*, the room sensor. Largest gap between temperatures 2 °C.
+        **Who is who**
+        - **Adaptative MONITOR**: the entity under test. RADIATOR Virtual for *heat*, AIRCON Virtual for *cool*, the room sensor. Largest gap between temperatures: 2 °C.
         - **Adaptative GHOST**: a source that does not exist (`climate.ghost_monitor`).
-        - **RADIATOR Virtual**, **AIRCON Virtual**: *Offset*: each one measures the room plus its offset (0 after the reset), compared with the room sensor and with each other.
-        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative MONITOR. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable; *Read by Adaptative MONITOR* is what the entity sees.
+        - **RADIATOR Virtual**, **AIRCON Virtual**: each measures the room plus its *Offset*, compared with the room sensor and with each other.
+        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative MONITOR. *Room sensor available* off makes it unavailable.
+        - **Events**: *Developer tools > Events*, listen to `adaptative_climate_problem`.
+        - **In every scenario** (MON-LIFE-2, MON-LIFE-3): each problem reported writes a warning in the log, with the text of the `message` of its event; its end, an info.
 
-        **Start**: **Reset the sources**: both sources *off*, available, obeying, *Target* 20, *Offset* 0; *Room temperature* 20, room sensor available; then Adaptative MONITOR *off*. Every problem then ends: *Monitoring sources* and *Monitoring temperatures* *OK*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+        **Start**
+        - Press **Reset the sources**: both sources *off*, available, obeying, *Target* 20, *Offset* 0; *Room temperature* 20, room sensor available.
+        - On *Adaptative MONITOR*, press *off*. Wait until *Monitoring sources* and *Monitoring temperatures* are *OK*.
 
-        Events: *Developer tools > Events*, listen to `adaptative_climate_problem`.
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
 
-        1. **Source never seen** (MON-SRC-5): just after a start of Home Assistant. Adaptative GHOST, *off*: 15 s after the start, its *Monitoring sources* is *Problem*; a `started` event.
-        2. **Source out of sync** (MON-SRC-3, SRC-REQ-5, SRC-REQ-6): from **Start**. On RADIATOR Virtual, *Obeys the mode* off; Adaptative MONITOR to *heat*: after 10 s, *Monitoring sources* goes to *Problem* (no extra delay). *Obeys the mode* on: at the next try, RADIATOR Virtual goes to *heat*, back to *OK*, event `ended`.
-        3. **Setting not applied** (MON-SRC-4): from **Start**. Adaptative MONITOR to *heat*, wait 12 s. On RADIATOR Virtual, *Applies settings* off; target one degree higher on Adaptative MONITOR: after 30 s (the shortest delay for a setting), *Monitoring sources* goes to *Problem*. On RADIATOR Virtual, *Target* to the same value: back to *OK*.
-        4. **Source unusable** (MON-SRC-1, MON-SRC-2): reported only while the entity waits for that source, never while it is *off*. From **Start**. Adaptative MONITOR to *heat*. On RADIATOR Virtual, *Available* off: Adaptative MONITOR goes to *Unknown* (it waits for its source); after 15 s, *Monitoring sources* goes to *Problem*. RADIATOR Virtual *Available* on: Adaptative MONITOR back to *heat*, *Monitoring sources* back to *OK*. Then Adaptative MONITOR *off*; on AIRCON Virtual, *Available* off: *cool* is listed in *Unavailable modes*, but after 15 s *Monitoring sources* stays *OK* (in *off*, nothing is asked of it). Keep RADIATOR Virtual available meanwhile: with both sources away, Adaptative MONITOR would have no source left and be unavailable (ENT-STATE-6).
-        5. **Gap sensor–source** (MON-TEMP-1, MON-TEMP-3): from **Start**. *Offset* of RADIATOR Virtual 2.5, of AIRCON Virtual 1 (they measure 22.5 and 21): after 15 s, *Monitoring temperatures* goes to *Problem*, RADIATOR Virtual only (2.5 from the room sensor; the two sources are 1.5 apart). *Offset* of RADIATOR Virtual 1: back to *OK*.
-        6. **Gap between sources** (MON-TEMP-1): from **Start**. *Offset* of RADIATOR Virtual −2, of AIRCON Virtual 2 (they measure 18 and 22): after 15 s, a problem between the two sources only (each one is 2 from the room sensor, not more).
-        7. **Sensor without value** (MON-TEMP-4): from **Start**. *Room sensor available* off: after 15 s, *Monitoring temperatures* goes to *Problem*; on: back to *OK*.
-        8. **A delay per problem** (MON-SENS-3): from **Start**. *Room sensor available* off; 10 s later, *Offset* of RADIATOR Virtual −2 and of AIRCON Virtual 2: both problems (sensor without value, gap between sources) are reported 10 s apart.
-        9. **After a restart** (END-2, MON-SEND-3, MON-LIFE-1): from **Start**. *Offset* of RADIATOR Virtual 3: after 15 s, *Monitoring temperatures* goes to *Problem*. Restart Home Assistant (the offset is kept): *OK*, then *Problem* 15 s later.
-        10. **Log** (MON-LIFE-2, MON-LIFE-3): during the steps above, each problem reported: a warning in the log, the same text as the `message` of the event; its end: an info.
+        1. **Source never seen** (MON-SRC-5)
+           - *From*: Home Assistant stopped.
+           - *Do*: start Home Assistant; at once, listen to the events; wait 15 s.
+           - *Expect*: Adaptative GHOST, *off*: its *Monitoring sources* goes to *Problem*; a `started` event.
+        2. **Source out of sync** (MON-SRC-3, SRC-REQ-5)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*; offsets 0, room 20).
+           - *Do*: on RADIATOR Virtual, *Obeys the mode* off; on *Adaptative MONITOR*, press *heat*.
+           - *Expect*: after 10 s, *Monitoring sources* goes to *Problem*, with no extra delay.
+        3. **Back in sync** (SRC-REQ-6)
+           - *From*: after 2 (*Problem*).
+           - *Do*: on RADIATOR Virtual, *Obeys the mode* on.
+           - *Expect*: at the next try, RADIATOR Virtual goes to *heat*. *Monitoring sources* back to *OK*; an `ended` event.
+        4. **Setting not applied** (MON-SRC-4)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*; offsets 0, room 20).
+           - *Do*: press *heat*, wait 12 s; on RADIATOR Virtual, *Applies settings* off; on *Adaptative MONITOR*, press + once.
+           - *Expect*: after 30 s (the shortest delay for a setting), *Monitoring sources* goes to *Problem*.
+        5. **Setting applied on the device** (MON-SRC-4)
+           - *From*: after 4 (*Problem*; Adaptative MONITOR one step above RADIATOR Virtual).
+           - *Do*: on RADIATOR Virtual, *Target* to the value of Adaptative MONITOR.
+           - *Expect*: *Monitoring sources* back to *OK*.
+
+        </small>
+- title: Monitoring 2
+  path: away
+  type: sections
+  max_columns: 3
+  sections:
+  - *monitoring_1
+  - *monitoring_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Monitoring — source away, sensor away
+
+        **Who is who**
+        - **Adaptative MONITOR**: the entity under test. RADIATOR Virtual for *heat*, AIRCON Virtual for *cool*, the room sensor. Largest gap between temperatures: 2 °C.
+        - **Adaptative GHOST**: a source that does not exist (`climate.ghost_monitor`).
+        - **RADIATOR Virtual**, **AIRCON Virtual**: each measures the room plus its *Offset*, compared with the room sensor and with each other.
+        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative MONITOR. *Room sensor available* off makes it unavailable.
+        - **Events**: *Developer tools > Events*, listen to `adaptative_climate_problem`.
+        - **In every scenario** (MON-LIFE-2, MON-LIFE-3): each problem reported writes a warning in the log, with the text of the `message` of its event; its end, an info.
+
+        **Start**
+        - Press **Reset the sources**: both sources *off*, available, obeying, *Target* 20, *Offset* 0; *Room temperature* 20, room sensor available.
+        - On *Adaptative MONITOR*, press *off*. Wait until *Monitoring sources* and *Monitoring temperatures* are *OK*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **Source unusable** (MON-SRC-1)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*; offsets 0, room 20).
+           - *Do*: press *heat*; on RADIATOR Virtual, *Available* off.
+           - *Expect*: Adaptative MONITOR goes to *Unknown*: it waits for its source. After 15 s, *Monitoring sources* goes to *Problem*.
+        2. **Source back** (MON-SRC-1)
+           - *From*: after 1 (waiting; *Problem*).
+           - *Do*: on RADIATOR Virtual, *Available* on.
+           - *Expect*: Adaptative MONITOR back to *heat*. *Monitoring sources* back to *OK*.
+        3. **Not reported in off** (MON-SRC-2)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*; offsets 0, room 20).
+           - *Do*: on AIRCON Virtual, *Available* off; wait 15 s. Keep RADIATOR Virtual available: with both sources away, Adaptative MONITOR would have no source left and be unavailable (ENT-STATE-6).
+           - *Expect*: *cool* is in *Unavailable modes*, but *Monitoring sources* stays *OK*: in *off*, nothing is asked of AIRCON Virtual.
+        4. **Sensor without value** (MON-TEMP-4)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*; offsets 0, room 20).
+           - *Do*: *Room sensor available* off.
+           - *Expect*: after 15 s, *Monitoring temperatures* goes to *Problem*.
+        5. **Sensor back** (MON-TEMP-4)
+           - *From*: after 4 (*Problem*).
+           - *Do*: *Room sensor available* on.
+           - *Expect*: *Monitoring temperatures* back to *OK*.
+
+        </small>
+- title: Monitoring 3
+  path: gaps
+  type: sections
+  max_columns: 3
+  sections:
+  - *monitoring_1
+  - *monitoring_2
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Monitoring — temperature gaps
+
+        **Who is who**
+        - **Adaptative MONITOR**: the entity under test. RADIATOR Virtual for *heat*, AIRCON Virtual for *cool*, the room sensor. Largest gap between temperatures: 2 °C.
+        - **Adaptative GHOST**: a source that does not exist (`climate.ghost_monitor`).
+        - **RADIATOR Virtual**, **AIRCON Virtual**: each measures the room plus its *Offset*, compared with the room sensor and with each other.
+        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative MONITOR. *Room sensor available* off makes it unavailable.
+        - **Events**: *Developer tools > Events*, listen to `adaptative_climate_problem`.
+        - **In every scenario** (MON-LIFE-2, MON-LIFE-3): each problem reported writes a warning in the log, with the text of the `message` of its event; its end, an info.
+
+        **Start**
+        - Press **Reset the sources**: both sources *off*, available, obeying, *Target* 20, *Offset* 0; *Room temperature* 20, room sensor available.
+        - On *Adaptative MONITOR*, press *off*. Wait until *Monitoring sources* and *Monitoring temperatures* are *OK*.
+
+        Delays of the tests: mode confirmation 10 s, next try 30 s, monitoring 15 s, removal confirmation 20 s.
+
+        1. **Gap sensor–source** (MON-TEMP-1, MON-TEMP-3)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*; offsets 0, room 20).
+           - *Do*: *Offset* of RADIATOR Virtual 2.5, of AIRCON Virtual 1 (they measure 22.5 and 21).
+           - *Expect*: after 15 s, *Monitoring temperatures* goes to *Problem*, for RADIATOR Virtual only: 2.5 from the room sensor; the two sources are 1.5 apart.
+        2. **Gap gone** (MON-TEMP-1)
+           - *From*: after 1 (*Problem*).
+           - *Do*: *Offset* of RADIATOR Virtual 1.
+           - *Expect*: *Monitoring temperatures* back to *OK*.
+        3. **Gap between sources** (MON-TEMP-1)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*; offsets 0, room 20).
+           - *Do*: *Offset* of RADIATOR Virtual −2, of AIRCON Virtual 2 (they measure 18 and 22).
+           - *Expect*: after 15 s, a problem between the two sources only: each one is 2 from the room sensor, not more.
+        4. **A delay per problem** (MON-SENS-3)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*; offsets 0, room 20).
+           - *Do*: *Room sensor available* off; 10 s later, *Offset* of RADIATOR Virtual −2 and of AIRCON Virtual 2.
+           - *Expect*: both problems (sensor without value, gap between sources) are reported, 10 s apart.
+        5. **Problem before a restart** (MON-TEMP-1)
+           - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*; offsets 0, room 20).
+           - *Do*: *Offset* of RADIATOR Virtual 3.
+           - *Expect*: after 15 s, *Monitoring temperatures* goes to *Problem*.
+        6. **After a restart** (END-2, MON-SEND-3, MON-LIFE-1)
+           - *From*: after 5 (*Problem*; offset 3).
+           - *Do*: restart Home Assistant (the offset is kept).
+           - *Expect*: *Monitoring temperatures* *OK*, then *Problem* 15 s later.
 
         </small>
