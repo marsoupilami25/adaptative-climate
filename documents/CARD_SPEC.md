@@ -172,9 +172,9 @@ of its source entity.
 
 ```text
 normal       │          * Radiator living room            │
-unavailable  │          * Radiator living room §          │  error color, § = sync alert
+unavailable  │          * Radiator living room §          │  name and § in error color, § = sync alert
 off          │                                            │  empty, same height
-foreign      │          * Radiator living room §          │  warning color, § = remote control
+foreign      │          * Radiator living room §          │  § in warning color, § = remote control
                                                └─ tooltip: "Air conditioner runs dry · not managed"
 ```
 
@@ -184,8 +184,9 @@ foreign      │          * Radiator living room §          │  warning color,
 - **CARD-DEV-2**<a id="card-dev-2"></a> The device line stays on one line. A
   name too long for it ends with an ellipsis.
 - **CARD-DEV-3**<a id="card-dev-3"></a> The line ends with a status icon
-  when something needs attention. The name and the status icon take its
-  color. The mode icon keeps the color of the mode.
+  when something needs attention. The status icon takes the color of the
+  reason. The name takes it only when the active source is `unavailable`.
+  The mode icon keeps the color of the mode.
 
   | Reason | Status icon | Color |
   |---|---|---|
@@ -194,7 +195,10 @@ foreign      │          * Radiator living room §          │  warning color,
 
   > **Why:** red when the current mode cannot run, amber when a device runs
   > outside the integration ([ENT-STATE-5](SPEC.md#1321-state-machine)).
-  > Red matches the monitoring indicators ([§6](#6-monitoring)).
+  > Red matches the monitoring indicators ([§6](#6-monitoring)). A foreign
+  > mode runs on another device than the one named: its name in amber would
+  > blame the wrong device. The tooltip names the right one
+  > ([CARD-DEV-5](#card-dev-5)).
 
 - **CARD-DEV-4**<a id="card-dev-4"></a> When both reasons hold, the line
   shows the unavailable one.

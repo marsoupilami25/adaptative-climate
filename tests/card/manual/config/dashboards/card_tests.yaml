@@ -537,11 +537,11 @@ views:
         3. **Foreign mode** (CARD-DEV-3, CARD-DEV-5)
            - *From*: **Start** (Adaptative BI *off*; both sources *off* and available).
            - *Do*: on *Adaptative BI*, press *cool*; wait 12 s. *Mode RADIATOR*: *fan_only*.
-           - *Expect*: Adaptative BI stays in *cool*. The device line shows *AIRCON Virtual (bi)* and the remote icon, in amber. The tooltip of the icon: "RADIATOR Virtual (bi) runs Fan only · not managed".
+           - *Expect*: Adaptative BI stays in *cool*. The device line shows *AIRCON Virtual (bi)* in its usual color, then the remote icon in amber (the name stays neutral: the foreign mode runs on another device). The tooltip of the icon: "RADIATOR Virtual (bi) runs Fan only · not managed".
         4. **Both reasons** (CARD-DEV-4, CARD-DEV-5)
            - *From*: after 3 (Adaptative BI *cool*; RADIATOR Virtual in *fan_only*).
            - *Do*: *AIRCON available* off.
-           - *Expect*: the line turns red, with the sync alert icon. Its tooltip, on two lines: "AIRCON Virtual (bi) unavailable", "RADIATOR Virtual (bi) runs Fan only · not managed".
+           - *Expect*: the name and the icon turn red; the icon becomes the sync alert. Its tooltip, on two lines: "AIRCON Virtual (bi) unavailable", "RADIATOR Virtual (bi) runs Fan only · not managed".
         5. **No active device** (CARD-DEV-7)
            - *From*: **Start** (Adaptative BI *off*; both sources *off* and available).
            - *Do*: *Mode RADIATOR*: *fan_only*.

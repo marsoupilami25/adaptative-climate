@@ -1,9 +1,23 @@
 // The device line (CARD_SPEC.md §4).
 
 import { acEntity, AIRCON, fakeHass, HEATER } from "../fakes";
-import { all, mountCard, one, text } from "./harness";
+import { all, mountCard, one, text, type Mounted } from "./harness";
 
 const line = { features: [{ type: "ac-device" as const }] };
+
+// The colors of the theme, set on the page
+const ERROR = "rgb(219, 68, 55)";
+const WARNING = "rgb(255, 166, 0)";
+const TEXT = "rgb(114, 114, 114)";
+
+/** The colors of the name and of the status icon of the device line. */
+function colors({ root, card }: Mounted): { name: string; status: string } {
+  root.style.setProperty("--error-color", ERROR);
+  root.style.setProperty("--warning-color", WARNING);
+  root.style.setProperty("--secondary-text-color", TEXT);
+  const color = (selector: string) => getComputedStyle(one(card, selector)).color;
+  return { name: color("ac-device-feature .name"), status: color("ac-device-feature .status") };
+}
 
 describe("CARD-DEV-1 to 7: the device line", () => {
   it("CARD-DEV-1: the icon of the mode, then the device of the active source", async () => {
@@ -16,13 +30,13 @@ describe("CARD-DEV-1 to 7: the device line", () => {
     const style = getComputedStyle(one(card, "ac-device-feature .name"));
     expect([style.whiteSpace, style.textOverflow]).toEqual(["nowrap", "ellipsis"]);
   });
-  it("CARD-DEV-3: the active source unavailable: the status icon, in the error color", async () => {
-    const { card } = await mountCard(fakeHass(acEntity("heat"), { heater: "unavailable" }), line);
-    expect(all(card, "ac-device-feature .line.unavailable .status")).toHaveLength(1);
+  it("CARD-DEV-3: the active source unavailable: the name and the status icon, in the error color", async () => {
+    const mounted = await mountCard(fakeHass(acEntity("heat"), { heater: "unavailable" }), line);
+    expect(colors(mounted)).toEqual({ name: ERROR, status: ERROR });
   });
-  it("CARD-DEV-3: a device in a foreign mode: the status icon, in the warning color", async () => {
-    const { card } = await mountCard(fakeHass(acEntity("heat", { foreign_modes: { [AIRCON]: "dry" } })), line);
-    expect(all(card, "ac-device-feature .line.foreign .status")).toHaveLength(1);
+  it("CARD-DEV-3: a device in a foreign mode: the status icon only, in the warning color", async () => {
+    const mounted = await mountCard(fakeHass(acEntity("heat", { foreign_modes: { [AIRCON]: "dry" } })), line);
+    expect(colors(mounted)).toEqual({ name: TEXT, status: WARNING });
   });
   it("CARD-DEV-4: both reasons: the unavailable one shows", async () => {
     const hass = fakeHass(acEntity("heat", { foreign_modes: { [AIRCON]: "dry" } }), { heater: "unavailable" });

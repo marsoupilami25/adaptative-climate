@@ -114,11 +114,12 @@ export class AcDeviceFeature extends LitElement {
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    /* The name takes the color only when its device is at fault: a foreign
+       mode runs on another device (CARD-DEV-3) */
     .unavailable .name,
     .unavailable .status {
       color: var(--error-color);
     }
-    .foreign .name,
     .foreign .status {
       color: var(--warning-color);
     }
