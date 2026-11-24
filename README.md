@@ -165,7 +165,8 @@ automation:
 - 📘 [Specification](documents/SPEC.md): the full behavior.
 - 🏗️ [Architecture](documents/ARCHITECTURE.md)
 - 🧪 [Tests](documents/TESTS.md), and how to run them in
-  [dev/README.md](dev/README.md).
+  [tests/integration/README.md](tests/integration/README.md).
+- 🛠️ [Development](dev/README.md): the tools to install, the dev environment, the build of the card.
 
 ## 📄 License
 

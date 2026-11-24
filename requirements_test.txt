@@ -1,4 +1,4 @@
-# pytest-homeassistant is versioned like Home Assistant: 2026.11.2 = HA 2026.11.2.
+# pytest-homeassistant is versioned like Home Assistant: 2026.11.3 = HA 2026.11.3.
 # Bump it with each HA release: https://pypi.org/project/pytest-homeassistant/
-pytest-homeassistant==2026.11.2
+pytest-homeassistant==2026.11.3
 pytest-cov==7.1.0

@@ -32,7 +32,7 @@ Conventions:
 | Term | Meaning |
 |---|---|
 | **Copy** | The files of the Home Assistant frontend that we copy, in `frontend/src/ha/`. |
-| **Source tag** | The tag of the Home Assistant frontend the copy comes from: `20261028.6` (Home Assistant 2026.11.2). |
+| **Source tag** | The tag of the Home Assistant frontend the copy comes from: `20261028.8` (Home Assistant 2026.11.3). |
 | **Minimum frontend** | The frontend of the oldest Home Assistant the card supports: `20260527.4` (Home Assistant 2026.6.0, [CARD-GEN-3](CARD_SPEC.md#card-gen-3)). |
 | **AC code** | Our code, in `frontend/src/ac/`. |
 | **Patch** | A small change to a copied file, kept as a file in `frontend/ha-patches/`. |

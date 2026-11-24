@@ -1,0 +1,486 @@
+# Case multi.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests multi-sources
+views:
+- title: MULTI
+  path: pilotage
+  type: sections
+  max_columns: 2
+  sections:
+  - type: grid
+    cards:
+    - type: thermostat
+      entity: climate.adaptative_multi
+      name: Adaptative MULTI
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: entities
+      entities:
+      - type: button
+        name: Turn on (last used mode)
+        icon: mdi:power
+        action_name: Turn on
+        tap_action:
+          action: perform-action
+          perform_action: climate.turn_on
+          target:
+            entity_id: climate.adaptative_multi
+    - type: glance
+      title: Adaptative MULTI monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_multi_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_multi_monitoring_temperatures
+        name: Monitoring temperatures
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.adaptative_multi' %}{% set problems = (state_attr('binary_sensor.adaptative_multi_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_multi_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
+        - {{ p.type }}: {{ p.get('source') or p.get('sources') or p.get('sensor') or '' }}{{ (' ' ~ p.get('setting')) if p.get('setting') else '' }}
+        {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min gap | {{ state_attr(e, 'min_gap') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+    - type: entities
+      title: Room sensor
+      state_color: true
+      entities:
+      - entity: input_number.room_temperature_multi
+        name: Room temperature
+      - entity: input_boolean.room_sensor_available_multi
+        name: Room sensor available
+      - entity: sensor.room_sensor_multi
+        name: Read by Adaptative MULTI
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Multi-sources
+
+        **Synchronized modes** (`sync_modes`): *heat*, *cool* and *dry* share one fan/swing memory; *fan_only* and *auto* each have their own.
+
+        - **Adaptative MULTI**: one source per mode. *heat_cool* has no source of its own: phase `heat` on HEAT Virtual, phase `cool` on COOL Virtual, chosen on its *Reference temperature* (hysteresis 1 °C).
+        - **The sources** (view *Sources*): HEAT, COOL, DRY, FAN_ONLY and AUTO Virtual. *Offset*: each one measures the room plus its offset (0 after the reset); a source in *heat* is *heating* while it measures less than its target, in *cool* *cooling* while it measures more.
+        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative MULTI, its reference temperature. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable (the reference is then the temperature measured by the active source); *Read by Adaptative MULTI* is what the entity sees.
+
+        **Start**: **Reset the sources**: every source *off*, *Target* 20, *Offset* 0, fans *auto*, swings *off*; *Room temperature* 20, room sensor available; then Adaptative MULTI *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+
+        Ranges: HEAT Virtual 5–30, COOL Virtual 16–32, DRY Virtual 18–30, AUTO Virtual 10–30. Fan options, written differently on purpose: HEAT Virtual *Auto, Low, Medium, High, Turbo*; COOL Virtual *auto, low, medium, high*; DRY Virtual *AUTO, LOW, HIGH* (no *medium*). The sources are on the view *Sources*.
+
+        1. **Mode change** (ENT-STATE-3): from **Start**. Adaptative MULTI to *heat*, then *cool*: COOL Virtual goes to *cool*, HEAT Virtual back to *off*.
+        2. **Turned on on a device** (ENT-STATE-5, ENT-STATE-3): from **Start**. On HEAT Virtual, *Mode* *heat*: Adaptative MULTI goes to *heat*. Then on COOL Virtual, *Mode* *cool*: Adaptative MULTI goes to *cool*, HEAT Virtual is turned off (the last one wins).
+        3. **Turn on** (ENT-STATE-2, ENT-STATE-8): after 2 (*cool*). Adaptative MULTI *off*, then the button **Turn on (last used mode)** (`climate.turn_on`, without mode): *cool*, the last used mode, comes back.
+        4. **Mode unavailable** (ENT-HVAC-4, ENT-STATE-4): from **Start**. On DRY Virtual, *Available* off: *dry* is in *Unavailable modes*; Adaptative MULTI to *dry* is refused.
+        5. **Waiting for the source** (ENT-WAIT-1, ENT-WAIT-2, MON-SRC-1): from **Start**. Adaptative MULTI to *cool*. On COOL Virtual, *Available* off: Adaptative MULTI goes to *Unknown*, keeps its targets and range; after 15 s, *Monitoring sources* goes to *Problem*. Target 23 on Adaptative MULTI (24 if it already shows 23): nothing is sent. *Available* on: COOL Virtual goes back to *cool* at that target, *Monitoring sources* back to *OK*.
+        6. **Range per mode** (ENT-RANGE-1, ENT-RANGE-2): each mode takes the range of its source; *off* shows the widest of the modes with a target. From **Start**. Adaptative MULTI to *heat*: *Min / max* 5 / 30; to *cool*: 16 / 32; to *dry*: 18 / 30; to *auto*: 10 / 30; to *heat_cool*: 5 / 32 (the minimum of HEAT Virtual, the maximum of COOL Virtual); *off*: 5 / 32, the widest of the modes with a target (*fan_only* has none: its 7–35 does not count); to *fan_only*: 7 / 35, its own.
+        7. **Shared memory, options written differently** (ENT-FANV-2, ENT-FAN-5, ENT-FAN-6): *heat*, *cool* and *dry* share one fan memory; each source gets the value written its way (the case does not count). From **Start**. Adaptative MULTI to *cool*, fan *high*: *Fan* of COOL Virtual goes to *high*. To *heat*: *Fan* of HEAT Virtual goes to *High*, Adaptative MULTI shows *High*. To *dry*: *Fan* of DRY Virtual goes to *HIGH*.
+        8. **Option of one source only** (ENT-FANV-3, ENT-FAN-3): an option only one synchronized source has can be chosen in its mode, but is not remembered. After 7 (shared fan *high*). Adaptative MULTI to *heat*: its fan offers *Turbo* (only HEAT Virtual has it); choose it: *Fan* of HEAT Virtual goes to *Turbo*. To *cool*: *Fan* of COOL Virtual is *high*, the shared memory. Back to *heat*: *Fan* of HEAT Virtual goes back to *High*, not *Turbo*.
+        9. **No fan in off** (ENT-FAN-3, ENT-FAN-4): a fan chosen in *off* must go to one memory, so in *off* the entity shows fan and swing only when all its modes share one memory (or with a single mode). Here *fan_only* and *auto* each have their own. From **Start** (Adaptative MULTI *off*): its fan and swing show no option, and a fan asked from *Developer tools > Actions* is refused.
+        10. **Room sensor** (ENT-REF-1, ENT-REF-2, MON-TEMP-4): the reference temperature is the room sensor; without it, what the active source measures. From **Start**. Adaptative MULTI to *heat*; on HEAT Virtual, *Offset* 1 (it measures the room + 1). *Room temperature* 21: *Reference temperature* 21, the room sensor. *Room sensor available* off: *Reference temperature* 22, what HEAT Virtual measures; after 15 s, *Monitoring temperatures* goes to *Problem* (`sensor_without_value`).
+        11. **Temperature gap** (MON-TEMP-1): the monitoring compares the room sensor with each source, and the sources with each other; more than 2 °C apart is a problem. From **Start** (room 20). On HEAT Virtual, *Offset* 4 (it measures 24): after 15 s, *Monitoring temperatures* goes to *Problem*: HEAT Virtual is 4 from the room sensor (`gap_sensor_source`) and from the other sources (`gap_sources`). *Offset* 0: back to *OK*.
+        12. **heat_cool on two sources** (ENT-TYPE-3, ENT-WANT-1, ENT-WANT-3): from **Start**. On Adaptative MULTI (*off*), range 19–24 (raise high first if needed); *Room temperature* 21. Adaptative MULTI to *heat_cool*: *Phase* `heat` (21 is closer to 19): HEAT Virtual in *heat* at 19. *Room temperature* 26 (above 24 + 1): *Phase* `cool`: COOL Virtual in *cool* at 24, HEAT Virtual *off*; *Action* `cooling` (COOL Virtual measures 26).
+        13. **Memory kept across a restart** (ENT-FANV-1, END-2): from **Start**. Adaptative MULTI to *cool*, fan *low*, then *off*. On HEAT Virtual, *Fan* *Auto* (a value the memory does not hold). Restart Home Assistant. Adaptative MULTI to *heat*: *Fan* of HEAT Virtual goes to *Low*, the shared memory, written its way.
+        14. **One target for the single-target modes** (ENT-FEAT-4): *heat*, *cool*, *dry* and *auto* have a single target: they share T; *heat_cool* uses low/high. From **Start**. Adaptative MULTI to *heat*, target 21 (22 if it already shows 21): HEAT Virtual gets it. To *cool*, *dry*, *auto*: Adaptative MULTI shows the same target, and COOL, DRY, AUTO Virtual get it in turn. To *heat_cool*: it shows its low/high range instead.
+
+        </small>
+- title: Sources
+  path: sources
+  type: sections
+  max_columns: 5
+  sections:
+  - type: grid
+    cards:
+    - type: button
+      entity: script.reset_sources_multi
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+    - type: entities
+      title: HEAT Virtual
+      uix:
+        style: |
+          {% set m = states('climate.heat_virtual_multi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
+      entities:
+      - entity: input_select.mode_heat_multi
+        name: Mode
+      - entity: input_number.target_heat_multi
+        name: Target
+      - entity: input_number.offset_heat_multi
+        name: Offset (measured = room + offset)
+      - entity: input_select.fan_heat_multi
+        name: Fan
+      - entity: input_select.swing_heat_multi
+        name: Swing
+      - entity: input_select.swing_horizontal_heat_multi
+        name: Horizontal swing
+      - entity: input_number.delay_heat_multi
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.heat_virtual_multi' %}
+        | Shown by HEAT Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+        | Swing | {{ state_attr(e, 'swing_mode') }} ({{ (state_attr(e, 'swing_modes') or []) | join(', ') }}) |
+        | Horizontal swing | {{ state_attr(e, 'swing_horizontal_mode') }} ({{ (state_attr(e, 'swing_horizontal_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_heat_multi
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_heat_multi
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_heat_multi
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_heat_multi
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_heat_multi
+        name: Offers heat
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_heat_multi
+        name: Fan on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_on_heat_multi
+        name: Swing on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_horizontal_on_heat_multi
+        name: Horiz. swing on
+        tap_action:
+          action: toggle
+  - type: grid
+    cards:
+    - type: entities
+      title: COOL Virtual
+      uix:
+        style: |
+          {% set m = states('climate.cool_virtual_multi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
+      entities:
+      - entity: input_select.mode_cool_multi
+        name: Mode
+      - entity: input_number.target_cool_multi
+        name: Target
+      - entity: input_number.offset_cool_multi
+        name: Offset (measured = room + offset)
+      - entity: input_select.fan_cool_multi
+        name: Fan
+      - entity: input_select.swing_cool_multi
+        name: Swing
+      - entity: input_select.swing_horizontal_cool_multi
+        name: Horizontal swing
+      - entity: input_number.delay_cool_multi
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.cool_virtual_multi' %}
+        | Shown by COOL Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+        | Swing | {{ state_attr(e, 'swing_mode') }} ({{ (state_attr(e, 'swing_modes') or []) | join(', ') }}) |
+        | Horizontal swing | {{ state_attr(e, 'swing_horizontal_mode') }} ({{ (state_attr(e, 'swing_horizontal_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_cool_multi
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_cool_multi
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_cool_multi
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_cool_multi
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_cool_multi
+        name: Offers cool
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_cool_multi
+        name: Fan on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_reduced_cool_multi
+        name: Fan without medium
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_on_cool_multi
+        name: Swing on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_horizontal_on_cool_multi
+        name: Horiz. swing on
+        tap_action:
+          action: toggle
+  - type: grid
+    cards:
+    - type: entities
+      title: DRY Virtual
+      uix:
+        style: |
+          {% set m = states('climate.dry_virtual_multi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
+      entities:
+      - entity: input_select.mode_dry_multi
+        name: Mode
+      - entity: input_number.target_dry_multi
+        name: Target
+      - entity: input_number.offset_dry_multi
+        name: Offset (measured = room + offset)
+      - entity: input_select.fan_dry_multi
+        name: Fan
+      - entity: input_select.swing_dry_multi
+        name: Swing
+      - entity: input_number.delay_dry_multi
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.dry_virtual_multi' %}
+        | Shown by DRY Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+        | Swing | {{ state_attr(e, 'swing_mode') }} ({{ (state_attr(e, 'swing_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_dry_multi
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_dry_multi
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_dry_multi
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_dry_multi
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_dry_multi
+        name: Offers dry
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_dry_multi
+        name: Fan on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_on_dry_multi
+        name: Swing on
+        tap_action:
+          action: toggle
+  - type: grid
+    cards:
+    - type: entities
+      title: FAN_ONLY Virtual
+      uix:
+        style: |
+          {% set m = states('climate.fan_only_virtual_multi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
+      entities:
+      - entity: input_select.mode_fan_only_multi
+        name: Mode
+      - entity: input_number.offset_fan_only_multi
+        name: Offset (measured = room + offset)
+      - entity: input_select.fan_fan_only_multi
+        name: Fan
+      - entity: input_number.delay_fan_only_multi
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.fan_only_virtual_multi' %}
+        | Shown by FAN_ONLY Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_fan_only_multi
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_fan_only_multi
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_fan_only_multi
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_fan_only_multi
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_fan_only_multi
+        name: Offers fan_only
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_fan_only_multi
+        name: Fan on
+        tap_action:
+          action: toggle
+  - type: grid
+    cards:
+    - type: entities
+      title: AUTO Virtual
+      uix:
+        style: |
+          {% set m = states('climate.auto_virtual_multi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
+      entities:
+      - entity: input_select.mode_auto_multi
+        name: Mode
+      - entity: input_number.target_auto_multi
+        name: Target
+      - entity: input_number.offset_auto_multi
+        name: Offset (measured = room + offset)
+      - entity: input_select.fan_auto_multi
+        name: Fan
+      - entity: input_number.delay_auto_multi
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.auto_virtual_multi' %}
+        | Shown by AUTO Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_auto_multi
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_auto_multi
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_auto_multi
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_auto_multi
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_auto_multi
+        name: Offers auto
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_auto_multi
+        name: Fan on
+        tap_action:
+          action: toggle

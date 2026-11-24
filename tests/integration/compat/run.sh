@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Run the spec and unit tests on Home Assistant before 2026.11 (ENT-HA-2).
+# Creates or updates the venv first. Extra arguments go to pytest.
+#
+# Usage: tests/integration/compat/run.sh [pytest args]
+#   VENV=/path/to/venv (default: ~/ha-dev/.venv-test-2026.6)
+set -euo pipefail
+
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+. "$repo/tests/integration/compat/venv.sh"
+
+cd "$repo"
+exec "$venv/bin/pytest" "$@"

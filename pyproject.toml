@@ -1,5 +1,5 @@
 [tool.pytest.ini_options]
-testpaths = ["dev/spec", "dev/unit"]
+testpaths = ["tests/integration/spec", "tests/integration/unit"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

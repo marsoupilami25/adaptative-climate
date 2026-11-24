@@ -1,8 +1,8 @@
 {
   "_comment": "The copy of the Home Assistant frontend (CARD_ARCHITECTURE.md \u00a74). Read by scripts/update-ha.sh and scripts/compat-scan.py.",
   "repository": "home-assistant/frontend",
-  "source_tag": "20261028.6",
-  "source_home_assistant": "2026.11.2",
+  "source_tag": "20261028.8",
+  "source_home_assistant": "2026.11.3",
   "minimum_tag": "20260527.4",
   "minimum_home_assistant": "2026.6.0",
   "files": [

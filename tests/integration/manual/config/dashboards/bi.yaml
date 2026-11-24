@@ -1,0 +1,225 @@
+# Case bi.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests bi-source
+views:
+- title: BI
+  path: pilotage
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: thermostat
+      entity: climate.adaptative_bi
+      name: Adaptative BI
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative BI monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_bi_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_bi_monitoring_temperatures
+        name: Monitoring temperatures
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.adaptative_bi' %}{% set problems = (state_attr('binary_sensor.adaptative_bi_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_bi_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
+        - {{ p.type }}: {{ p.get('source') or p.get('sources') or p.get('sensor') or '' }}{{ (' ' ~ p.get('setting')) if p.get('setting') else '' }}
+        {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min gap | {{ state_attr(e, 'min_gap') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+    - type: entities
+      title: Room sensor
+      state_color: true
+      entities:
+      - entity: input_number.room_temperature_bi
+        name: Room temperature
+      - entity: input_boolean.room_sensor_available_bi
+        name: Room sensor available
+      - entity: sensor.room_sensor_bi
+        name: Read by Adaptative BI
+  - type: grid
+    cards:
+    - type: entities
+      title: RADIATOR Virtual
+      uix:
+        style: |
+          {% set m = states('climate.radiator_virtual_bi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
+      entities:
+      - entity: input_select.mode_radiator_bi
+        name: Mode
+      - entity: input_number.target_radiator_bi
+        name: Target
+      - entity: input_number.offset_radiator_bi
+        name: Offset (measured = room + offset)
+      - entity: input_number.delay_radiator_bi
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.radiator_virtual_bi' %}
+        | Shown by RADIATOR Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_radiator_bi
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_radiator_bi
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_radiator_bi
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_radiator_bi
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_radiator_bi
+        name: Offers heat/fan_only
+        tap_action:
+          action: toggle
+    - type: entities
+      title: AIRCON Virtual
+      uix:
+        style: |
+          {% set m = states('climate.aircon_virtual_bi') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
+      entities:
+      - entity: input_select.mode_aircon_bi
+        name: Mode
+      - entity: input_number.target_aircon_bi
+        name: Target
+      - entity: input_number.offset_aircon_bi
+        name: Offset (measured = room + offset)
+      - entity: input_select.fan_aircon_bi
+        name: Fan
+      - entity: input_number.delay_aircon_bi
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.aircon_virtual_bi' %}
+        | Shown by AIRCON Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_aircon_bi
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_aircon_bi
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_aircon_bi
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_aircon_bi
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_aircon_bi
+        name: Offers cool
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_aircon_bi
+        name: Fan on
+        tap_action:
+          action: toggle
+    - type: button
+      entity: script.reset_sources_bi
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Bi-source
+
+        - **Adaptative BI**: *heat_cool* with no source of its own: phase `heat` on RADIATOR Virtual, phase `cool` on AIRCON Virtual. `min_gap` 2, hysteresis 1 °C. Its *Reference temperature* chooses the phase; its *Action* is the one of the active source.
+        - **RADIATOR Virtual**: `heat_entity`, *heat*, 5–30 °C; it also offers *fan_only*, which Adaptative BI does not serve. *Offset*: it measures the room plus its offset.
+        - **AIRCON Virtual**: `cool_entity`, *cool*, 16–30 °C by steps of 1. *Offset*: it measures the room plus its offset.
+        - **Room sensor**: the room thermometer, `temperature_sensor` of Adaptative BI, its reference temperature. Set its value with *Room temperature*; *Room sensor available* off makes it unavailable (the reference is then the mean of the two sources); *Read by Adaptative BI* is what the entity sees.
+
+        **Start**: **Reset the sources**, then Adaptative BI *off*, and its range 19–24 (*Low / high* 19 / 24; on the card, raise high before low if needed). *Room temperature* is then 20 (*Reference temperature* 20), both offsets 0: the sources measure 20 too. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+
+        Entering *heat_cool*, the phase is the one of the target closest to the *Reference temperature* (ENT-WANT-1). Then it switches only beyond a target plus the hysteresis: to `cool` above 24 + 1, to `heat` below 19 − 1 (ENT-WANT-3). A source in *heat* is *heating* while it measures less than its target, in *cool* *cooling* while it measures more.
+
+        1. **Entering heat_cool** (ENT-WANT-1, ENT-TYPE-3): from **Start**. Adaptative BI to *heat_cool*: 20 is closer to 19, *Phase* `heat`; RADIATOR Virtual goes to *heat* at 19, AIRCON Virtual stays *off*. *Action* `idle` (20 is above 19).
+        2. **Switch with hysteresis** (ENT-WANT-3, ENT-PHASE-3): after 1 (*Phase* `heat`). *Room temperature* 25: nothing. 25.5: *Phase* `cool`, AIRCON Virtual goes to *cool* at 24, RADIATOR Virtual to *off*; *Action* `cooling`.
+        3. **Back** (ENT-WANT-3): after 2 (*Phase* `cool`). *Room temperature* 18: nothing. 17.5: *Phase* `heat`, RADIATOR Virtual goes to *heat* at 19, AIRCON Virtual to *off*; *Action* `heating`.
+        4. **Targets changed: no hysteresis** (ENT-PHASE-2, §5.5): after 3 (*Phase* `heat`). *Room temperature* 22: nothing. On Adaptative BI, lower high to 20: low goes to 18 (gap), and *Phase* `cool` at once (22 is above 20, no hysteresis); RADIATOR Virtual only gets *off* (its *Target* does not go to 18), AIRCON Virtual goes to *cool* at 20; *Action* `cooling`.
+        5. **After a restart, the phase is chosen again** (ENT-WANT-1, ENT-PHASE-1): from **Start**. Adaptative BI to *heat_cool*: *Phase* `heat`. *Room temperature* 22: stays `heat` (not above 25). Restart Home Assistant: *Phase* `cool` (22 is closer to 24; no hysteresis when entering).
+        6. **Without the room sensor** (ENT-REF-6, ENT-WANT-2, MON-TEMP-1, MON-TEMP-4): from **Start**. On Room sensor, *Room sensor available* off: after 15 s, *Monitoring temperatures* goes to *Problem* (`sensor_without_value`). *Offset* of AIRCON Virtual 2 (it measures 22): *Reference temperature* 21 (the mean of 20 and 22); the sources are 2 apart, no other problem. Adaptative BI to *heat_cool*: *Phase* `heat`. *Offset* of AIRCON Virtual 7 (27): the phase does not change (to switch, the lowest of the two, RADIATOR Virtual at 20, must be above 25); the sources are 7 apart: after 15 s, a second problem, `gap_sources`. *Offset* of RADIATOR Virtual 5.5 (25.5): *Phase* `cool`, *Action* `cooling`; the sources are 1.5 apart: `gap_sources` ends. Both *Offsets* back to 0, *Room sensor available* on: *Monitoring temperatures* back to *OK*.
+        7. **Takeover on a phase source** (ENT-TYPE-5): from **Start**. Adaptative BI to *heat_cool*: *Phase* `heat`. On AIRCON Virtual, *Mode* *cool*: Adaptative BI goes to *cool* (not *heat_cool*), RADIATOR Virtual to *off*.
+        8. **Foreign mode of the active source** (ENT-STATE-5): from **Start**. Adaptative BI to *heat*, wait 12 s. On RADIATOR Virtual, *Mode* *fan_only*: Adaptative BI goes to *off*, *Foreign modes* lists RADIATOR Virtual; nothing is sent.
+        9. **Foreign mode tolerated** (ENT-STATE-5): from **Start**. Adaptative BI to *cool*. On RADIATOR Virtual, *Mode* *fan_only*: nothing is sent (tolerated). Adaptative BI to *off*: RADIATOR Virtual goes to *off*.
+        10. **Phase source away** (ENT-PHASE-5, MON-SRC-1): from **Start**. Adaptative BI to *heat_cool*: *Phase* `heat`. On AIRCON Virtual, *Available* off: nothing reported (the other phase). *Room temperature* 26: *Phase* `cool`, RADIATOR Virtual to *off*; after 15 s, *Monitoring sources* goes to *Problem* (AIRCON Virtual). AIRCON Virtual *Available* on: it goes to *cool*, back to *OK*.
+        11. **No source left** (ENT-STATE-6, MON-SRC-2): from **Start**. Adaptative BI to *heat_cool*: *Phase* `heat`. *Available* off on AIRCON Virtual, then on RADIATOR Virtual: Adaptative BI is unavailable; *Monitoring sources* stays *OK* (the unavailable entity says it). RADIATOR Virtual *Available* on: back to *heat_cool*.
+        12. **Minimum gap** (ENT-TGT-6): from **Start** (*Min gap* 2). Raise low to 22: 22–24. Lower high to 23: low goes to 21 (21–23). Raise low to 22: high goes to 24 (22–24).
+        13. **heat and cool share one target** (ENT-FEAT-4): from **Start**. Adaptative BI to *heat*, target 21; to *cool*: 21, AIRCON Virtual gets 21; to *heat_cool*: the range 19–24 comes back.
+
+        </small>

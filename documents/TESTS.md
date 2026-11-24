@@ -2,16 +2,16 @@
 
 How the integration is tested. The spec (`SPEC.md`) says what it does, the
 architecture (`ARCHITECTURE.md`) where and how; the tests check both, from
-four points of view. How to run them: `dev/README.md`.
+four points of view. How to run them: `tests/integration/README.md`; the tools to install: `dev/README.md`.
 
 ## 1. Four types of tests
 
 | Type | Folder | Checks | Point of view | Home Assistant |
 |---|---|---|---|---|
-| Spec | `dev/spec` | the rules of the spec | black box, through Home Assistant only | 2026.11.2 |
-| Compatibility | `dev/compat` | the same behavior on an older Home Assistant (ENT-HA-2) | the spec and unit suites, unchanged | 2026.6.0 |
-| Unit | `dev/unit` | the code the spec tests do not reach | white box, per component (`ARCHITECTURE.md` §11) | 2026.11.2 and 2026.6.0 |
-| Manual | `dev/manual` | the behavior in a real Home Assistant, on a dashboard | a person, by scenarios | the dev instance |
+| Spec | `tests/integration/spec` | the rules of the spec | black box, through Home Assistant only | 2026.11.3 |
+| Compatibility | `tests/integration/compat` | the same behavior on an older Home Assistant (ENT-HA-2) | the spec and unit suites, unchanged | 2026.6.0 |
+| Unit | `tests/integration/unit` | the code the spec tests do not reach | white box, per component (`ARCHITECTURE.md` §11) | 2026.11.3 and 2026.6.0 |
+| Manual | `tests/integration/manual` | the behavior in a real Home Assistant, on a dashboard | a person, by scenarios | the dev instance |
 
 ## 2. Spec tests
 
@@ -31,7 +31,7 @@ the code is assumed.
   the format of both belongs to the architecture. Persistence is checked
   by restarting Home Assistant on the same storage.
 
-The bench (`dev/spec/harness`) gives:
+The bench (`tests/integration/spec/harness`) gives:
 
 | Part | Role |
 |---|---|
@@ -45,7 +45,7 @@ The bench (`dev/spec/harness`) gives:
 `@pytest.mark.spec("SRC-STATE-3", ...)`, and the modules follow the sections
 of the spec (`test_3_configuration.py`). The rules no spec test can observe
 from outside (the inside of the execution model, for instance) are listed
-in `dev/spec/not_observable.md`, with the unit tests that cover them.
+in `tests/integration/spec/not_observable.md`, with the unit tests that cover them.
 
 **A spec test that fails is never changed to fit the code.** A bug of the
 code is fixed in the code. A spec that is unclear or contradicts itself is
@@ -61,13 +61,13 @@ the bench give both names too.
 
 The test helpers come from a different plugin before 2026.11
 (`pytest-homeassistant-custom-component`, one version per Home Assistant
-version): `dev/ha_test.py` imports them from whichever is installed.
+version): `tests/integration/ha_test.py` imports them from whichever is installed.
 
 ## 4. Unit tests
 
 They complete the structural coverage: written after the spec tests, only
 for the lines and branches the spec tests do not reach. They follow the
-components of the architecture (`dev/unit/core/source/...`):
+components of the architecture (`tests/integration/unit/core/source/...`):
 
 - `core`: pure Python, with fake ports and a timer port on a manual clock;
   each state machine fed with events; the runtime: order of the steps and

@@ -1,0 +1,167 @@
+# Case unique.
+# YAML dashboard: after editing this file, refresh the page in the browser.
+title: Tests single source
+views:
+- title: ALL
+  path: pilotage
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: thermostat
+      entity: climate.adaptative_all
+      name: Adaptative ALL
+      features:
+      - type: climate-hvac-modes
+      - type: climate-fan-modes
+      - type: climate-swing-modes
+      - type: climate-swing-horizontal-modes
+    - type: glance
+      title: Adaptative ALL monitoring
+      show_state: true
+      state_color: true
+      entities:
+      - entity: binary_sensor.adaptative_all_monitoring_sources
+        name: Monitoring sources
+      - entity: binary_sensor.adaptative_all_monitoring_temperatures
+        name: Monitoring temperatures
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.adaptative_all' %}{% set problems = (state_attr('binary_sensor.adaptative_all_monitoring_sources', 'problems') or []) + (state_attr('binary_sensor.adaptative_all_monitoring_temperatures', 'problems') or []) %}
+        **Problems**: {{ 'none' if not problems else '' }}
+        {% for p in problems %}
+        - {{ p.type }}: {{ p.get('source') or p.get('sources') or p.get('sensor') or '' }}{{ (' ' ~ p.get('setting')) if p.get('setting') else '' }}
+        {% endfor %}
+
+        | | |
+        |:--|:--|
+        | Action | {{ state_attr(e, 'hvac_action') }} |
+        | Active source | {{ state_attr(e, 'active_entity_id') }} |
+        | Reference temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Step | {{ state_attr(e, 'target_temp_step') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min gap | {{ state_attr(e, 'min_gap') }} |
+        | Min / max | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} |
+        | Phase | {{ state_attr(e, 'phase') }} |
+        | Unavailable modes | {{ state_attr(e, 'unavailable_modes') }} |
+        | Foreign modes | {{ state_attr(e, 'foreign_modes') }} |
+        | Target gaps | {{ state_attr(e, 'target_gaps') }} |
+        | Saved targets | {{ state_attr(e, 'saved_targets') }} |
+        | Saved fan/swing | {{ state_attr(e, 'saved_settings') }} |
+  - type: grid
+    cards:
+    - type: entities
+      title: ALL Virtual
+      uix:
+        style: |
+          {% set m = states('climate.all_virtual_unique') %}
+          {% set color = {'heat': 'heat', 'cool': 'cool', 'heat_cool': 'heat-cool', 'auto': 'auto', 'dry': 'dry', 'fan_only': 'fan_only'}.get(m) %}
+          {% if color %}
+          ha-card {
+            border: 2px solid var(--state-climate-{{ color }}-color);
+            background: color-mix(in srgb, var(--state-climate-{{ color }}-color) 15%, var(--card-background-color));
+          }
+          {% endif %}
+      entities:
+      - entity: input_select.mode_all_unique
+        name: Mode
+      - entity: input_number.target_all_unique
+        name: Target
+      - entity: input_number.target_low_all_unique
+        name: Target low
+      - entity: input_number.target_high_all_unique
+        name: Target high
+      - entity: input_number.temperature_all_unique
+        name: Temperature
+      - entity: input_select.fan_all_unique
+        name: Fan
+      - entity: input_select.swing_all_unique
+        name: Swing
+      - entity: input_select.swing_horizontal_all_unique
+        name: Horizontal swing
+      - entity: input_number.delay_all_unique
+        name: Delay before obeying
+    - type: markdown
+      text_only: true
+      content: |-
+        {% set e = 'climate.all_virtual_unique' %}
+        | Shown by ALL Virtual | |
+        |:--|:--|
+        | Modes | {{ (state_attr(e, 'hvac_modes') or []) | join(', ') }} |
+        | Mode / action | {{ states(e) }} / {{ state_attr(e, 'hvac_action') }} |
+        | Temperature | {{ state_attr(e, 'current_temperature') }} |
+        | Target | {{ state_attr(e, 'temperature') }} |
+        | Low / high | {{ state_attr(e, 'target_temp_low') }} / {{ state_attr(e, 'target_temp_high') }} |
+        | Min / max / step | {{ state_attr(e, 'min_temp') }} / {{ state_attr(e, 'max_temp') }} / {{ state_attr(e, 'target_temp_step') or '—' }} |
+        | Fan | {{ state_attr(e, 'fan_mode') }} ({{ (state_attr(e, 'fan_modes') or []) | join(', ') }}) |
+        | Swing | {{ state_attr(e, 'swing_mode') }} ({{ (state_attr(e, 'swing_modes') or []) | join(', ') }}) |
+        | Horizontal swing | {{ state_attr(e, 'swing_horizontal_mode') }} ({{ (state_attr(e, 'swing_horizontal_modes') or []) | join(', ') }}) |
+    - type: glance
+      columns: 4
+      state_color: true
+      show_state: true
+      entities:
+      - entity: input_boolean.available_all_unique
+        name: Available
+        tap_action:
+          action: toggle
+      - entity: input_boolean.unknown_all_unique
+        name: Unknown
+        tap_action:
+          action: toggle
+      - entity: input_boolean.obeys_all_unique
+        name: Obeys the mode
+        tap_action:
+          action: toggle
+      - entity: input_boolean.applies_all_unique
+        name: Applies settings
+        tap_action:
+          action: toggle
+      - entity: input_boolean.offers_all_unique
+        name: Offers heat/cool/heat_cool/auto/dry/fan_only
+        tap_action:
+          action: toggle
+      - entity: input_boolean.fan_on_all_unique
+        name: Fan on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_on_all_unique
+        name: Swing on
+        tap_action:
+          action: toggle
+      - entity: input_boolean.swing_horizontal_on_all_unique
+        name: Horiz. swing on
+        tap_action:
+          action: toggle
+    - type: button
+      entity: script.reset_sources_unique
+      name: Reset the sources
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Single source
+
+        Adaptative ALL: every mode on ALL Virtual, which shows its low/high target in *heat_cool* and *auto*. Synchronized modes (`sync_modes`): *heat*, *cool*, *dry*, which share one fan/swing memory; *fan_only*, *auto* and *heat_cool* each have their own.
+
+        **Start**: **Reset the sources**: ALL Virtual *off*, *Target* 20, low/high 19–25, fan *auto*, swings *off*; then Adaptative ALL *off*. The reset does not touch the memory of the entities under test (targets, fan/swing): it belongs to them; `tests/integration/manual/reset_memory.sh` forgets it (HA stopped, see `tests/integration/manual/README.md`). Delays shortened for the tests (`configuration.yaml`): monitoring 15 s, confirmation of a mode 10 s, next try 30 s, removal confirmation 20 s.
+
+        1. **One device** (ENT-TYPE-2): from **Start**. Adaptative ALL to *heat*, then *cool*: *Mode* of ALL Virtual follows; nothing else is turned off.
+        2. **First start** (ENT-CAP-4, SRC-DATA-13, ENT-TGT-7): from **Start**, memory forgotten (`reset_memory.sh`), Home Assistant restarted: no mode ran yet. Adaptative ALL, *off*, already shows a target and the range 8–32: what ALL Virtual shows, off (provisional). Target 23 on Adaptative ALL: kept, nothing is sent (*Target* of ALL Virtual stays 20).
+        3. **Mode discovered** (ENT-CAP-5, ENT-CAP-6, §5.4): after 2 (no mode ran yet). On ALL Virtual, *Delay before obeying* 5. Adaptative ALL to *dry*: it shows *dry* and 23 at once; for 5 s, ALL Virtual stays *off* and its *Target* stays 20: only the mode is sent. Then ALL Virtual goes to *dry* (*dry* is discovered): its *Target* goes to 23, and Adaptative ALL shows the fan of ALL Virtual, *auto* (nothing remembered yet). *Delay before obeying* back to 0.
+        4. **Targets per mode** (§1.3.4.3, ENT-FEAT-4): from **Start**. Adaptative ALL to *heat*, target 20; to *cool*: it shows 20 too (*heat*, *cool*, *dry* share one target); target 26: back in *heat*, 26. In *heat_cool*, set 19–24: in *auto*, Adaptative ALL shows 19–24 and ALL Virtual gets 19 / 24; in *dry*: 26.
+        5. **Mode taken over on the device** (§5.2): from **Start**. Adaptative ALL to *cool*. On ALL Virtual, *Mode* *dry* and *Target* 22: Adaptative ALL goes to *dry* and shows 22.
+        6. **Shared memory** (ENT-FANV-2): from **Start**. *heat*, *cool* and *dry* are synchronized: one memory for the three; *fan_only* has its own. Adaptative ALL to *fan_only*, fan *low*. To *cool*, fan *high*; to *heat*: *high* (the shared memory); to *dry*: *high*. Back to *fan_only*: *Fan* of ALL Virtual goes back to *low*, its own memory.
+        7. **No fan in off** (ENT-FAN-3, ENT-FAN-4): a fan chosen in *off* must go to one memory, so in *off* the entity shows fan and swing only when all its modes share one memory (or with a single mode). Here *fan_only*, *auto* and *heat_cool* each have their own. From **Start** (Adaptative ALL *off*): its fan and swing show no option, and a fan asked from *Developer tools > Actions* is refused.
+        8. **Restart, device changed meanwhile** (SRC-STATE-10, §5.6): from **Start**. Adaptative ALL to *cool*, fan *low*, wait 12 s. On ALL Virtual, *Available* off, then *Fan* *auto* (not seen: the source is away). Restart Home Assistant (*Available* is back on at start): *Fan* of ALL Virtual goes back to *low*, the mode is not sent again.
+
+        </small>
