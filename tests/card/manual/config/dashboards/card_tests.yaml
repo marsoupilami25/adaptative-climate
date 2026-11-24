@@ -590,7 +590,7 @@ views:
 
         **Who is who**
         - **MULTI dropdown**: the card under test, on Adaptative MULTI (`climate.adaptative_multi`, the entity of *Tests multi-sources*), its lists in `dropdown` style. Its fan offers in *heat*: Auto, Low, Medium, High, Turbo; in *cool*: auto, low, medium, high; in *off*: nothing. No presets.
-        - **Fan COOL without medium**: on, *medium* leaves the fan of *cool*.
+        - **Fan COOL without medium**: on, *medium* leaves the fan of *cool*, after 20 s: Adaptative MULTI keeps an option the source no longer shows for 20 s (removal confirmation).
 
         **Start**: press **Reset the sources (multi)**. On *MULTI dropdown*, press *heat*, choose the fan *Auto*, then press *off*: Adaptative MULTI keeps the fan *Auto* for *heat*, *cool* and *dry* (it remembers the fan across resets).
 
@@ -616,7 +616,7 @@ views:
            - *Expect*: it closes each time, and still shows *High*.
         6. **Option removed** (CARD-LIST-3)
            - *From*: **Start** (Adaptative MULTI *off*; fan memory *Auto*).
-           - *Do*: press *cool*; *Fan COOL without medium* on; open the fan list.
+           - *Do*: press *cool*; *Fan COOL without medium* on; wait 20 s; open the fan list.
            - *Expect*: *Auto*, *Low*, *High*.
 
         </small>
@@ -664,7 +664,7 @@ views:
 
         **Who is who**
         - **MULTI icons**: the card under test, on Adaptative MULTI (`climate.adaptative_multi`, the entity of *Tests multi-sources*), its lists in `icons` style. Its fan offers in *heat*: Auto, Low, Medium, High, Turbo; in *dry*: AUTO, LOW, HIGH. *heat* has both swings, *dry* the swing only, *off* nothing.
-        - **Swing HEAT on**: off, *heat* has no swing any more.
+        - **Swing HEAT on**: off, *heat* has no swing any more, after 20 s: Adaptative MULTI keeps an option the source no longer shows for 20 s (removal confirmation).
 
         **Start**: press **Reset the sources (multi)**. On *MULTI icons*, press *heat*, press *Auto* on the fan bar, then press *off*: Adaptative MULTI keeps the fan *Auto* for *heat*, *cool* and *dry* (it remembers the fan across resets).
 
@@ -686,7 +686,7 @@ views:
            - *Expect*: the fan bar has 3 buttons with the icons of auto, low and high (the case does not count). The horizontal swing is greyed out.
         5. **Setting lost** (CARD-LIST-1)
            - *From*: **Start** (Adaptative MULTI *off*; fan memory *Auto*).
-           - *Do*: press *heat*; *Swing HEAT on* off.
+           - *Do*: press *heat*; *Swing HEAT on* off; wait 20 s.
            - *Expect*: the swing bar is greyed out. The card keeps its size.
 
         </small>
@@ -869,8 +869,8 @@ views:
     - type: entities
       state_color: true
       entities:
-      - entity: input_number.offset_radiator_monitor
-        name: Offset RADIATOR
+      - entity: input_number.offset_aircon_monitor
+        name: Offset AIRCON
       - entity: input_boolean.available_radiator_monitor
         name: RADIATOR available
     - type: button
@@ -892,7 +892,7 @@ views:
         - **always**, **compact**, **errors**, **hidden**: the card under test, on Adaptative MONITOR (`climate.adaptative_monitor`, the entity of *Tests monitoring*), with that value of `monitoring`. The indicators are at the top left.
         - **Adaptative MONITOR monitoring**: its two monitoring sensors, as Home Assistant shows them.
         - **Adaptative MONITOR**: the same entity, to change its mode.
-        - **Offset RADIATOR**: RADIATOR Virtual measures the room plus it; 3 makes a temperature problem. **RADIATOR available** off, in *heat*: a sources problem.
+        - **Offset AIRCON**: AIRCON Virtual measures the room plus it; 3 makes a temperature problem. **RADIATOR available** off, in *heat*: a sources problem. The two problems come from two sources: a source `unavailable` measures nothing, so it cannot make a temperature problem.
 
         **Start**: press **Reset the sources (monitor)**; on *Adaptative MONITOR*, press *off*; wait until both sensors are *OK*.
 
@@ -905,7 +905,7 @@ views:
              - *errors*, *hidden*: nothing.
         2. **A temperature problem** (CARD-MON-1, CARD-MON-2, CARD-MON-3, CARD-MON-4)
            - *From*: **Start** (Adaptative MONITOR *off*; both sensors *OK*).
-           - *Do*: *Offset RADIATOR* 3; wait until *Monitoring temperatures* is *Problem* (15 s).
+           - *Do*: *Offset AIRCON* 3; wait until *Monitoring temperatures* is *Problem* (15 s).
            - *Expect*:
              - *always*: the sync arrows green, the thermometer with an alert red;
              - *compact*: a red dot, tooltip "The temperatures do not agree";
@@ -956,23 +956,23 @@ views:
 
         **Who is who**: as on the view *Monitoring*.
 
-        **Start**: press **Reset the sources (monitor)**; *Offset RADIATOR* 3; on *Adaptative MONITOR*, press *heat*, wait 12 s; *RADIATOR available* off; wait until both sensors are *Problem*.
+        **Start**: press **Reset the sources (monitor)**; *Offset AIRCON* 3; on *Adaptative MONITOR*, press *heat*, wait 12 s; *RADIATOR available* off; wait until both sensors are *Problem*.
 
         1. **The sync alert** (CARD-MON-5)
            - *From*: **Start** (Adaptative MONITOR *heat*; both sensors *Problem*).
            - *Do*: on *always*, press the sync alert.
-           - *Expect*: the details of *Monitoring sources* open; its *problems* attribute names RADIATOR Virtual.
+           - *Expect*: the details window of Adaptative MONITOR opens, on its sensor *Monitoring sources*.
         2. **The thermometer** (CARD-MON-5)
-           - *From*: after 1 (the details of *Monitoring sources* open).
+           - *From*: after 1 (the details window on *Monitoring sources*).
            - *Do*: close the details; on *always*, press the thermometer alert.
-           - *Expect*: the details of *Monitoring temperatures* open.
+           - *Expect*: the details window of Adaptative MONITOR opens, on its sensor *Monitoring temperatures*.
         3. **The dot, both problems** (CARD-MON-5)
-           - *From*: after 2 (the details of *Monitoring temperatures* open).
+           - *From*: after 2 (the details window on *Monitoring temperatures*).
            - *Do*: close the details; on *compact*, press the dot.
-           - *Expect*: the details of *Monitoring sources* open (the sources first).
+           - *Expect*: the details window of Adaptative MONITOR opens, on *Monitoring sources* (the sources first).
         4. **The dot, a temperature problem** (CARD-MON-5)
-           - *From*: after 3 (the details of *Monitoring sources* open).
+           - *From*: after 3 (the details window on *Monitoring sources*).
            - *Do*: close the details; *RADIATOR available* on; wait until *Monitoring sources* is *OK*; press the dot.
-           - *Expect*: the details of *Monitoring temperatures* open.
+           - *Expect*: the details window of Adaptative MONITOR opens, on its sensor *Monitoring temperatures*.
 
         </small>
