@@ -1,5 +1,7 @@
 {
   "name": "Adaptative Climate",
   "render_readme": true,
-  "homeassistant": "2026.6.0"
+  "homeassistant": "2026.6.0",
+  "zip_release": true,
+  "filename": "adaptative_climate.zip"
 }

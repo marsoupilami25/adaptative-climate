@@ -1,0 +1,63 @@
+name: Release
+
+# On a tag vX.Y.Z (ARCHITECTURE.md §13): the tests, then one version
+# everywhere (ARCH-14), the card built, and the zip of the integration attached
+# to the GitHub release (ARCH-15). HACS installs that zip (hacs.json).
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  release:
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      # The tag, manifest.json and frontend/package.json give the same version (ARCH-14)
+      - name: One version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest="$(python3 -c 'import json; print(json.load(open("custom_components/adaptative_climate/manifest.json"))["version"])')"
+          package="$(python3 -c 'import json; print(json.load(open("frontend/package.json"))["version"])')"
+          echo "tag $tag, manifest.json $manifest, package.json $package"
+          if [ "$tag" != "$manifest" ] || [ "$tag" != "$package" ]; then
+            echo "::error::The tag, manifest.json and frontend/package.json must give the same version"
+            exit 1
+          fi
+
+      # The card: custom_components/adaptative_climate/frontend/adaptative-climate-card.js
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+
+      # The content of custom_components/adaptative_climate/, card included (ARCH-15)
+      - name: Zip
+        working-directory: custom_components/adaptative_climate
+        run: |
+          test -f frontend/adaptative-climate-card.js
+          zip -r "$GITHUB_WORKSPACE/adaptative_climate.zip" . -x "*__pycache__*"
+          unzip -l "$GITHUB_WORKSPACE/adaptative_climate.zip"
+
+      # A release made by hand beforehand (notes written) only gets the zip
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" adaptative_climate.zip --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" adaptative_climate.zip --title "$GITHUB_REF_NAME" --generate-notes
+          fi

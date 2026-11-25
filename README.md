@@ -16,6 +16,12 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"></a>
 </p>
 
+> [!WARNING]
+> **Work in progress: not usable yet.** Adaptative Climate is under
+> development. Its behavior and its configuration still change, with no
+> migration from one version to the next. Do not install it on a Home
+> Assistant you rely on.
+
 Adaptative Climate combines your `climate` entities (radiator, heat pump,
 air conditioner, dehumidifier…) into a single thermostat. Each mode runs on
 its own device: pick a mode, the right device starts and the others stop.

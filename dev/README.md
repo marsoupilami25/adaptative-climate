@@ -75,6 +75,47 @@ of nvm.
 build is not in git: the CI makes it for a release
 ([ARCHITECTURE.md ARCH-15](../documents/ARCHITECTURE.md#arch-15)).
 
+## Release
+
+A release is a tag `vX.Y.Z` ([ARCHITECTURE.md §13](../documents/ARCHITECTURE.md#13-card-and-release)).
+From a clean working tree, on `main`:
+
+```bash
+cd frontend
+npm run release -- minor     # or major, patch, X.Y.Z
+git push --follow-tags
+```
+
+`npm run release` sets the new version in `frontend/package.json`,
+`frontend/package-lock.json` and `manifest.json` (the same everywhere,
+ARCH-14), then makes the commit `vX.Y.Z` and the annotated tag `vX.Y.Z`.
+`git push --follow-tags` pushes both. The tag starts `release.yml`: the
+tests, the check of the version, the build of the card, and the zip
+`adaptative_climate.zip` (the content of `custom_components/adaptative_climate/`,
+card included) attached to the GitHub release, created when there is none.
+HACS installs that zip (`zip_release` in `hacs.json`).
+
+When the workflow fails, no release is made. Fix, commit, then move the tag:
+`git tag -d vX.Y.Z`, `git push origin :refs/tags/vX.Y.Z`,
+`git tag -a vX.Y.Z -m vX.Y.Z`, `git push --follow-tags`.
+
+### On `main`, or through a pull request
+
+The tag must be on a commit of `main`: it is what HACS installs. The release
+runs the tests again on that commit, whatever the way it came.
+
+- **Work on `main`** (today: one developer, `main` not protected): run
+  `npm run release` on `main`, then `git push --follow-tags`. The commit of
+  the version and its tag go to `main` together.
+- **Work through pull requests** (several developers, or `main` protected):
+  `npm run release` cannot be used as is. A protected `main` refuses the push
+  of the commit; and a tag made on a branch points to a commit that is not on
+  `main` once the pull request is merged by *squash* or *rebase*. Then:
+  1. on the branch, change the version only, without the tag (an option
+     `--no-tag` to add to `scripts/release.mjs`), and merge the pull request;
+  2. on `main` up to date, tag the merge: `git tag -a vX.Y.Z -m vX.Y.Z`,
+     then `git push --follow-tags`.
+
 ## Tests
 
 - The integration: [tests/integration/README.md](../tests/integration/README.md).

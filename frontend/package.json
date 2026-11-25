@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p ../tests/card",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
-    "test:component": "vitest run --project component"
+    "test:component": "vitest run --project component",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@egjs/hammerjs": "2.0.17",
