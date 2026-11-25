@@ -1,6 +1,6 @@
 {
   "name": "adaptative-climate-card",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Dashboard card of the Adaptative Climate integration (documents/CARD_SPEC.md).",
   "license": "MIT",
