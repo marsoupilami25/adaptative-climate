@@ -18,7 +18,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # The tag, manifest.json and frontend/package.json give the same version (ARCH-14)
       - name: One version
@@ -33,7 +33,7 @@ jobs:
           fi
 
       # The card: custom_components/adaptative_climate/frontend/adaptative-climate-card.js
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
