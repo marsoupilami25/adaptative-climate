@@ -21,8 +21,15 @@ describe("CARD-CONF-1, CARD-CONF-2: options and features", () => {
     };
     expect(checkConfig(config)).toEqual(config);
   });
+});
+
+describe("CARD-CONF-7: a key the card does not know", () => {
   it("keeps the keys the dashboard adds", () => {
     const config = { ...base, grid_options: { rows: 6 }, view_layout: { position: "main" }, visibility: [] };
+    expect(checkConfig(config)).toEqual(config);
+  });
+  it.each([true, false])("keeps the key disabled: %s that Expander Card adds", (disabled) => {
+    const config = { ...base, features: [{ type: "ac-hvac-modes" }], disabled };
     expect(checkConfig(config)).toEqual(config);
   });
 });

@@ -85,7 +85,10 @@ manual tests of the integration: its entities are the data of these tests.
    ```
 
    The second script links the package `card_tests.yaml` into
-   `config/packages/` and the dashboard into `config/dashboards/`.
+   `config/packages/` and the dashboard into `config/dashboards/`. It also
+   downloads [Expander Card](https://github.com/MelleD/lovelace-expander-card)
+   (version pinned in the script) into `config/www/`, for the views
+   *Expander*: the package loads it (`frontend: extra_module_url`).
 2. Build the card: `cd frontend && npm run build`, or `npm run watch` while
    the card changes.
 3. Check the config and restart Home Assistant:

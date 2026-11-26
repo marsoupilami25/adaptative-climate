@@ -506,6 +506,142 @@ views:
 
         </small>
 
+# --- Expander ---------------------------------------------------------------------
+# Expander Card (MelleD/lovelace-expander-card): downloaded by
+# tests/card/manual/link_config.sh, loaded by the package card_tests.yaml.
+- title: Expander
+  path: expander
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: custom:expander-card
+      title: Adaptative MULTI (expander)
+      cards:
+      - type: custom:adaptative-climate-card
+        entity: climate.adaptative_multi
+        name: Adaptative MULTI
+        features: *look_features
+  - type: grid
+    cards:
+    - type: custom:expander-card
+      title: Reference (expander)
+      cards:
+      - type: thermostat
+        entity: climate.adaptative_multi
+        name: Reference
+        features: *look_reference
+    - type: button
+      entity: script.reset_sources_multi
+      name: Reset the sources (multi)
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Expander
+
+        **Who is who**
+        - **Adaptative MULTI (expander)**: an [Expander Card](https://github.com/MelleD/lovelace-expander-card), closed at load. It holds the card under test, **Adaptative MULTI**, on Adaptative MULTI (`climate.adaptative_multi`, the entity of *Tests multi-sources*), with the device line and the mode bar.
+        - **Reference (expander)**: an Expander Card, closed at load. It holds **Reference**, the thermostat card of Home Assistant, same entity.
+        - Expander Card is installed by `tests/card/manual/link_config.sh` (tests/card/README.md).
+
+        **Start**: refresh the page (both expanders closed); press **Reset the sources (multi)**; open *Reference (expander)*, press *off* on *Reference*, close it.
+
+        1. **Opened** (CARD-LOOK-9, CARD-CONF-7)
+           - *From*: **Start** (Adaptative MULTI *off*; both expanders closed).
+           - *Do*: open *Adaptative MULTI (expander)*, then *Reference (expander)*.
+           - *Expect*: no configuration error. *Adaptative MULTI* in *off*, its dial as large as on *Reference*; under it, the device line (empty) and the mode bar, *off* selected.
+        2. **A change while closed** (CARD-LOOK-9)
+           - *From*: after 1 (Adaptative MULTI *off*; both expanders open).
+           - *Do*: close *Adaptative MULTI (expander)*; on *Reference*, press *heat*; open *Adaptative MULTI (expander)*.
+           - *Expect*: *Adaptative MULTI* in *heat* at once: the arc orange, the same target as on *Reference*, *heat* selected on the mode bar, the device line *HEAT Virtual (multi)*. The dial keeps its size.
+
+        </small>
+
+# --- Expander 2 -------------------------------------------------------------------
+- title: Expander 2
+  path: expander-2
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: custom:expander-card
+      title: Adaptative MULTI (opened at load)
+      expanded: true
+      cards:
+      - type: custom:adaptative-climate-card
+        entity: climate.adaptative_multi
+        name: Adaptative MULTI
+        features: *look_features
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        The YAML to paste in the editor of an *Expander Card* (scenario 2): the expander, with the card under test inside.
+
+        ```yaml
+        type: custom:expander-card
+        title: Expander (pasted)
+        cards:
+          - type: custom:adaptative-climate-card
+            entity: climate.adaptative_multi
+            name: Adaptative MULTI (pasted)
+            features:
+              - type: ac-hvac-modes
+        ```
+
+        </small>
+    - type: button
+      entity: script.reset_sources_multi
+      name: Reset the sources (multi)
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## Expander 2
+
+        **Who is who**
+        - **Adaptative MULTI (opened at load)**: an Expander Card, open at load (`expanded: true`). It holds the card under test, **Adaptative MULTI**, on Adaptative MULTI (`climate.adaptative_multi`).
+        - **Card editor**: the dashboard of the view *Editor*.
+
+        **Start**: press **Reset the sources (multi)**; on *Adaptative MULTI*, press *off*. On *Card editor*, delete the cards left by a previous run.
+
+        1. **Opened at load** (CARD-LOOK-9)
+           - *From*: **Start** (Adaptative MULTI *off*).
+           - *Do*: refresh the page.
+           - *Expect*: *Adaptative MULTI (opened at load)* open, with *Adaptative MULTI* in it at once: no configuration error, the dial as wide as the column, *off* selected on the mode bar.
+        2. **Pasted in the editor** (CARD-CONF-7)
+           - *From*: **Start** (Adaptative MULTI *off*; *Card editor* empty).
+           - *Do*: on *Card editor*, edit the dashboard, *Add card*, search "Expander", choose *Expander Card* (not *Adaptative Climate*: the card under test goes inside the expander, through the YAML). *Show code editor*; replace the whole YAML of the expander with the one to paste, which starts with `type: custom:expander-card`.
+           - *Expect*: the preview shows the expander *Expander (pasted)*, closed, with no configuration error.
+        3. **Opened in the preview** (CARD-LOOK-9, CARD-CONF-7)
+           - *From*: after 2 (the preview shows *Expander (pasted)* closed).
+           - *Do*: in the preview, open *Expander (pasted)*.
+           - *Expect*: *Adaptative MULTI (pasted)* in it, in *off*: the dial at its size, the mode bar, no configuration error.
+        4. **Saved** (CARD-LOOK-9, CARD-CONF-7)
+           - *From*: after 3 (the preview shows *Expander (pasted)* open).
+           - *Do*: *Save*; on *Card editor*, open *Expander (pasted)*.
+           - *Expect*: *Adaptative MULTI (pasted)* in *off*, the dial at its size, no configuration error.
+
+        </small>
+
 # --- Phase ------------------------------------------------------------------------
 - title: Phase
   path: phase

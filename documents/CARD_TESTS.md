@@ -86,6 +86,7 @@ rules it shows. Its views:
 | Look | the card next to the thermostat card, in every mode |
 | Theme and language | light and dark; English, French and another language |
 | UIX, UIX 2 | a UIX style, next to the thermostat card with the same; inside a stack; kept by the editor |
+| Expander, Expander 2 | inside Expander Card: closed at load, then opened; a change while closed; opened at load; pasted in the editor |
 | Phase | the phases of a bi-source `heat_cool` |
 | Modes | the tooltips, the modes not available, the entity `unavailable` |
 | Device line | the device unavailable, a foreign mode |

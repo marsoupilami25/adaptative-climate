@@ -83,6 +83,8 @@ The thermostat card of Home Assistant, with what Adaptative Climate knows:
 - **A visual editor** for every option, and a YAML that gives the same.
 - **Styled with UIX**, as the cards of Home Assistant
   ([below](#style-it-with-uix)).
+- **Inside [Expander Card](https://github.com/MelleD/lovelace-expander-card)**,
+  as the cards of Home Assistant.
 - **English and French**; modes and values in the language of Home
   Assistant.
 

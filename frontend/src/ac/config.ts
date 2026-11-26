@@ -61,8 +61,9 @@ export const FEATURE_ORDER: FeatureConfig[] = [
   ...LIST_TYPES.map((type) => ({ type })),
 ];
 
-// Loose objects (`type`): the dashboard adds its own keys (grid_options,
-// view_layout, visibility...), which are not ours to refuse.
+// Loose objects (`type`): the dashboard and the cards around the card add
+// their own keys (grid_options, view_layout, visibility, uix, disabled for
+// Expander Card...), which are not ours to refuse (CARD-CONF-7).
 const featureStruct = union([
   looseObject({ type: literal("ac-device") }),
   looseObject({ type: literal("ac-hvac-modes"), hvac_modes: optional(array(string())) }),

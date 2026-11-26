@@ -11,3 +11,10 @@ lovelace:
       title: Tests card
       icon: mdi:thermostat-box
       show_in_sidebar: true
+
+# Expander Card, for the views Expander and Expander 2: downloaded into www/ by
+# tests/card/manual/link_config.sh (same version there). Loaded as a module,
+# without a resource of the dashboards.
+frontend:
+  extra_module_url:
+    - /local/expander-card.js?v=7.3.7

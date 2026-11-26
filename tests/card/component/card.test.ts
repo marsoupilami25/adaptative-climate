@@ -1,4 +1,5 @@
-// The card as a whole (CARD_SPEC.md §1, §2, §3, §7), and UIX (CARD-LOOK-8).
+// The card as a whole (CARD_SPEC.md §1, §2, §3, §7), UIX (CARD-LOOK-8) and
+// Expander Card (CARD-LOOK-9).
 
 import { acEntity, AC, fakeHass, FAN, RANGE, SWING, TARGET } from "../fakes";
 import { all, mountCard, one, settle, text } from "./harness";
@@ -117,6 +118,30 @@ describe("CARD-LOOK-8: what UIX needs from the card (CARD_ARCHITECTURE.md CARD-A
       new CustomEvent("features-changed", { detail: { features: [{ type: "ac-device" }] } }),
     );
     expect(changes).toEqual([{ ...config, features: [{ type: "ac-device" }] }]);
+  });
+});
+
+describe("CARD-LOOK-9: inside Expander Card (CARD_ARCHITECTURE.md CARD-ARCH-16)", () => {
+  const dial = (card: HTMLElement) => one(card, "ac-ha-state-control-climate-temperature");
+  it("shows the card with the key disabled that Expander Card adds", async () => {
+    const { card } = await mountCard(fakeHass(), { disabled: true, features: [{ type: "ac-hvac-modes" }] });
+    expect(all(card, ".warning")).toHaveLength(0);
+    expect(all(card, "ac-ha-state-control-climate-temperature")).toHaveLength(1);
+    expect(dial(card).style.maxWidth).not.toBe("");
+  });
+  it("out of the page while closed, back when it opens: the current state, at its size", async () => {
+    const { root, card } = await mountCard(fakeHass(acEntity("heat")), { disabled: false, features: [{ type: "ac-hvac-modes" }] });
+    const size = dial(card).style.maxWidth;
+    expect(size).not.toBe("");
+    // Closed: hui-card takes the card out of the page, and keeps giving it hass
+    card.remove();
+    card.hass = fakeHass(acEntity("cool"));
+    await settle(card);
+    // Opened: back in the page
+    root.appendChild(card);
+    await settle(card);
+    expect(one(card, "ac-ha-control-select .option.selected").id).toBe("option-cool");
+    expect(dial(card).style.maxWidth).toBe(size);
   });
 });
 
