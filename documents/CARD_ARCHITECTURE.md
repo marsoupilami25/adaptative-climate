@@ -180,7 +180,7 @@ All in `src/ac/`.
 
 | Component | Element | Role | Rules |
 |---|---|---|---|
-| Card | `adaptative-climate-card` | The shell: `ha-card`, header, dial, features. Checks the configuration. Grid size, start configuration. | [§1](CARD_SPEC.md#1-general), [§2](CARD_SPEC.md#2-layout-and-look), [§7](CARD_SPEC.md#7-missing-data), [CARD-CONF-1 to 3, 6](CARD_SPEC.md#8-configuration) |
+| Card | `adaptative-climate-card` | The shell: `ha-card`, header, dial, features. Checks the configuration. Grid size, start configuration. | [§1](CARD_SPEC.md#1-general), [§2](CARD_SPEC.md#2-layout-and-look), [§7](CARD_SPEC.md#7-missing-data), [CARD-CONF-1 to 3, 6, 7](CARD_SPEC.md#8-configuration) |
 | Phase | (in the card) | Turns `phase` into the `emphasis` of the dial. | [§3](CARD_SPEC.md#3-phase) |
 | Monitoring | `ac-monitoring` | Finds the two monitoring sensors, shows their indicators. | [§6](CARD_SPEC.md#6-monitoring) |
 | Features | `ac-features` | Shows the features in order, groups and packs the lists ([§6](#6-layout-of-the-features)). | [CARD-LOOK-1, 2, 4 to 7](CARD_SPEC.md#2-layout-and-look) |
@@ -202,7 +202,9 @@ Decisions on the components:
   > translation keys cannot.
 
 - **CARD-ARCH-8**<a id="card-arch-8"></a> The configuration is checked with
-  `superstruct`, as the frontend does for its cards.
+  `superstruct`, as the frontend does for its cards. Its objects are loose
+  (`type`, not `object`): an unknown key passes
+  ([CARD-CONF-7](CARD_SPEC.md#card-conf-7)).
 - **CARD-ARCH-9**<a id="card-arch-9"></a> The editor makes sure `ha-form` is
   loaded before it shows. If it is not, it asks the frontend for the editor
   of a built-in card that uses it.
@@ -225,6 +227,18 @@ Decisions on the components:
   > **Why:** in a dashboard, UIX reads the configuration of `hui-card`, which
   > wraps every card. Inside another card, it looks for `config` or `_config`
   > on the card that holds `ha-card` (UIX documentation, *Developers > Cards*).
+
+- **CARD-ARCH-16**<a id="card-arch-16"></a> The card has no Expander Card
+  code ([CARD-LOOK-9](CARD_SPEC.md#card-look-9)). Expander Card wraps each
+  card in `hui-card`, and sets `disabled` in its configuration while it is
+  closed. `hui-card` then takes the card out of the page, and puts it back
+  when the expander opens. The card accepts the key
+  ([CARD-ARCH-8](#card-arch-8)). Back in the page, its resize controllers
+  measure it again: the dial and the lists get their size.
+
+  > **Why:** `hui-card` keeps giving `hass` to a card out of the page. Lit's
+  > `ResizeController` stops observing when the card leaves the page, and
+  > observes again when it comes back.
 
 ## 6. Layout of the features
 
@@ -304,7 +318,7 @@ It fails on anything missing.
 | Spec | Components |
 |---|---|
 | [§1 General](CARD_SPEC.md#1-general) | Card |
-| [§2 Layout and look](CARD_SPEC.md#2-layout-and-look) | Card, Features, the copy, Editor (UIX: CARD-ARCH-15) |
+| [§2 Layout and look](CARD_SPEC.md#2-layout-and-look) | Card, Features, the copy, Editor (UIX: CARD-ARCH-15; Expander Card: CARD-ARCH-16) |
 | [§3 Phase](CARD_SPEC.md#3-phase) | Card (phase), patches `emphasis-*` |
 | [§4 Device line](CARD_SPEC.md#4-device-line) | Device line |
 | [§5.1 Mode bar](CARD_SPEC.md#51-mode-bar) | Mode bar, `ac-ha-control-select` |

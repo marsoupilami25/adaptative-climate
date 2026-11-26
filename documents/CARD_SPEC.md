@@ -123,6 +123,13 @@ selected, capitals the selected one. `*` is the icon of the current mode,
   > **Why:** UIX, the successor of card-mod, is the usual way to style a
   > dashboard.
 
+- **CARD-LOOK-9**<a id="card-look-9"></a> The card works inside
+  [Expander Card](https://github.com/MelleD/lovelace-expander-card), as the
+  cards of Home Assistant. When the expander opens, the card shows the
+  current state, at its size.
+
+  > **Why:** Expander Card is the usual way to fold part of a dashboard.
+
 - **CARD-DIAL-1**<a id="card-dial-1"></a> The header and the dial look and
   work as on the thermostat card: title, dial, and ⋮ button that opens the
   details of the entity. This spec only says what differs.
@@ -423,6 +430,13 @@ The AC entity `unavailable`, with a sources problem:
   same configuration.
 - **CARD-CONF-6**<a id="card-conf-6"></a> An option with a wrong value gives
   an error message in the card.
+- **CARD-CONF-7**<a id="card-conf-7"></a> A key the card does not know is
+  not an error. The card keeps it.
+
+  > **Why:** the dashboard and the cards around the card add their own keys:
+  > `grid_options`, `visibility`, `uix`, or `disabled` for
+  > [Expander Card](#card-look-9). A card that refuses them shows an error
+  > ([flex-slider-card#61](https://github.com/marsoupilami25/flex-slider-card/issues/61)).
 
 ## 9. Languages
 
