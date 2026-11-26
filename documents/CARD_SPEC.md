@@ -115,6 +115,13 @@ selected, capitals the selected one. `*` is the icon of the current mode,
 
 - **CARD-LOOK-7**<a id="card-look-7"></a> When the card is too narrow for two
   lists side by side, each list takes a full row, whatever the height.
+- **CARD-LOOK-8**<a id="card-look-8"></a> The card can be styled with
+  [UIX](https://github.com/Lint-Free-Technology/uix), as the cards of Home
+  Assistant: the `uix` key of its configuration applies to it, in a
+  dashboard and inside another card. The editor keeps that key.
+
+  > **Why:** UIX, the successor of card-mod, is the usual way to style a
+  > dashboard.
 
 - **CARD-DIAL-1**<a id="card-dial-1"></a> The header and the dial look and
   work as on the thermostat card: title, dial, and ⋮ button that opens the

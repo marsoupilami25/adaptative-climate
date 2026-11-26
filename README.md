@@ -81,6 +81,8 @@ The thermostat card of Home Assistant, with what Adaptative Climate knows:
 - **Any size**: in a small card, the lists share rows so the dial keeps
   its size; with room, each list takes a full row.
 - **A visual editor** for every option, and a YAML that gives the same.
+- **Styled with UIX**, as the cards of Home Assistant
+  ([below](#style-it-with-uix)).
 - **English and French**; modes and values in the language of Home
   Assistant.
 
@@ -299,6 +301,70 @@ The options of the rows:
 | `ac-preset-modes`, `ac-fan-modes`, `ac-swing-modes`, `ac-swing-horizontal-modes` | `style` | `dropdown` | `dropdown`: a list that opens. `icons`: a bar with one button per value. |
 
 All the details: [card specification](documents/CARD_SPEC.md).
+
+### Style it with UIX
+
+With [UIX](https://github.com/Lint-Free-Technology/uix) installed (the
+successor of card-mod), the card takes a `uix:` key, as the cards of Home
+Assistant. The visual editor keeps it.
+
+A simple style: the title in bold, and heating in crimson instead of orange,
+on the dial and the mode bar.
+
+```yaml
+type: custom:adaptative-climate-card
+entity: climate.living_room
+uix:
+  style: |
+    .title { font-weight: bold; }
+    ha-card { --state-climate-heat-color: crimson; }
+```
+
+A more complex one. A template gives the card the color of its mode. A `$`
+path reaches inside the device line, to put the name of the device in
+italics.
+
+```yaml
+type: custom:adaptative-climate-card
+entity: climate.living_room
+features:
+  - type: ac-device
+  - type: ac-hvac-modes
+uix:
+  style:
+    .: |
+      {% set mode = states(config.entity) | replace('heat_cool', 'heat-cool') %}
+      {% if mode in ['heat', 'cool', 'heat-cool', 'auto', 'dry', 'fan_only'] %}
+      ha-card {
+        border: 2px solid var(--state-climate-{{ mode }}-color);
+        background: color-mix(in srgb, var(--state-climate-{{ mode }}-color) 15%, var(--card-background-color));
+      }
+      {% endif %}
+    "ac-features $ ac-device-feature $": |
+      .name { font-style: italic; }
+```
+
+The header has the classes of the thermostat card: `ha-card`, `.title`,
+`.more-info`. Its variables apply too: the colors of the modes
+(`--state-climate-heat-color`...), `--ha-card-features-border-radius`. The
+elements inside have other names than on the thermostat card. Their paths,
+for the `$` of UIX ([DOM navigation](https://uix.lf.technology/concepts/dom/)):
+
+| Part | Thermostat card | Adaptative Climate card |
+|---|---|---|
+| Monitoring indicators | | `ac-monitoring $` |
+| Dial | `ha-state-control-climate-temperature $` | `ac-ha-state-control-climate-temperature $` |
+| Arc and handles | dial, then `ha-control-circular-slider $` | dial, then `ac-ha-control-circular-slider $` |
+| Numbers in the center | dial, then `ha-big-number $` | dial, then `ac-ha-big-number $` |
+| Features | `hui-card-features $ hui-card-feature $`, then the feature | `ac-features $`, then the feature |
+| Device line | | `ac-device-feature $` |
+| Mode bar | `hui-climate-hvac-modes-card-feature $ ha-control-select $` | `ac-hvac-modes-feature $ ac-ha-control-select $` |
+| List, `dropdown` style | `hui-climate-fan-modes-card-feature $ ha-control-select-menu $` (and preset, swing...) | `ac-list-feature $ ac-dropdown $` |
+| List, `icons` style | `hui-climate-fan-modes-card-feature $ ha-control-select $` (and preset, swing...) | `ac-list-feature $ ac-ha-control-select $` |
+
+A step of a path stops at the first match: `ac-features $ ac-list-feature $`
+is the first list. The inside of the dial and of the mode bar comes from Home
+Assistant, as on the thermostat card: it may change with a new version.
 
 ## Documentation
 

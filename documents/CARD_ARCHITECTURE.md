@@ -211,6 +211,21 @@ Decisions on the components:
   > ([CARD-ARCH-4](#card-arch-4) does not hold for it). This is the usual way
   > for custom cards.
 
+- **CARD-ARCH-15**<a id="card-arch-15"></a> The card has no UIX code
+  ([CARD-LOOK-8](CARD_SPEC.md#card-look-8)). It meets what UIX needs from a
+  custom card:
+  - `ha-card` at the root of its shadow root;
+  - its whole configuration, with the keys it does not know, in `_config`;
+  - an editor that keeps those keys ([CARD-CONF-5](CARD_SPEC.md#card-conf-5)).
+
+  The elements inside the card do not have the names of the thermostat card:
+  the copy is prefixed `ac-` (§4), and the features are our own. The README
+  gives their path for UIX.
+
+  > **Why:** in a dashboard, UIX reads the configuration of `hui-card`, which
+  > wraps every card. Inside another card, it looks for `config` or `_config`
+  > on the card that holds `ha-card` (UIX documentation, *Developers > Cards*).
+
 ## 6. Layout of the features
 
 The card measures itself, as the thermostat card does for its dial.
@@ -289,7 +304,7 @@ It fails on anything missing.
 | Spec | Components |
 |---|---|
 | [§1 General](CARD_SPEC.md#1-general) | Card |
-| [§2 Layout and look](CARD_SPEC.md#2-layout-and-look) | Card, Features, the copy |
+| [§2 Layout and look](CARD_SPEC.md#2-layout-and-look) | Card, Features, the copy, Editor (UIX: CARD-ARCH-15) |
 | [§3 Phase](CARD_SPEC.md#3-phase) | Card (phase), patches `emphasis-*` |
 | [§4 Device line](CARD_SPEC.md#4-device-line) | Device line |
 | [§5.1 Mode bar](CARD_SPEC.md#51-mode-bar) | Mode bar, `ac-ha-control-select` |
