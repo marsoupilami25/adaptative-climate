@@ -85,6 +85,7 @@ rules it shows. Its views:
 | Editor and YAML | the YAML and the editor give the same configuration; a wrong value in the preview |
 | Look | the card next to the thermostat card, in every mode |
 | Theme and language | light and dark; English, French and another language |
+| UIX, UIX 2 | a UIX style, next to the thermostat card with the same; inside a stack; kept by the editor |
 | Phase | the phases of a bi-source `heat_cool` |
 | Modes | the tooltips, the modes not available, the entity `unavailable` |
 | Device line | the device unavailable, a foreign mode |

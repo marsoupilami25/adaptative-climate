@@ -345,6 +345,167 @@ views:
 
         </small>
 
+# --- UIX --------------------------------------------------------------------------
+- title: UIX
+  path: uix
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: custom:adaptative-climate-card
+      entity: climate.adaptative_multi
+      name: Adaptative MULTI
+      features: *look_features
+      uix:
+        style:
+          .: &uix_card |
+            {% set mode = states(config.entity) | replace('heat_cool', 'heat-cool') %}
+            ha-card {
+              --state-climate-heat-color: purple;
+            {% if mode in ['heat', 'cool', 'heat-cool', 'auto', 'dry', 'fan_only'] %}
+              border: 2px solid var(--state-climate-{{ mode }}-color);
+              background: color-mix(in srgb, var(--state-climate-{{ mode }}-color) 15%, var(--card-background-color));
+            {% endif %}
+            }
+            .title { font-weight: bold; }
+          "ac-features $ ac-hvac-modes-feature $ ac-ha-control-select $": &uix_selected |
+            /* Not an outline: the color of the selected button is a layer above it (::before) */
+            .option.selected::after {
+              content: "";
+              position: absolute;
+              inset: 4px;
+              border: 2px dashed var(--primary-text-color);
+              border-radius: 8px;
+            }
+  - type: grid
+    cards:
+    - type: thermostat
+      entity: climate.adaptative_multi
+      name: Reference
+      features: *look_reference
+      uix:
+        style:
+          .: *uix_card
+          "hui-card-features $ hui-card-feature $ hui-climate-hvac-modes-card-feature $ ha-control-select $": *uix_selected
+    - type: button
+      entity: script.reset_sources_multi
+      name: Reset the sources (multi)
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## UIX
+
+        **Who is who**
+        - **Adaptative MULTI**: the card under test, on Adaptative MULTI (`climate.adaptative_multi`, the entity of *Tests multi-sources*), styled with UIX: the border and background of its mode, *heat* in purple, the title in bold, the button of the current mode framed by dashes.
+        - **Reference**: the thermostat card of Home Assistant, same entity, same style: the paths of the thermostat card in the README of the integration (*Style it with UIX*).
+
+        **Start**: press **Reset the sources (multi)**; on *Adaptative MULTI*, press *off*.
+
+        1. **Colored by its mode** (CARD-LOOK-8)
+           - *From*: **Start** (Adaptative MULTI *off*).
+           - *Do*: on *Adaptative MULTI*, press *cool*, then *dry*, then *off*.
+           - *Expect*, on both cards: in *cool*, a blue border and a light blue background; in *dry*, orange; in *off*, no border, the usual background.
+        2. **A color of Home Assistant changed** (CARD-LOOK-8)
+           - *From*: **Start** (Adaptative MULTI *off*).
+           - *Do*: on *Adaptative MULTI*, press *heat*.
+           - *Expect*, on both cards: the border, the arc and the *heat* button purple, not orange; the background light purple.
+        3. **Inside the card** (CARD-LOOK-8)
+           - *From*: after 2 (Adaptative MULTI *heat*).
+           - *Do*: nothing.
+           - *Expect*, on both cards: the title in bold. On the mode bar, the *heat* button framed by a line of dashes (– – –), in the color of the text, just inside its edge; the other buttons without frame.
+
+        </small>
+
+# --- UIX 2 ------------------------------------------------------------------------
+- title: UIX 2
+  path: uix-2
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: vertical-stack
+      cards:
+      - type: markdown
+        content: A vertical stack holds this text and the card under it.
+      - type: custom:adaptative-climate-card
+        entity: climate.adaptative_multi
+        name: Adaptative MULTI (stack)
+        features:
+        - type: ac-hvac-modes
+        uix:
+          style: |
+            .title { font-weight: bold; }
+            ha-card { --state-climate-heat-color: crimson; }
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        The YAML to paste in the editor (the simple example of the README):
+
+        ```yaml
+        type: custom:adaptative-climate-card
+        entity: climate.adaptative_multi
+        features:
+          - type: ac-hvac-modes
+        uix:
+          style: |
+            .title { font-weight: bold; }
+            ha-card { --state-climate-heat-color: crimson; }
+        ```
+
+        </small>
+    - type: button
+      entity: script.reset_sources_multi
+      name: Reset the sources (multi)
+      icon: mdi:restore
+      tap_action:
+        action: toggle
+  - type: grid
+    cards:
+    - type: markdown
+      text_only: true
+      content: |-
+        <small>
+
+        ## UIX 2
+
+        **Who is who**
+        - **Adaptative MULTI (stack)**: the card under test, on Adaptative MULTI (`climate.adaptative_multi`), inside a vertical stack, styled with UIX: the title in bold, *heat* in crimson.
+        - **Card editor**: the dashboard of the view *Editor*.
+
+        **Start**: press **Reset the sources (multi)**; on *Adaptative MULTI (stack)*, press *heat*. On *Card editor*, edit the dashboard, *Add card*, choose *Adaptative Climate*: its editor opens.
+
+        1. **Inside another card** (CARD-LOOK-8)
+           - *From*: **Start** (Adaptative MULTI *heat*).
+           - *Do*: nothing.
+           - *Expect*: on *Adaptative MULTI (stack)*, the title in bold; the arc and the *heat* button crimson, not orange.
+        2. **A style in the YAML** (CARD-LOOK-8)
+           - *From*: **Start** (Adaptative MULTI *heat*; the editor of a new card open).
+           - *Do*: *Show code editor*; replace the YAML with the one to paste.
+           - *Expect*: the preview: the title in bold, the arc and the *heat* button crimson. A brush icon (UIX) in the button *Show visual editor*.
+        3. **The editor keeps it** (CARD-LOOK-8, CARD-CONF-5)
+           - *From*: after 2 (the code editor shows the YAML pasted).
+           - *Do*: *Show visual editor*; *Name*: "UIX"; *Show code editor*.
+           - *Expect*: the YAML pasted, with `name: UIX` added and the `uix` key unchanged. The preview: the title *UIX* in bold.
+        4. **Saved** (CARD-LOOK-8, CARD-CONF-5)
+           - *From*: after 3 (the code editor shows the YAML with `name: UIX`).
+           - *Do*: *Save*.
+           - *Expect*: on *Card editor*, the card *UIX* with its title in bold, the arc and the *heat* button crimson.
+
+        </small>
+
 # --- Phase ------------------------------------------------------------------------
 - title: Phase
   path: phase

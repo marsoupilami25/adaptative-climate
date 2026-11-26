@@ -1,7 +1,7 @@
-// The card as a whole (CARD_SPEC.md §1, §2, §3, §7).
+// The card as a whole (CARD_SPEC.md §1, §2, §3, §7), and UIX (CARD-LOOK-8).
 
 import { acEntity, AC, fakeHass, FAN, RANGE, SWING, TARGET } from "../fakes";
-import { all, mountCard, one, text } from "./harness";
+import { all, mountCard, one, settle, text } from "./harness";
 
 describe("CARD-GEN-1, CARD-GEN-2: the entity", () => {
   it("CARD-GEN-1: another entity gives a message", async () => {
@@ -82,6 +82,41 @@ describe("CARD-LOOK-1, CARD-LOOK-5 to 7: the features under the dial", () => {
   it("CARD-LOOK-7: each list on its own row when the card is too narrow", async () => {
     const { card } = await mountCard(fakeHass(acEntity("heat", lists)), { features: two }, { width: 250 });
     expect(all(card, ".cell.half")).toHaveLength(0);
+  });
+});
+
+describe("CARD-LOOK-8: what UIX needs from the card (CARD_ARCHITECTURE.md CARD-ARCH-15)", () => {
+  const uix = { style: ".title { font-weight: bold; }" };
+  /** As UIX finds it inside another card: from ha-card up to the card that holds it, then its config or _config. */
+  const foundByUix = (card: HTMLElement) => {
+    const haCard = [...card.shadowRoot!.children].find((element) => element.localName === "ha-card");
+    const holder = (haCard?.parentNode as ShadowRoot | undefined)?.host as { config?: unknown; _config?: unknown } | undefined;
+    return holder?.config ?? holder?._config;
+  };
+  it("ha-card at the root of its shadow root, and its whole configuration, uix key included", async () => {
+    const { card } = await mountCard(fakeHass(), { uix });
+    expect(foundByUix(card)).toMatchObject({ entity: AC, uix });
+  });
+  it("the new configuration after a change", async () => {
+    const { card } = await mountCard(fakeHass(), { uix });
+    const changed = { style: ".title { font-style: italic; }" };
+    (card as unknown as { setConfig(config: unknown): void }).setConfig({ type: "custom:adaptative-climate-card", entity: AC, uix: changed });
+    await settle(card);
+    expect(foundByUix(card)).toMatchObject({ uix: changed });
+  });
+  it("its editor keeps the uix key when the features change", async () => {
+    const editor = document.createElement("adaptative-climate-card-editor");
+    const config = { type: "custom:adaptative-climate-card", entity: AC, uix };
+    editor.setConfig(config);
+    editor.hass = fakeHass();
+    const changes: unknown[] = [];
+    editor.addEventListener("config-changed", (event) => changes.push((event as CustomEvent).detail.config));
+    document.body.replaceChildren(editor);
+    await settle(editor);
+    one(editor, "ac-features-editor").dispatchEvent(
+      new CustomEvent("features-changed", { detail: { features: [{ type: "ac-device" }] } }),
+    );
+    expect(changes).toEqual([{ ...config, features: [{ type: "ac-device" }] }]);
   });
 });
 

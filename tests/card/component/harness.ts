@@ -85,7 +85,7 @@ export interface Mounted {
 /** The card in a page, `width` px wide (and `height` px high when given). */
 export async function mountCard(
   hass: HomeAssistant,
-  config: Partial<AdaptativeClimateCardConfig>,
+  config: Partial<AdaptativeClimateCardConfig> & Record<string, unknown>, // with the keys of the dashboard (uix...)
   size: { width?: number; height?: number; layout?: string } = {},
 ): Promise<Mounted> {
   document.body.innerHTML = "";

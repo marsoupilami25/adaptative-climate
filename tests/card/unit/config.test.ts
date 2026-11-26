@@ -27,6 +27,17 @@ describe("CARD-CONF-1, CARD-CONF-2: options and features", () => {
   });
 });
 
+describe("CARD-LOOK-8: styled with UIX", () => {
+  it("keeps the uix key, and the card_mod key UIX still reads", () => {
+    const config = {
+      ...base,
+      uix: { style: { ".": "ha-card { color: red; }", "ac-features $ ac-device-feature $": ".name { font-style: italic; }" } },
+      card_mod: { style: ".title { font-weight: bold; }" },
+    };
+    expect(checkConfig(config)).toEqual(config);
+  });
+});
+
 describe("CARD-CONF-6: a wrong value", () => {
   it.each([
     ["no entity", { type: base.type }],
